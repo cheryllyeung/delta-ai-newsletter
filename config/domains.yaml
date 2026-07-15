@@ -1,0 +1,87 @@
+# 內容分類與資料來源設定
+#
+# 對應台達四大事業群，每個子領域定義：
+#   - arxiv_categories: 用於 arXiv API 查詢的分類代碼
+#   - arxiv_keywords:   額外用來過濾/加權相關論文的關鍵字（英文，match title/abstract）
+#   - subreddits:       科技社群熱門討論/實作經驗/踩雷分享的來源
+#   - description:      給 LLM 分類與寫作時參考的領域說明（會放進 prompt）
+#
+# 新增/調整領域時，只需要改這份設定，不需要動程式碼。
+
+groups:
+  - id: power_components
+    name: 零組件
+    subdomains:
+      - id: power_systems
+        name: 電源及系統
+        description: 電源轉換、電源管理IC、伺服器與資料中心電源、電池管理系統中的AI應用
+        arxiv_categories: [eess.SY, eess.SP]
+        arxiv_keywords: ["power electronics", "power converter", "battery management", "power supply AI"]
+        subreddits: [PowerElectronics, ElectricalEngineering]
+
+      - id: thermal_management
+        name: 風扇與散熱管理
+        description: 散熱設計、風扇控制、資料中心液冷、熱模擬中的AI/ML應用（如AI輔助熱模擬、預測性維護）
+        arxiv_categories: [eess.SY, physics.flu-dyn]
+        arxiv_keywords: ["thermal management AI", "cooling optimization", "predictive maintenance fan", "CFD machine learning"]
+        subreddits: [thermodynamics, engineering, ElectricalEngineering]
+
+  - id: mobility
+    name: 交通
+    subdomains:
+      - id: ev_powertrain
+        name: 電動車動力系統
+        description: 電動車馬達控制、動力系統最佳化、電池管理、自駕/ADAS相關AI技術
+        arxiv_categories: [eess.SY, cs.RO]
+        arxiv_keywords: ["EV powertrain", "motor control AI", "electric vehicle battery", "autonomous driving control"]
+        subreddits: [electricvehicles, SelfDrivingCars]
+
+  - id: automation
+    name: 自動化
+    subdomains:
+      - id: industrial_automation
+        name: 工業自動化
+        description: 工業機器人、產線AI視覺檢測、預測性維護、數位分身（Digital Twin）
+        arxiv_categories: [cs.RO, cs.AI, eess.SY]
+        arxiv_keywords: ["industrial automation AI", "robotic process", "predictive maintenance", "digital twin manufacturing"]
+        subreddits: [PLC, automation, MachineLearning]
+
+      - id: building_automation
+        name: 樓宇自動化
+        description: 智慧建築、樓宇能源管理系統（BEMS）、空調與環境控制AI最佳化
+        arxiv_categories: [eess.SY, cs.AI]
+        arxiv_keywords: ["smart building AI", "building energy management", "HVAC optimization AI"]
+        subreddits: [homeautomation, BuildingAutomation]
+
+  - id: infrastructure
+    name: 基礎設施
+    subdomains:
+      - id: ict_infrastructure
+        name: 資通訊基礎設施
+        description: 資料中心網路、AI算力基礎設施、邊緣運算、資料中心能源效率
+        arxiv_categories: [cs.NI, cs.DC]
+        arxiv_keywords: ["data center AI infrastructure", "edge computing", "AI compute cluster networking"]
+        subreddits: [networking, datacenter, LocalLLaMA]
+
+      - id: energy_solutions
+        name: 電力暨能源解決方案
+        description: 再生能源、儲能系統、微電網、電網AI調度與預測
+        arxiv_categories: [eess.SY, physics.soc-ph]
+        arxiv_keywords: ["renewable energy AI", "smart grid", "energy storage optimization", "grid forecasting machine learning"]
+        subreddits: [RenewableEnergy, energy]
+
+      - id: video_display
+        name: 視訊與顯像系統
+        description: 電腦視覺、顯示器/投影技術、視訊處理與生成式AI在影像上的應用
+        arxiv_categories: [cs.CV, eess.IV]
+        arxiv_keywords: ["computer vision", "display technology AI", "video generation model"]
+        subreddits: [computervision, MachineLearning]
+
+# 跨領域「AI 通識趨勢」區塊：不綁定特定事業群，給所有讀者的大方向 AI 新聞
+# （如：新模型發布、agentic AI、AI法規動態）
+general_ai_trends:
+  arxiv_categories: [cs.AI, cs.CL]
+  subreddits: [MachineLearning, artificial, LocalLLaMA]
+
+# 每個子領域最終在電子報中選用的項目數上限
+max_items_per_subdomain: 3

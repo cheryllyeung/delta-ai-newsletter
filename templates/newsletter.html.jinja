@@ -1,0 +1,124 @@
+<!--
+Email HTML 設計原則：
+- table-based layout（Outlook 等信箱客戶端對 flexbox/grid 支援不佳）
+- inline style 為主，避免依賴外部/複雜 CSS
+- 單欄、最大寬度 640px，方便手機閱讀
+-->
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{ issue_title }}</title>
+</head>
+<body style="margin:0; padding:0; background-color:#f4f5f7; font-family:'Helvetica Neue', Arial, 'PingFang TC', 'Microsoft JhengHei', sans-serif;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f5f7; padding:24px 0;">
+<tr>
+<td align="center">
+<table role="presentation" width="640" cellpadding="0" cellspacing="0" style="max-width:640px; width:100%; background-color:#ffffff; border-radius:8px; overflow:hidden;">
+
+  <!-- Header -->
+  <tr>
+    <td style="background-color:#0a1f44; padding:32px 40px;">
+      <p style="margin:0; color:#8fa8d8; font-size:13px; letter-spacing:1px; text-transform:uppercase;">Delta AI Newsletter</p>
+      <h1 style="margin:8px 0 0; color:#ffffff; font-size:24px; line-height:1.3;">{{ issue_title }}</h1>
+      <p style="margin:8px 0 0; color:#b8c4dd; font-size:13px;">{{ issue_date }}</p>
+    </td>
+  </tr>
+
+  <!-- Intro -->
+  {% if intro %}
+  <tr>
+    <td style="padding:24px 40px 0;">
+      <p style="margin:0; color:#333333; font-size:14px; line-height:1.7;">{{ intro }}</p>
+    </td>
+  </tr>
+  {% endif %}
+
+  <!-- General AI trends -->
+  {% if general_items %}
+  <tr>
+    <td style="padding:28px 40px 0;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+        <tr>
+          <td style="border-bottom:2px solid #0a1f44; padding-bottom:8px;">
+            <span style="font-size:12px; font-weight:bold; color:#0a1f44; letter-spacing:1px;">本週 AI 通識趨勢</span>
+          </td>
+        </tr>
+      </table>
+      {% for item in general_items %}
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:16px;">
+        <tr>
+          <td>
+            <a href="{{ item.url }}" style="font-size:15px; font-weight:600; color:#0a1f44; text-decoration:none;">{{ item.title }}</a>
+            <p style="margin:6px 0 0; color:#444444; font-size:13px; line-height:1.6;">{{ item.summary }}</p>
+            <span style="display:inline-block; margin-top:6px; font-size:11px; color:#8a8f98; background-color:#f0f1f4; padding:2px 8px; border-radius:10px;">{{ '學術論文' if item.source_type == 'arxiv' else '社群討論' }}</span>
+          </td>
+        </tr>
+      </table>
+      {% endfor %}
+    </td>
+  </tr>
+  {% endif %}
+
+  <!-- Business groups -->
+  {% for group in groups %}
+  <tr>
+    <td style="padding:32px 40px 0;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+        <tr>
+          <td style="background-color:#eef1f8; padding:10px 16px; border-radius:6px;">
+            <span style="font-size:14px; font-weight:bold; color:#0a1f44;">{{ group.name }}</span>
+          </td>
+        </tr>
+      </table>
+
+      {% for subdomain in group.subdomains %}
+        {% if subdomain.entries %}
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:18px;">
+          <tr>
+            <td style="border-bottom:1px solid #dcdfe6; padding-bottom:6px;">
+              <span style="font-size:13px; font-weight:600; color:#333333;">{{ subdomain.name }}</span>
+            </td>
+          </tr>
+        </table>
+        {% for item in subdomain.entries %}
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:14px;">
+          <tr>
+            <td>
+              <a href="{{ item.url }}" style="font-size:14px; font-weight:600; color:#0a1f44; text-decoration:none;">{{ item.title }}</a>
+              <p style="margin:5px 0 0; color:#444444; font-size:13px; line-height:1.6;">{{ item.summary }}</p>
+              <p style="margin:4px 0 0; color:#6b7280; font-size:12px; line-height:1.5;"><em>{{ item.relevance }}</em></p>
+              <span style="display:inline-block; margin-top:6px; font-size:11px; color:#8a8f98; background-color:#f0f1f4; padding:2px 8px; border-radius:10px;">{{ '學術論文' if item.source_type == 'arxiv' else '社群討論' }}</span>
+            </td>
+          </tr>
+        </table>
+        {% endfor %}
+        {% endif %}
+      {% endfor %}
+    </td>
+  </tr>
+  {% endfor %}
+
+  <!-- Footer -->
+  <tr>
+    <td style="padding:32px 40px 40px;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-top:1px solid #e5e7eb; margin-top:16px;">
+        <tr>
+          <td style="padding-top:16px;">
+            <p style="margin:0; color:#9aa0a8; font-size:11px; line-height:1.6;">
+              本電子報內容由 AI 輔助彙整外部公開資料來源（arXiv、Reddit 等）並經人工編審，僅供內部參考。
+              如有疑問或想調整訂閱領域，請聯繫電子報維運同仁。
+            </p>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+
+</table>
+</td>
+</tr>
+</table>
+</body>
+</html>

@@ -1,0 +1,247 @@
+<!--
+橫向情報看板版型（非email，供內部網頁/連結檢視用）。
+設計語彙呼應工程製圖：淺藍灰底的「藍圖紙」淡網格 + 銅色線路點綴，
+對應台達電子業本業，而非制式的AI簡報風格。
+單一淺色主題，不做深色模式切換（同一份設計語言的延伸選擇）。
+-->
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{ issue_title }}</title>
+<style>
+  :root {
+    --bg: #eef1f4;
+    --panel-solid: #ffffff;
+    --panel-border: #dde3e8;
+    --copper: #a8632f;
+    --copper-dim: #c98a54;
+    --text-primary: #1c2b38;
+    --text-secondary: #57707f;
+    --text-tertiary: #8298a6;
+    --rule: #e2e8ec;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    background-color: var(--bg);
+    background-image:
+      linear-gradient(var(--rule) 1px, transparent 1px),
+      linear-gradient(90deg, var(--rule) 1px, transparent 1px);
+    background-size: 28px 28px;
+    background-attachment: fixed;
+    color: var(--text-primary);
+    font-family: system-ui, -apple-system, "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .mono {
+    font-family: ui-monospace, "SF Mono", "Cascadia Mono", "Roboto Mono", monospace;
+  }
+
+  a { color: inherit; text-decoration: none; }
+  a:focus-visible, button:focus-visible { outline: 2px solid var(--copper); outline-offset: 2px; }
+
+  /* Masthead */
+  .masthead {
+    padding: 28px clamp(16px, 4vw, 48px) 20px;
+    border-bottom: 1px solid var(--panel-border);
+    background: var(--panel-solid);
+  }
+  .masthead-eyebrow {
+    font-size: 11px;
+    letter-spacing: 2px;
+    color: var(--copper);
+    text-transform: uppercase;
+    margin: 0 0 6px;
+  }
+  .masthead h1 {
+    margin: 0;
+    font-size: clamp(22px, 3vw, 30px);
+    font-weight: 700;
+    text-wrap: balance;
+    letter-spacing: -0.01em;
+  }
+  .masthead-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 18px;
+    margin-top: 10px;
+    font-size: 12px;
+    color: var(--text-secondary);
+  }
+  .masthead-intro {
+    margin: 14px 0 0;
+    max-width: 70ch;
+    font-size: 13.5px;
+    line-height: 1.7;
+    color: var(--text-secondary);
+  }
+  /* Board */
+  .board-scroll {
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 20px clamp(16px, 4vw, 48px) 40px;
+    scroll-snap-type: x proximity;
+  }
+  .board {
+    display: flex;
+    gap: 16px;
+    width: max-content;
+  }
+  .column {
+    scroll-snap-align: start;
+    width: 300px;
+    flex: none;
+    background: var(--panel-solid);
+    border: 1px solid var(--panel-border);
+    border-radius: 3px;
+    display: flex;
+    flex-direction: column;
+    max-height: calc(100vh - 220px);
+    min-height: 320px;
+  }
+  .column.is-general {
+    border-color: var(--copper-dim);
+    box-shadow: 0 0 0 1px rgba(201,130,79,0.15);
+  }
+  .column-header {
+    padding: 14px 16px 12px;
+    border-bottom: 1px solid var(--rule);
+    position: sticky;
+    top: 0;
+    background: var(--panel-solid);
+    z-index: 1;
+  }
+  .column-eyebrow {
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    color: var(--text-tertiary);
+    text-transform: uppercase;
+    margin: 0 0 4px;
+  }
+  .column-title {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 700;
+    line-height: 1.35;
+  }
+  .column-count {
+    font-size: 11px;
+    color: var(--copper);
+    margin-top: 4px;
+  }
+  .column-body {
+    overflow-y: auto;
+    padding: 4px 0;
+  }
+
+  .entry {
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--rule);
+    display: grid;
+    grid-template-columns: 22px 1fr;
+    gap: 10px;
+  }
+  .entry:last-child { border-bottom: none; }
+  .entry-index {
+    font-size: 11px;
+    color: var(--text-tertiary);
+    padding-top: 2px;
+  }
+  .entry-title {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.5;
+    color: var(--text-primary);
+  }
+  .entry-title:hover { color: var(--copper); }
+  .entry-summary {
+    margin: 6px 0 0;
+    font-size: 12px;
+    line-height: 1.65;
+    color: var(--text-secondary);
+  }
+  .entry-relevance {
+    margin: 6px 0 0;
+    font-size: 11.5px;
+    line-height: 1.6;
+    color: var(--copper);
+    opacity: 0.85;
+  }
+  .board-scroll::-webkit-scrollbar,
+  .column-body::-webkit-scrollbar { height: 8px; width: 8px; }
+  .board-scroll::-webkit-scrollbar-thumb,
+  .column-body::-webkit-scrollbar-thumb { background: var(--panel-border); border-radius: 4px; }
+  .board-scroll::-webkit-scrollbar-track,
+  .column-body::-webkit-scrollbar-track { background: transparent; }
+
+  .footer {
+    padding: 20px clamp(16px, 4vw, 48px) 32px;
+    border-top: 1px solid var(--rule);
+    font-size: 11px;
+    line-height: 1.7;
+    color: var(--text-tertiary);
+    max-width: 80ch;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .board-scroll { scroll-behavior: smooth; }
+  }
+</style>
+</head>
+<body>
+
+<header class="masthead">
+  <p class="masthead-eyebrow mono">Delta AI Intelligence Briefing</p>
+  <h1>{{ issue_title }}</h1>
+  <div class="masthead-meta mono">
+    <span>{{ issue_date }}</span>
+    <span>{{ columns | length }} 個追蹤領域</span>
+    <span>共 {{ columns | map(attribute='entries') | map('length') | sum }} 則情報</span>
+  </div>
+  {% if intro %}
+  <p class="masthead-intro">{{ intro }}</p>
+  {% endif %}
+</header>
+
+<div class="board-scroll">
+  <div class="board">
+    {% for column in columns %}
+    <section class="column{{ ' is-general' if column.is_general else '' }}">
+      <div class="column-header">
+        <p class="column-eyebrow mono">{{ column.eyebrow }}</p>
+        <h2 class="column-title">{{ column.name }}</h2>
+        <p class="column-count mono">{{ column.entries | length }} 則</p>
+      </div>
+      <div class="column-body">
+        {% for item in column.entries %}
+        <article class="entry">
+          <span class="entry-index mono">{{ '%02d' | format(loop.index) }}</span>
+          <div>
+            <a class="entry-title" href="{{ item.url }}" target="_blank" rel="noopener">{{ item.title }}</a>
+            <p class="entry-summary">{{ item.summary }}</p>
+            {% if item.relevance %}
+            <p class="entry-relevance">→ {{ item.relevance }}</p>
+            {% endif %}
+          </div>
+        </article>
+        {% endfor %}
+      </div>
+    </section>
+    {% endfor %}
+  </div>
+</div>
+
+<p class="footer">
+  本簡報由 AI 輔助彙整公開資料來源（產業新聞、學術論文、技術社群討論）並附原始連結，僅供內部參考，未經進一步事實查核前請勿對外引用。
+  各欄位依領域彙整，條列順序不代表絕對排名。如需調整追蹤領域或來源，請聯繫電子報維運同仁。
+</p>
+
+</body>
+</html>
