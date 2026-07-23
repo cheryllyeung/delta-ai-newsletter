@@ -2,15 +2,12 @@
 from __future__ import annotations
 
 import json
-import os
 
-import anthropic
+import openai
 
-from pipeline.llm_client import get_client
+from pipeline.llm_client import get_client, get_model
 from pipeline.llm_logging import log_call
 from pipeline.prompt_loader import load_prompt_parts
-
-MODEL = os.environ.get("NEWSLETTER_MODEL", "claude-sonnet-5")
 
 
 def _parse_json_object(raw_text: str) -> dict:
@@ -28,7 +25,7 @@ def generate_intro(
     selected_cases_summaries: list[str],
     dominant_tags: list[str],
     area_breakdown: dict[str, int],
-    client: anthropic.Anthropic | None = None,
+    client: openai.OpenAI | None = None,
 ) -> dict:
     """依這期實際選出的內容組合動態生成導言，沒有預設主題可套用。
 
@@ -49,16 +46,16 @@ def generate_intro(
         area_breakdown=breakdown_text,
     )
 
-    response = client.messages.create(
-        model=MODEL,
+    response = client.chat.completions.create(
+        model=get_model(),
         max_tokens=800,
         temperature=0.8,
-        system=system,
-        messages=[{"role": "user", "content": user}],
+        messages=[
+            {"role": "system", "content": system},
+            {"role": "user", "content": user},
+        ],
     )
-    raw_text = "".join(
-        block.text for block in response.content if getattr(block, "type", None) == "text"
-    )
+    raw_text = response.choices[0].message.content
     parsed = _parse_json_object(raw_text)
     log_call("intro", system, user, raw_text, parsed)
     return parsed

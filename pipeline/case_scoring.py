@@ -7,10 +7,9 @@ pipeline/pool_db.py 管理的長期文章池，「這期要選誰」是另外一
 from __future__ import annotations
 
 import json
-import os
 
 from ingestion.base import RawItem
-from pipeline.llm_client import get_client
+from pipeline.llm_client import get_client, get_model
 from pipeline.llm_logging import log_call
 from pipeline.prompt_loader import load_prompt_parts
 
@@ -47,16 +46,16 @@ def score_article(item: RawItem, client=None) -> dict:
         content=item.summary[:_CONTENT_CHARS_FOR_SCORING],
     )
 
-    response = client.messages.create(
-        model=os.environ.get("NEWSLETTER_MODEL", "claude-sonnet-5"),
+    response = client.chat.completions.create(
+        model=get_model(),
         max_tokens=1500,
         temperature=0.2,
-        system=system,
-        messages=[{"role": "user", "content": user}],
+        messages=[
+            {"role": "system", "content": system},
+            {"role": "user", "content": user},
+        ],
     )
-    raw_text = "".join(
-        block.text for block in response.content if getattr(block, "type", None) == "text"
-    )
+    raw_text = response.choices[0].message.content
     parsed = _parse_json_object(raw_text)
     log_call("scoring", system, user, raw_text, parsed)
     return parsed

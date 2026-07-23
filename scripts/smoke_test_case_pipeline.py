@@ -52,15 +52,19 @@ _AREA_CYCLE = itertools.cycle(["後勤支援", "業務前台", "廠區現場", "
 _selfcheck_calls: dict[str, int] = {}
 
 
-class _FakeBlock:
-    def __init__(self, text: str) -> None:
-        self.type = "text"
-        self.text = text
+class _FakeMessage:
+    def __init__(self, content: str) -> None:
+        self.content = content
+
+
+class _FakeChoice:
+    def __init__(self, content: str) -> None:
+        self.message = _FakeMessage(content)
 
 
 class _FakeResponse:
     def __init__(self, text: str) -> None:
-        self.content = [_FakeBlock(text)]
+        self.choices = [_FakeChoice(text)]
 
 
 def _fake_scoring() -> str:
@@ -139,9 +143,10 @@ def _fake_intro() -> str:
     )
 
 
-class FakeMessages:
-    def create(self, *, system: str, messages: list[dict], **kwargs):
-        user = messages[0]["content"]
+class FakeCompletions:
+    def create(self, *, messages: list[dict], **kwargs):
+        system = messages[0]["content"]
+        user = messages[1]["content"]
         if "選文編輯" in system:
             return _FakeResponse(_fake_scoring())
         if "審查員" in system:
@@ -151,9 +156,14 @@ class FakeMessages:
         return _FakeResponse(_fake_generate())
 
 
+class FakeChat:
+    def __init__(self) -> None:
+        self.completions = FakeCompletions()
+
+
 class FakeClient:
     def __init__(self, *args, **kwargs) -> None:
-        self.messages = FakeMessages()
+        self.chat = FakeChat()
 
 
 def main() -> None:
@@ -187,7 +197,7 @@ def main() -> None:
 
     selection_cfg = config["selection"]
 
-    with patch("anthropic.Anthropic", FakeClient):
+    with patch("openai.OpenAI", FakeClient):
         unscored = get_unscored_articles(conn)
         assert len(unscored) == len(inserted_ids)
         for row in unscored:

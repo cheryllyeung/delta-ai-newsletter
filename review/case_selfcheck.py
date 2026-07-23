@@ -6,15 +6,12 @@
 from __future__ import annotations
 
 import json
-import os
 
-import anthropic
+import openai
 
-from pipeline.llm_client import get_client
+from pipeline.llm_client import get_client, get_model
 from pipeline.llm_logging import log_call
 from pipeline.prompt_loader import load_prompt_parts
-
-MODEL = os.environ.get("NEWSLETTER_MODEL", "claude-sonnet-5")
 
 _SOURCE_CHARS_FOR_CHECK = 8000
 
@@ -45,7 +42,7 @@ def self_check(
     generated_article: dict,
     key_facts: list[dict],
     source_content: str,
-    client: anthropic.Anthropic | None = None,
+    client: openai.OpenAI | None = None,
 ) -> dict:
     """回傳規格書定義的審查結果，並附上 pipeline 端算好的 confidence。"""
     client = client or get_client()
@@ -57,16 +54,16 @@ def self_check(
         source_content=source_content[:_SOURCE_CHARS_FOR_CHECK],
     )
 
-    response = client.messages.create(
-        model=MODEL,
+    response = client.chat.completions.create(
+        model=get_model(),
         max_tokens=2000,
         temperature=0,
-        system=system,
-        messages=[{"role": "user", "content": user}],
+        messages=[
+            {"role": "system", "content": system},
+            {"role": "user", "content": user},
+        ],
     )
-    raw_text = "".join(
-        block.text for block in response.content if getattr(block, "type", None) == "text"
-    )
+    raw_text = response.choices[0].message.content
     parsed = _parse_json_object(raw_text)
     parsed["confidence"] = _compute_confidence(parsed)
     log_call("self_check", system, user, raw_text, parsed)

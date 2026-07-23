@@ -6,15 +6,12 @@
 from __future__ import annotations
 
 import json
-import os
 
-import anthropic
+import openai
 
-from pipeline.llm_client import get_client
+from pipeline.llm_client import get_client, get_model
 from pipeline.llm_logging import log_call
 from pipeline.prompt_loader import load_prompt_parts
-
-MODEL = os.environ.get("NEWSLETTER_MODEL", "claude-sonnet-5")
 
 _CONTENT_CHARS_FOR_GENERATION = 8000
 
@@ -35,7 +32,7 @@ def generate_case(
     tags: list[str],
     key_facts: list[dict],
     revision_instructions: str | None = None,
-    client: anthropic.Anthropic | None = None,
+    client: openai.OpenAI | None = None,
 ) -> dict:
     """依文章池裡的一列資料（pipeline.pool_db 的 articles row）生成案例內頁。
 
@@ -66,16 +63,16 @@ def generate_case(
         revision_note=revision_note,
     )
 
-    response = client.messages.create(
-        model=MODEL,
+    response = client.chat.completions.create(
+        model=get_model(),
         max_tokens=3000,
         temperature=0.7,
-        system=system,
-        messages=[{"role": "user", "content": user}],
+        messages=[
+            {"role": "system", "content": system},
+            {"role": "user", "content": user},
+        ],
     )
-    raw_text = "".join(
-        block.text for block in response.content if getattr(block, "type", None) == "text"
-    )
+    raw_text = response.choices[0].message.content
     parsed = _parse_json_object(raw_text)
     log_call("generate", system, user, raw_text, parsed)
     return parsed

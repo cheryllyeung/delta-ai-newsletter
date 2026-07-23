@@ -1,18 +1,15 @@
-"""呼叫 Claude API，把單一子領域的原始項目（arXiv 論文 + Reddit 討論）
+"""呼叫 LLM API，把單一子領域的原始項目（arXiv 論文 + Reddit 討論）
 整理成給該領域同仁看的電子報段落。
 
-需要環境變數 ANTHROPIC_API_KEY（若走台達內部 LLM gateway，另外設定
-ANTHROPIC_BASE_URL，見 .env.example）。
+需要環境變數 ANTHROPIC_API_KEY／LLM_API_KEY（走台達內部 LLM gateway 時另外
+設定 ANTHROPIC_BASE_URL／LLM_BASE_URL，見 .env.example）。
 """
 from __future__ import annotations
 
 import json
-import os
 
 from ingestion.base import RawItem
-from pipeline.llm_client import get_client
-
-MODEL = os.environ.get("NEWSLETTER_MODEL", "claude-sonnet-5")
+from pipeline.llm_client import get_client, get_model
 
 _SYSTEM_PROMPT = """\
 你是台達內部 AI 電子報的編輯助理。你的讀者是特定專業領域的工程師/主管，
@@ -64,16 +61,21 @@ def summarize_subdomain(
 {json.dumps(items_payload, ensure_ascii=False, indent=2)}
 """
 
-    response = client.messages.create(
-        model=MODEL,
+    response = client.chat.completions.create(
+        model=get_model(),
         max_tokens=2000,
-        system=_SYSTEM_PROMPT.replace("{domain_name}", f"{domain_name} - {subdomain_name}"),
-        messages=[{"role": "user", "content": user_prompt}],
+        messages=[
+            {
+                "role": "system",
+                "content": _SYSTEM_PROMPT.replace(
+                    "{domain_name}", f"{domain_name} - {subdomain_name}"
+                ),
+            },
+            {"role": "user", "content": user_prompt},
+        ],
     )
 
-    raw_text = "".join(
-        block.text for block in response.content if getattr(block, "type", None) == "text"
-    )
+    raw_text = response.choices[0].message.content
 
     try:
         return json.loads(raw_text)
