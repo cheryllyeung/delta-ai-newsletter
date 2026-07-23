@@ -1,7 +1,11 @@
 .env
+.DS_Store
 __pycache__/
 *.pyc
 .venv/
 venv/
 output/drafts/
+runs/
+review/pending/
+data/
 *.egg-info/

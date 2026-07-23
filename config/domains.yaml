@@ -14,16 +14,24 @@ groups:
     subdomains:
       - id: power_systems
         name: 電源及系統
-        description: 電源轉換、電源管理IC、伺服器與資料中心電源、電池管理系統中的AI應用
+        description: >-
+          對應台達實際產品線：電源供應系統、電感器/變壓器/網通元件、電源模組、
+          嵌入式/外接式/工業/醫療電源、工業電池充電器、USB Type A+C PD 充電插座、
+          高壓精密電源、交換式電源供應器。追蹤重點為電源轉換、電源管理IC、
+          伺服器與資料中心電源、電池管理系統中的AI應用。
         arxiv_categories: [eess.SY, eess.SP]
-        arxiv_keywords: ["power electronics", "power converter", "battery management", "power supply AI"]
+        arxiv_keywords: ["power electronics", "power converter", "battery management", "power supply AI", "switching power supply"]
         subreddits: [PowerElectronics, ElectricalEngineering]
 
       - id: thermal_management
         name: 風扇與散熱管理
-        description: 散熱設計、風扇控制、資料中心液冷、熱模擬中的AI/ML應用（如AI輔助熱模擬、預測性維護）
+        description: >-
+          對應台達實際產品線：無刷直流風扇、風扇模組、EC風扇、散熱管理方案
+          （汽車散熱、機櫃熱傳、液體冷卻、水冷板模組）、空調與空氣品質方案。
+          追蹤重點為散熱設計、風扇控制、資料中心液冷、熱模擬中的AI/ML應用
+          （如AI輔助熱模擬、預測性維護）。
         arxiv_categories: [eess.SY, physics.flu-dyn]
-        arxiv_keywords: ["thermal management AI", "cooling optimization", "predictive maintenance fan", "CFD machine learning"]
+        arxiv_keywords: ["thermal management AI", "cooling optimization", "predictive maintenance fan", "CFD machine learning", "liquid cooling data center"]
         subreddits: [thermodynamics, engineering, ElectricalEngineering]
 
   - id: mobility
@@ -31,9 +39,13 @@ groups:
     subdomains:
       - id: ev_powertrain
         name: 電動車動力系統
-        description: 電動車馬達控制、動力系統最佳化、電池管理、自駕/ADAS相關AI技術
+        description: >-
+          對應台達實際產品線：電動車電力電子、馬達驅動、系統集成、車載充電機、
+          雙向車載充電機、無線充電器、高壓直流電轉換器、車載發電機、電動車通訊
+          控制器，以及直流/交流充電樁與管理系統（電動車充電基礎設施）。
+          追蹤重點為電動車馬達控制、動力系統最佳化、電池管理、自駕/ADAS相關AI技術。
         arxiv_categories: [eess.SY, cs.RO]
-        arxiv_keywords: ["EV powertrain", "motor control AI", "electric vehicle battery", "autonomous driving control"]
+        arxiv_keywords: ["EV powertrain", "motor control AI", "electric vehicle battery", "autonomous driving control", "EV charging"]
         subreddits: [electricvehicles, SelfDrivingCars]
 
   - id: automation
@@ -41,14 +53,22 @@ groups:
     subdomains:
       - id: industrial_automation
         name: 工業自動化
-        description: 工業機器人、產線AI視覺檢測、預測性維護、數位分身（Digital Twin）
+        description: >-
+          對應台達實際產品線：馬達驅動器、變頻器、伺服系統、控制器、工業機器人、
+          機器視覺、智慧感測器，應用涵蓋電子組裝、橡塑、流體設備、木工機械、
+          物流運輸、紡織、機床與金屬加工、印刷包裝等智能製造整體解決方案
+          （如設備自動化、機聯網、數位分身/Digital Twin、AI感測協作機器人）。
+          追蹤重點為工業機器人、產線AI視覺檢測、預測性維護、數位分身技術進展。
         arxiv_categories: [cs.RO, cs.AI, eess.SY]
-        arxiv_keywords: ["industrial automation AI", "robotic process", "predictive maintenance", "digital twin manufacturing"]
+        arxiv_keywords: ["industrial automation AI", "robotic process", "predictive maintenance", "digital twin manufacturing", "collaborative robot"]
         subreddits: [PLC, automation, MachineLearning]
 
       - id: building_automation
         name: 樓宇自動化
-        description: 智慧建築、樓宇能源管理系統（BEMS）、空調與環境控制AI最佳化
+        description: >-
+          對應台達實際產品線：樓宇管理與控制、LED照明、智慧安防、空氣品質管理，
+          應用涵蓋智能建築、低碳建築、健康建築與智慧讀表。追蹤重點為樓宇能源
+          管理系統（BEMS）、空調與環境控制AI最佳化。
         arxiv_categories: [eess.SY, cs.AI]
         arxiv_keywords: ["smart building AI", "building energy management", "HVAC optimization AI"]
         subreddits: [homeautomation, BuildingAutomation]
@@ -58,23 +78,35 @@ groups:
     subdomains:
       - id: ict_infrastructure
         name: 資通訊基礎設施
-        description: 資料中心網路、AI算力基礎設施、邊緣運算、資料中心能源效率
+        description: >-
+          對應台達實際產品線：通訊電源系統、網通系統、不斷電系統（UPS）及資料
+          中心解決方案（如新一代智慧型解決方案 InfraSuite），也是全球電信營運商
+          通訊網路能源方案的主要供應商之一。追蹤重點為資料中心網路、AI算力
+          基礎設施、邊緣運算、資料中心能源效率。
         arxiv_categories: [cs.NI, cs.DC]
-        arxiv_keywords: ["data center AI infrastructure", "edge computing", "AI compute cluster networking"]
+        arxiv_keywords: ["data center AI infrastructure", "edge computing", "AI compute cluster networking", "uninterruptible power supply"]
         subreddits: [networking, datacenter, LocalLLaMA]
 
       - id: energy_solutions
         name: 電力暨能源解決方案
-        description: 再生能源、儲能系統、微電網、電網AI調度與預測
+        description: >-
+          對應台達實際產品線：太陽能變流器、儲能系統、電動車充電解決方案、
+          DeltaGrid 能源管理解決方案，應用涵蓋住宅屋頂型/工商屋頂型/電網級
+          地面型太陽能，以及電廠與電網輔助應用。追蹤重點為再生能源、儲能系統、
+          微電網、電網AI調度與預測。
         arxiv_categories: [eess.SY, physics.soc-ph]
         arxiv_keywords: ["renewable energy AI", "smart grid", "energy storage optimization", "grid forecasting machine learning"]
         subreddits: [RenewableEnergy, energy]
 
       - id: video_display
         name: 視訊與顯像系統
-        description: 電腦視覺、顯示器/投影技術、視訊處理與生成式AI在影像上的應用
+        description: >-
+          對應台達實際產品線：視訊顯示、商務及教育市場投影系統、高階投影系統、
+          DLP/LED/LCD電視牆、無線協作與數位訊息解決方案，應用涵蓋大型展覽、
+          商業展示、藝文表演等客製化視訊系統整合（如8K投影技術）。追蹤重點為
+          電腦視覺、顯示器/投影技術、視訊處理與生成式AI在影像上的應用。
         arxiv_categories: [cs.CV, eess.IV]
-        arxiv_keywords: ["computer vision", "display technology AI", "video generation model"]
+        arxiv_keywords: ["computer vision", "display technology AI", "video generation model", "projection technology"]
         subreddits: [computervision, MachineLearning]
 
 # 跨領域「AI 通識趨勢」區塊：不綁定特定事業群，給所有讀者的大方向 AI 新聞

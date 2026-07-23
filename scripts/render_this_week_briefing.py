@@ -73,17 +73,17 @@ POWER_SYSTEMS = {
             "source_type": "research",
         },
         {
-            "title": "IEEE：AI驅動的電力電子轉換器控制策略",
-            "summary": "IEEE會議論文探討以AI方法（含強化學習、神經網路）取代傳統控制迴路設計，處理電力電子轉換器的動態控制問題。",
-            "relevance": "控制迴路是電源產品開發的核心工時之一，AI輔助控制設計的成熟度值得持續追蹤。",
-            "url": "https://ieeexplore.ieee.org/document/10568766/",
+            "title": "arXiv：封裝內建耦合電感陣列，鎖定高效能運算電源傳遞",
+            "summary": "2026年6月發表的論文提出封裝內建（package-embedded）耦合電感陣列設計，針對高效能運算（HPC）晶片的電源傳遞需求優化電感體積與轉換效率。",
+            "relevance": "電感器是台達電源產品線的核心零組件之一，封裝內建的設計路線若成熟，可能直接影響下一代電源模組的體積與效能規格。",
+            "url": "https://arxiv.org/pdf/2606.02878",
             "source_type": "research",
         },
         {
-            "title": "IEEE：AI優化電力電子轉換器以提升系統穩定性",
-            "summary": "研究探討以AI技術優化電力電子轉換器參數，改善整體電力系統的穩定性與效能表現。",
-            "relevance": "對於系統級（而非單一模組）的電源穩定性優化，此類方法可作為系統工程團隊的參考文獻。",
-            "url": "https://ieeexplore.ieee.org/document/10271490/",
+            "title": "arXiv：下一代AI資料中心的電源傳遞架構轉型與挑戰",
+            "summary": "2026年6月發表的論文系統性回顧AI資料中心電源傳遞架構的世代轉型方向、新興技術與待解挑戰。",
+            "relevance": "資料中心電源傳遞架構的轉型直接對應台達電源產品線在資料中心市場的技術路線圖，適合系統工程團隊作為背景讀物。",
+            "url": "https://arxiv.org/pdf/2606.25095",
             "source_type": "research",
         },
         {
@@ -180,10 +180,10 @@ EV_POWERTRAIN = {
             "source_type": "news",
         },
         {
-            "title": "學術回顧：電動車AI能量管理策略的挑戰與未來方向",
-            "summary": "ScienceDirect發表的回顧型論文系統性彙整目前電動車AI能量管理策略的技術路線、限制與未來研究方向。",
-            "relevance": "適合作為動力系統團隊建立技術地圖的入門文獻，快速掌握目前學界已知的關鍵瓶頸。",
-            "url": "https://www.sciencedirect.com/science/article/pii/S2352484725002707",
+            "title": "arXiv：邊緣部署的自主AI代理人管理電動車充電",
+            "summary": "2026年論文提出邊緣部署的自主AI代理架構,處理公共充電樁的可靠度問題——研究指出任一時刻約27.5%的公共直流快充樁可能處於無法運作狀態。",
+            "relevance": "充電樁可靠度是電動車基礎設施普及的實際痛點,AI代理人的維運模式值得動力系統與充電樁團隊評估能否提升台達充電樁產品的妥善率。",
+            "url": "https://arxiv.org/pdf/2603.08736",
             "source_type": "research",
         },
     ],
@@ -223,11 +223,11 @@ INDUSTRIAL_AUTOMATION = {
             "source_type": "news",
         },
         {
-            "title": "兩年內實體AI累計投資達200億美元，部分為填補技術勞力缺口而生",
-            "summary": "報導指出實體AI投資快速增加，部分動能來自美國焊接技師嚴重短缺（目前缺口20萬人，十年內恐擴大到60萬人）等結構性勞力問題。",
-            "relevance": "勞力缺口驅動的自動化需求屬於長期結構性趨勢，而非短期熱潮，適合納入自動化事業群的中長期規劃假設。",
-            "url": "https://www.technocracy.news/ramping-up-current-state-of-robotics-in-2026/",
-            "source_type": "news",
+            "title": "社群提問：製程控制導入AI，大家有什麼實際經驗？",
+            "summary": "Control.com自動化工程師社群的討論串，現場工程師分享將AI導入製程控制（感測資料分析、產線故障判斷、SCADA異常偵測）的實際部署經驗與踩過的坑。",
+            "relevance": "比起廠商發布的成功案例，第一線工程師的實務討論更能反映AI導入製程控制時真正會卡住的地方，適合自動化團隊評估導入難度時參考。",
+            "url": "https://control.com/forums/threads/ai-in-process-control-any-experiences.55292/",
+            "source_type": "community",
         },
     ],
 }
@@ -374,11 +374,11 @@ VIDEO_DISPLAY = {
             "source_type": "news",
         },
         {
-            "title": "CVPR 2026展示AI如何加速下一世代機器人視覺技術",
-            "summary": "會議內容聚焦AI進展如何加速機器人技術從概念走向實際部署，視覺感知能力是其中的核心推進力。",
-            "relevance": "視覺感知技術的進展同時牽動視訊顯像與工業自動化兩個事業群，可留意跨部門協同應用的機會。",
-            "url": "https://www.roboticstomorrow.com/news/2026/04/23/cvpr-2026-showcases-how-ai-is-powering-the-next-era-of-robotics-innovation/26472/",
-            "source_type": "news",
+            "title": "社群討論：AI升頻（AI Upscaling）到底有沒有比傳統升頻技術好？",
+            "summary": "AVS Forum家庭劇院社群的長期討論串，玩家與從業者比較AI升頻與傳統視訊處理器升頻在實際畫質上的差異，並分享了幾款消費性投影設備AI升頻功能的實測心得。",
+            "relevance": "終端使用者對AI升頻的真實評價（而非廠商宣傳），可作為視訊顯像系統評估AI影像處理功能是否真的有感的參考。",
+            "url": "https://www.avsforum.com/threads/ai-upscaling.3275804/",
+            "source_type": "community",
         },
         {
             "title": "Nature：以光學超穎表面實現通用型AI視覺系統",
@@ -420,11 +420,11 @@ COLUMNS = [
 def main() -> None:
     html = render_briefing(
         columns=COLUMNS,
-        issue_title="台達 AI 情報簡報",
+        issue_title="台達AI Weekly Top 5",
         issue_date="2026年7月15日 · 本週情報",
         intro=(
             "本期依台達四大事業群 x 8個子領域彙整本週AI相關情報，"
-            "橫向瀏覽各領域重點；來源涵蓋產業新聞、學術論文與技術社群討論，"
+            "往下捲動依領域瀏覽重點；來源涵蓋產業新聞、學術論文與技術社群討論，"
             "點擊標題可查看原始出處。"
         ),
     )

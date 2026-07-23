@@ -1,0 +1,216 @@
+<!--
+Delta Pulse 台達脈動：案例式週報版型（非email，網頁檢視用）。
+單頁上下捲動：刊頭導言 → 卡片導覽（點卡片跳到對應案例）→ 逐篇案例內頁。
+視覺語彙沿用 briefing.html.jinja 的「藍圖紙」淡網格 + 品牌藍，同一套設計系統。
+-->
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{ issue_title }}</title>
+<style>
+  :root {
+    --bg: #eef1f4;
+    --panel-solid: #ffffff;
+    --panel-border: #dde3e8;
+    --accent: #2a5db0;
+    --accent-dim: #6f93cf;
+    --text-primary: #1c2b38;
+    --text-secondary: #57707f;
+    --text-tertiary: #8298a6;
+    --rule: #e2e8ec;
+    --factory: #b0662a;
+    --factory-dim: #cf9a6f;
+    --warn-bg: #fff6e8;
+    --warn-border: #e8c988;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    background-color: var(--bg);
+    background-image:
+      linear-gradient(var(--rule) 1px, transparent 1px),
+      linear-gradient(90deg, var(--rule) 1px, transparent 1px);
+    background-size: 28px 28px;
+    background-attachment: fixed;
+    color: var(--text-primary);
+    font-family: system-ui, -apple-system, "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .mono { font-family: ui-monospace, "SF Mono", "Cascadia Mono", "Roboto Mono", monospace; }
+  a { color: inherit; text-decoration: none; }
+  a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .masthead {
+    padding: 28px clamp(16px, 4vw, 48px) 22px;
+    border-bottom: 1px solid var(--panel-border);
+    background: var(--panel-solid);
+  }
+  .masthead-top {
+    display: flex; align-items: center; flex-wrap: wrap; gap: 10px;
+    margin: 0 0 6px;
+  }
+  .masthead-eyebrow { font-size: 11px; letter-spacing: 2px; color: var(--accent); text-transform: uppercase; margin: 0; }
+  .proto-badge {
+    font-size: 10.5px; letter-spacing: 0.5px; color: var(--accent);
+    border: 1px solid var(--accent-dim); background: rgba(42,93,176,0.08);
+    padding: 2px 8px; border-radius: 100px;
+  }
+  .masthead h1 { margin: 0; font-size: clamp(22px, 3vw, 30px); font-weight: 700; text-wrap: balance; letter-spacing: -0.01em; }
+  .masthead-hook { margin: 8px 0 0; font-size: 14px; color: var(--text-secondary); text-wrap: pretty; }
+  .masthead-meta { display: flex; flex-wrap: wrap; gap: 4px 18px; margin-top: 12px; font-size: 12px; color: var(--text-secondary); }
+  .signal {
+    margin: 16px 0 0; max-width: 68ch; font-size: 13.5px; line-height: 1.75;
+    color: var(--text-secondary); text-wrap: pretty;
+  }
+  .signal p { margin: 0 0 8px; }
+  .signal p:last-child { margin-bottom: 0; }
+
+  /* 卡片導覽 */
+  .card-nav { padding: 24px clamp(16px, 4vw, 48px) 8px; }
+  .card-nav h2 { margin: 0 0 12px; font-size: 13px; letter-spacing: 1px; color: var(--text-tertiary); text-transform: uppercase; }
+  .card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; }
+  .nav-card {
+    display: block; background: var(--panel-solid); border: 1px solid var(--panel-border);
+    border-radius: 4px; padding: 14px 16px; position: relative;
+  }
+  .nav-card.is-factory { border-left: 3px solid var(--factory); }
+  .nav-card:not(.is-factory) { border-left: 3px solid var(--accent); }
+  .nav-card:hover { border-color: var(--accent-dim); }
+  .nav-card-metric { font-size: 22px; font-weight: 700; color: var(--accent); }
+  .nav-card.is-factory .nav-card-metric { color: var(--factory); }
+  .nav-card-metric-label { font-size: 11px; color: var(--text-tertiary); margin: 2px 0 8px; }
+  .nav-card-text { font-size: 12.5px; line-height: 1.6; color: var(--text-primary); }
+  .needs-review-flag {
+    position: absolute; top: 10px; right: 10px; font-size: 9.5px;
+    color: #a35b00; background: var(--warn-bg); border: 1px solid var(--warn-border);
+    padding: 1px 6px; border-radius: 100px;
+  }
+
+  /* 案例內頁 */
+  .cases { padding: 8px clamp(16px, 4vw, 48px) 40px; display: flex; flex-direction: column; gap: 28px; }
+  .case {
+    background: var(--panel-solid); border: 1px solid var(--panel-border); border-radius: 4px;
+    padding: clamp(18px, 3vw, 28px);
+    scroll-margin-top: 16px;
+  }
+  .case.is-factory { border-top: 3px solid var(--factory); }
+  .case:not(.is-factory) { border-top: 3px solid var(--accent); }
+  .case-eyebrow { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 8px; }
+  .case-tag { font-size: 10.5px; letter-spacing: 0.5px; color: var(--accent); text-transform: uppercase; }
+  .case.is-factory .case-tag { color: var(--factory); }
+  .case-source { font-size: 11.5px; color: var(--text-tertiary); }
+  .case h3 { margin: 0 0 16px; font-size: clamp(18px, 2.2vw, 22px); line-height: 1.4; }
+  .case-section { margin-bottom: 16px; }
+  .case-section:last-of-type { margin-bottom: 0; }
+  .case-section h4 { margin: 0 0 8px; font-size: 13px; color: var(--text-tertiary); letter-spacing: 0.5px; }
+  .case-section p { margin: 0 0 8px; font-size: 14px; line-height: 1.75; color: var(--text-primary); }
+  .case-section p:last-child { margin-bottom: 0; }
+
+  .stats-row { display: flex; flex-wrap: wrap; gap: 12px; margin: 8px 0 16px; }
+  .stat-tile { background: var(--bg); border: 1px solid var(--rule); border-radius: 4px; padding: 10px 14px; min-width: 100px; }
+  .stat-value { font-size: 18px; font-weight: 700; color: var(--accent); }
+  .case.is-factory .stat-value { color: var(--factory); }
+  .stat-label { font-size: 11px; color: var(--text-secondary); margin-top: 2px; }
+
+  .delta-insight {
+    margin-top: 18px; padding: 14px 16px; background: rgba(42,93,176,0.05);
+    border: 1px solid var(--accent-dim); border-radius: 4px;
+  }
+  .case.is-factory .delta-insight { background: rgba(176,102,42,0.06); border-color: var(--factory-dim); }
+  .delta-insight h4 { margin: 0 0 8px; font-size: 13px; color: var(--accent); letter-spacing: 0.5px; }
+  .case.is-factory .delta-insight h4 { color: var(--factory); }
+  .delta-insight p { margin: 0 0 8px; font-size: 13.5px; line-height: 1.7; color: var(--text-primary); }
+  .delta-insight p:last-child { margin-bottom: 0; }
+
+  .footer {
+    padding: 20px clamp(16px, 4vw, 48px) 32px; border-top: 1px solid var(--rule);
+    font-size: 11px; line-height: 1.7; color: var(--text-tertiary); max-width: 80ch; text-wrap: pretty;
+  }
+
+  @media (max-width: 480px) {
+    .card-grid { grid-template-columns: 1fr; }
+    .cases { gap: 20px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="masthead">
+  <div class="masthead-top">
+    <p class="masthead-eyebrow mono">Delta Pulse 台達脈動</p>
+    <span class="proto-badge mono">初稿 PROTOTYPE · 展示用</span>
+  </div>
+  <h1><a href="/" style="color: inherit;">{{ newsletter_name }}</a></h1>
+  {% if hook %}<p class="masthead-hook">{{ hook }}</p>{% endif %}
+  <div class="masthead-meta mono">
+    <span>第 {{ issue_id }} 期 · {{ issue_date }}</span>
+    <span>{{ cases | length }} 篇案例</span>
+  </div>
+  {% if signal %}
+  <div class="signal">
+    {% for para in signal %}<p>{{ para }}</p>{% endfor %}
+  </div>
+  {% endif %}
+</header>
+
+<nav class="card-nav">
+  <h2 class="mono">本期案例</h2>
+  <div class="card-grid">
+    {% for case in cases %}
+    <a class="nav-card{{ ' is-factory' if case.area_category == '廠區現場' else '' }}" href="#case-{{ loop.index }}">
+      {% if case.needs_review %}<span class="needs-review-flag">待人工確認</span>{% endif %}
+      <div class="nav-card-metric">{{ case.card_summary.metric_value }}</div>
+      <div class="nav-card-metric-label mono">{{ case.card_summary.metric_label }}</div>
+      <p class="nav-card-text">{{ case.card_summary.text }}</p>
+    </a>
+    {% endfor %}
+  </div>
+</nav>
+
+<div class="cases">
+  {% for case in cases %}
+  <article class="case{{ ' is-factory' if case.area_category == '廠區現場' else '' }}" id="case-{{ loop.index }}">
+    <div class="case-eyebrow">
+      <span class="case-tag mono">{{ case.area_category }} ・ {{ case.tags | join('、') }}</span>
+      <span class="case-source">{{ case.source_name }}</span>
+      {% if case.needs_review %}<span class="needs-review-flag">待人工確認・信心度 {{ '%.2f' | format(case.confidence) }}</span>{% endif %}
+    </div>
+    <h3>{{ case.title }}</h3>
+
+    {% for section in case.sections %}
+    <div class="case-section">
+      <h4 class="mono">{{ section.heading }}</h4>
+      {% for para in section.paragraphs %}<p>{{ para }}</p>{% endfor %}
+      {% if section.heading == '成效' and case.stats %}
+      <div class="stats-row">
+        {% for stat in case.stats %}
+        <div class="stat-tile">
+          <div class="stat-value">{{ stat.value }}</div>
+          <div class="stat-label">{{ stat.label }}</div>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </div>
+    {% endfor %}
+
+    <div class="delta-insight">
+      <h4 class="mono">如果在台達</h4>
+      {% for para in case.delta_insight.paragraphs %}<p>{{ para }}</p>{% endfor %}
+    </div>
+  </article>
+  {% endfor %}
+</div>
+
+<p class="footer">
+  內容由 AI 依公開來源改寫產出，經事實查核與風格審查關卡後發布，非原文轉載；標示「待人工確認」的案例代表自動審查信心度未達門檻，內容仍待人工複核。僅供台達內部參考。
+</p>
+
+</body>
+</html>

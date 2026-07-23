@@ -1,16 +1,16 @@
 """呼叫 Claude API，把單一子領域的原始項目（arXiv 論文 + Reddit 討論）
 整理成給該領域同仁看的電子報段落。
 
-需要環境變數 ANTHROPIC_API_KEY。
+需要環境變數 ANTHROPIC_API_KEY（若走台達內部 LLM gateway，另外設定
+ANTHROPIC_BASE_URL，見 .env.example）。
 """
 from __future__ import annotations
 
 import json
 import os
 
-import anthropic
-
 from ingestion.base import RawItem
+from pipeline.llm_client import get_client
 
 MODEL = os.environ.get("NEWSLETTER_MODEL", "claude-sonnet-5")
 
@@ -42,7 +42,7 @@ def summarize_subdomain(
     if not items:
         return []
 
-    client = anthropic.Anthropic()
+    client = get_client()
 
     items_payload = [
         {

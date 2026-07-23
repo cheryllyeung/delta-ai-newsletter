@@ -1,6 +1,8 @@
 <!--
-橫向情報看板版型（非email，供內部網頁/連結檢視用）。
-設計語彙呼應工程製圖：淺藍灰底的「藍圖紙」淡網格 + 銅色線路點綴，
+情報看板版型（非email，供內部網頁/連結檢視用）。
+上下捲動的電子報式版面：依事業群分段，通用AI趨勢在最上面，
+段落內的子領域並排成卡片，避免多欄橫向捲動造成的擁擠感。
+設計語彙呼應工程製圖：淺藍灰底的「藍圖紙」淡網格 + 品牌藍點綴，
 對應台達電子業本業，而非制式的AI簡報風格。
 單一淺色主題，不做深色模式切換（同一份設計語言的延伸選擇）。
 -->
@@ -15,8 +17,8 @@
     --bg: #eef1f4;
     --panel-solid: #ffffff;
     --panel-border: #dde3e8;
-    --copper: #a8632f;
-    --copper-dim: #c98a54;
+    --accent: #2a5db0;
+    --accent-dim: #6f93cf;
     --text-primary: #1c2b38;
     --text-secondary: #57707f;
     --text-tertiary: #8298a6;
@@ -44,7 +46,7 @@
   }
 
   a { color: inherit; text-decoration: none; }
-  a:focus-visible, button:focus-visible { outline: 2px solid var(--copper); outline-offset: 2px; }
+  a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
   /* Masthead */
   .masthead {
@@ -52,12 +54,28 @@
     border-bottom: 1px solid var(--panel-border);
     background: var(--panel-solid);
   }
+  .masthead-top {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin: 0 0 6px;
+  }
   .masthead-eyebrow {
     font-size: 11px;
     letter-spacing: 2px;
-    color: var(--copper);
+    color: var(--accent);
     text-transform: uppercase;
-    margin: 0 0 6px;
+    margin: 0;
+  }
+  .proto-badge {
+    font-size: 10.5px;
+    letter-spacing: 0.5px;
+    color: var(--accent);
+    border: 1px solid var(--accent-dim);
+    background: rgba(42,93,176,0.08);
+    padding: 2px 8px;
+    border-radius: 100px;
   }
   .masthead h1 {
     margin: 0;
@@ -80,64 +98,63 @@
     font-size: 13.5px;
     line-height: 1.7;
     color: var(--text-secondary);
+    text-wrap: pretty;
   }
-  /* Board */
-  .board-scroll {
-    overflow-x: auto;
-    overflow-y: hidden;
-    padding: 20px clamp(16px, 4vw, 48px) 40px;
-    scroll-snap-type: x proximity;
-  }
-  .board {
+  /* Groups — vertical, scroll up/down through the whole issue */
+  .groups {
+    padding: 24px clamp(16px, 4vw, 48px) 40px;
     display: flex;
-    gap: 16px;
-    width: max-content;
+    flex-direction: column;
+    gap: 36px;
   }
-  .column {
-    scroll-snap-align: start;
-    width: 300px;
-    flex: none;
+  .group-heading {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 6px 12px;
+    margin-bottom: 14px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid var(--accent-dim);
+  }
+  .group-heading h2 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 700;
+  }
+  .group-count {
+    font-size: 11px;
+    color: var(--text-tertiary);
+  }
+  .group-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 16px;
+    align-items: start;
+  }
+  .subcard {
     background: var(--panel-solid);
     border: 1px solid var(--panel-border);
     border-radius: 3px;
-    display: flex;
-    flex-direction: column;
-    max-height: calc(100vh - 220px);
-    min-height: 320px;
   }
-  .column.is-general {
-    border-color: var(--copper-dim);
-    box-shadow: 0 0 0 1px rgba(201,130,79,0.15);
+  .subcard.is-general {
+    grid-column: 1 / -1;
+    border-color: var(--accent-dim);
+    box-shadow: 0 0 0 1px rgba(42,93,176,0.15);
   }
-  .column-header {
-    padding: 14px 16px 12px;
+  .subcard-header {
+    padding: 12px 16px 10px;
     border-bottom: 1px solid var(--rule);
-    position: sticky;
-    top: 0;
-    background: var(--panel-solid);
-    z-index: 1;
   }
-  .column-eyebrow {
-    font-size: 10px;
-    letter-spacing: 1.5px;
-    color: var(--text-tertiary);
-    text-transform: uppercase;
-    margin: 0 0 4px;
-  }
-  .column-title {
+  .subcard-title {
     margin: 0;
     font-size: 15px;
     font-weight: 700;
     line-height: 1.35;
   }
-  .column-count {
+  .subcard-count {
     font-size: 11px;
-    color: var(--copper);
+    color: var(--accent);
     margin-top: 4px;
-  }
-  .column-body {
-    overflow-y: auto;
-    padding: 4px 0;
   }
 
   .entry {
@@ -160,7 +177,7 @@
     line-height: 1.5;
     color: var(--text-primary);
   }
-  .entry-title:hover { color: var(--copper); }
+  .entry-title:hover { color: var(--accent); }
   .entry-summary {
     margin: 6px 0 0;
     font-size: 12px;
@@ -171,16 +188,9 @@
     margin: 6px 0 0;
     font-size: 11.5px;
     line-height: 1.6;
-    color: var(--copper);
+    color: var(--accent);
     opacity: 0.85;
   }
-  .board-scroll::-webkit-scrollbar,
-  .column-body::-webkit-scrollbar { height: 8px; width: 8px; }
-  .board-scroll::-webkit-scrollbar-thumb,
-  .column-body::-webkit-scrollbar-thumb { background: var(--panel-border); border-radius: 4px; }
-  .board-scroll::-webkit-scrollbar-track,
-  .column-body::-webkit-scrollbar-track { background: transparent; }
-
   .footer {
     padding: 20px clamp(16px, 4vw, 48px) 32px;
     border-top: 1px solid var(--rule);
@@ -188,17 +198,26 @@
     line-height: 1.7;
     color: var(--text-tertiary);
     max-width: 80ch;
+    text-wrap: pretty;
   }
 
-  @media (prefers-reduced-motion: no-preference) {
-    .board-scroll { scroll-behavior: smooth; }
+  /* 窄螢幕（手機）收斂間距與字級，卡片自動收成單欄 */
+  @media (max-width: 480px) {
+    .groups { gap: 28px; }
+    .group-grid { grid-template-columns: 1fr; gap: 12px; }
+    .group-heading h2 { font-size: 16px; }
+    .entry { padding: 12px 14px; gap: 8px; }
+    .masthead-intro { font-size: 13px; }
   }
 </style>
 </head>
 <body>
 
 <header class="masthead">
-  <p class="masthead-eyebrow mono">Delta AI Intelligence Briefing</p>
+  <div class="masthead-top">
+    <p class="masthead-eyebrow mono">Delta AI Weekly Top 5</p>
+    <span class="proto-badge mono">初稿 PROTOTYPE · 展示用</span>
+  </div>
   <h1>{{ issue_title }}</h1>
   <div class="masthead-meta mono">
     <span>{{ issue_date }}</span>
@@ -210,16 +229,20 @@
   {% endif %}
 </header>
 
-<div class="board-scroll">
-  <div class="board">
-    {% for column in columns %}
-    <section class="column{{ ' is-general' if column.is_general else '' }}">
-      <div class="column-header">
-        <p class="column-eyebrow mono">{{ column.eyebrow }}</p>
-        <h2 class="column-title">{{ column.name }}</h2>
-        <p class="column-count mono">{{ column.entries | length }} 則</p>
-      </div>
-      <div class="column-body">
+<div class="groups">
+  {% for group in groups %}
+  <section class="group-block">
+    <div class="group-heading">
+      <h2>{{ group.eyebrow }}</h2>
+      <span class="group-count mono">{{ group.columns | map(attribute='entries') | map('length') | sum }} 則</span>
+    </div>
+    <div class="group-grid">
+      {% for column in group.columns %}
+      <article class="subcard{{ ' is-general' if column.is_general else '' }}">
+        <div class="subcard-header">
+          <h3 class="subcard-title">{{ column.name }}</h3>
+          <p class="subcard-count mono">{{ column.entries | length }} 則</p>
+        </div>
         {% for item in column.entries %}
         <article class="entry">
           <span class="entry-index mono">{{ '%02d' | format(loop.index) }}</span>
@@ -232,15 +255,15 @@
           </div>
         </article>
         {% endfor %}
-      </div>
-    </section>
-    {% endfor %}
-  </div>
+      </article>
+      {% endfor %}
+    </div>
+  </section>
+  {% endfor %}
 </div>
 
 <p class="footer">
-  本簡報由 AI 輔助彙整公開資料來源（產業新聞、學術論文、技術社群討論）並附原始連結，僅供內部參考，未經進一步事實查核前請勿對外引用。
-  各欄位依領域彙整，條列順序不代表絕對排名。如需調整追蹤領域或來源，請聯繫電子報維運同仁。
+  AI 輔助彙整公開來源，附原始連結供查證；僅供內部參考，對外引用前請先查核。條列順序不代表排名。
 </p>
 
 </body>

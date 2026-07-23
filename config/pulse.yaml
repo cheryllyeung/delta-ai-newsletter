@@ -1,0 +1,76 @@
+# Delta Pulse 台達脈動：案例式週報設定（v2，pool 化架構）
+#
+# 跟 config/domains.yaml（趨勢彙整 pipeline）是兩條獨立產品線，互不影響。
+#
+# v2 改動（2026-07-23 開會後）：
+# - 拿掉固定的 weekly_themes 輪替，改成長期 pool + 開放式 hashtag 趨勢偵測
+# - 拿掉 corporate/factory 二分類，換成 area_quota 三分類
+# - 不再有 is_ai_application 硬篩選，所有文章都留在 pool 裡（見 pipeline/pool_db.py）
+
+newsletter:
+  name: "Delta Pulse 台達脈動"
+  issue_day: thursday
+
+database:
+  path: "data/pulse.db"
+
+selection:
+  total_cases: [5, 7]
+  # 三分類配額：後勤支援、業務前台是主力（信箱觸及得到），廠區現場占比低
+  # （廠區的人不太看信箱，推播不易觸及），某類別不足就從別類遞補。
+  area_quota:
+    廠區現場: [0, 1]
+    後勤支援: [2, 3]
+    業務前台: [2, 3]
+  # 拿掉 theme_fit（沒有固定主題可比對），權重依原比例重新分配
+  scoring_weights:
+    transferability: 0.35
+    specificity: 0.30
+    novelty: 0.20
+    narrativity: 0.15
+  # is_ai_application=false 不再淘汰文章，只打折 base_score
+  non_application_score_multiplier: 0.2
+
+trend:
+  recent_days: 14      # 近期窗口：判斷「最近密集出現」
+  baseline_days: 60     # 基期窗口：判斷「平常大概多常出現」
+  trend_weight: 0.3      # final_score = base_score * (1 + trend_weight * normalize(trend_boost))
+
+quality:
+  confidence_threshold: 0.8
+  max_regeneration_retries: 2
+
+# 每個來源抓取時的流量控管（入池前的流量閥，不做「是不是AI案例」的判斷，
+# 那交給 Prompt 1 的 is_ai_application 這個軟訊號）。
+fetch:
+  days_back: 30
+  max_items_per_source: 15
+
+# 來源清單：2026-07-23 實測過，皆為 200 + 有效 RSS，內文可透過
+# content:encoded 或 description 取得完整全文（非只有摘要）。
+sources:
+  - id: nvidia_customer_stories
+    name: "NVIDIA Blog - Customer Stories"
+    type: rss
+    url: "https://blogs.nvidia.com/blog/tag/customer-stories/feed/"
+    weight: 1.0
+  - id: ms_ai_customer_stories
+    name: "Microsoft AI Blog - Customer Stories"
+    type: rss
+    url: "https://www.microsoft.com/en-us/ai/blog/content-type/customer-stories/feed/"
+    weight: 1.0
+  - id: azure_customer_stories
+    name: "Azure Blog - Customer Stories"
+    type: rss
+    url: "https://azure.microsoft.com/en-us/blog/content-type/customer-stories/feed/"
+    weight: 0.9
+  - id: aws_ml_blog
+    name: "AWS Machine Learning Blog"
+    type: rss
+    url: "https://aws.amazon.com/blogs/machine-learning/feed/"
+    weight: 0.8
+  - id: google_cloud_blog
+    name: "Google Cloud Blog"
+    type: rss
+    url: "https://cloudblog.withgoogle.com/rss/"
+    weight: 0.7

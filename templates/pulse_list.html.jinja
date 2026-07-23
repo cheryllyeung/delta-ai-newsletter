@@ -1,0 +1,65 @@
+<!--
+Delta Pulse 台達脈動：期數列表首頁（POC 網頁版）。
+沿用 pulse.html.jinja 的「藍圖紙」視覺語言，保持同一套設計系統。
+-->
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{ newsletter_name }}</title>
+<style>
+  :root {
+    --bg: #eef1f4; --panel-solid: #ffffff; --panel-border: #dde3e8;
+    --accent: #2a5db0; --accent-dim: #6f93cf;
+    --text-primary: #1c2b38; --text-secondary: #57707f; --text-tertiary: #8298a6;
+    --rule: #e2e8ec;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0; background-color: var(--bg);
+    background-image: linear-gradient(var(--rule) 1px, transparent 1px), linear-gradient(90deg, var(--rule) 1px, transparent 1px);
+    background-size: 28px 28px; background-attachment: fixed;
+    color: var(--text-primary);
+    font-family: system-ui, -apple-system, "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", sans-serif;
+  }
+  .mono { font-family: ui-monospace, "SF Mono", "Cascadia Mono", "Roboto Mono", monospace; }
+  a { color: inherit; text-decoration: none; }
+  .masthead { padding: 28px clamp(16px, 4vw, 48px) 22px; border-bottom: 1px solid var(--panel-border); background: var(--panel-solid); }
+  .masthead-eyebrow { font-size: 11px; letter-spacing: 2px; color: var(--accent); text-transform: uppercase; margin: 0 0 6px; }
+  .masthead h1 { margin: 0; font-size: clamp(22px, 3vw, 30px); font-weight: 700; }
+  .masthead p { margin: 8px 0 0; font-size: 13.5px; color: var(--text-secondary); }
+  .issue-list { padding: 24px clamp(16px, 4vw, 48px) 40px; display: flex; flex-direction: column; gap: 14px; }
+  .issue-card {
+    display: block; background: var(--panel-solid); border: 1px solid var(--panel-border);
+    border-radius: 4px; padding: 16px 20px;
+  }
+  .issue-card:hover { border-color: var(--accent-dim); }
+  .issue-card-meta { font-size: 11px; color: var(--text-tertiary); margin-bottom: 6px; }
+  .issue-card-hook { font-size: 15px; font-weight: 600; }
+  .empty { padding: 24px clamp(16px, 4vw, 48px); color: var(--text-tertiary); font-size: 13px; }
+</style>
+</head>
+<body>
+
+<header class="masthead">
+  <p class="masthead-eyebrow mono">Delta Pulse 台達脈動</p>
+  <h1>{{ newsletter_name }}</h1>
+  <p>POC 階段：本機網頁檢視，資料來源為長期文章池（SQLite）。</p>
+</header>
+
+{% if issues %}
+<div class="issue-list">
+  {% for issue in issues %}
+  <a class="issue-card" href="/issues/{{ issue.id }}">
+    <div class="issue-card-meta mono">第 {{ issue.id }} 期 · {{ issue.issue_date }}</div>
+    <div class="issue-card-hook">{{ issue.hook or '（尚無導言）' }}</div>
+  </a>
+  {% endfor %}
+</div>
+{% else %}
+<p class="empty">目前還沒有任何一期。跑 <code>python -m scripts.compose_issue</code> 組一期看看。</p>
+{% endif %}
+
+</body>
+</html>

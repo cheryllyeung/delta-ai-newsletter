@@ -34,11 +34,12 @@ def render_newsletter(
 
 def render_briefing(
     columns: list[dict],
-    issue_title: str = "台達 AI 情報簡報",
+    issue_title: str = "台達AI Weekly Top 5",
     issue_date: str | None = None,
     intro: str = "",
 ) -> str:
-    """把各領域的條列項目渲染成橫向情報看板 HTML（供內部網頁/連結檢視，非email格式）。
+    """把各領域的條列項目渲染成情報看板 HTML（供內部網頁/連結檢視，非email格式）。
+    版面為上下捲動的電子報式排版：依 eyebrow（事業群）分段，段落內的子領域並排成卡片。
 
     columns 結構範例：
         [{"name": "通用AI模型趨勢", "eyebrow": "GENERAL", "is_general": True, "entries": [...]},
@@ -46,6 +47,11 @@ def render_briefing(
     entries 中每個元素需含 title/summary/relevance/url/source_type
     （source_type 為 "research" / "news" / "community" 三選一）。
     """
+    grouped: dict[str, list[dict]] = {}
+    for column in columns:
+        grouped.setdefault(column["eyebrow"], []).append(column)
+    groups = [{"eyebrow": eyebrow, "columns": cols} for eyebrow, cols in grouped.items()]
+
     env = Environment(loader=FileSystemLoader(str(TEMPLATE_DIR)), autoescape=True)
     template = env.get_template("briefing.html.jinja")
     return template.render(
@@ -53,6 +59,7 @@ def render_briefing(
         issue_date=issue_date or date.today().isoformat(),
         intro=intro,
         columns=columns,
+        groups=groups,
     )
 
 
