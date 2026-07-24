@@ -3,7 +3,7 @@
 
 輸入端一律用真實 RSS 抓取（不虛構 RawItem），只 mock 會花錢的 Claude API
 呼叫。用獨立的測試用 SQLite 檔（跑之前會清掉），不會動到真正的
-data/pulse.db。這支測試要連網（抓真實RSS）但不需要 ANTHROPIC_API_KEY、
+data/pulse.db。這支測試要連網（抓真實RSS）但不需要 LLM_API_KEY、
 不花 LLM 額度，可以隨時跑。
 
 用法：
@@ -39,6 +39,7 @@ from pipeline.pool_db import (
     save_score,
 )
 from pipeline.pool_selection import select_for_issue
+from pipeline.tag_clustering import compute_tag_clusters
 from review.case_selfcheck import self_check
 
 CONFIG_PATH = Path(__file__).resolve().parent.parent / "config" / "pulse.yaml"
@@ -245,6 +246,23 @@ def main() -> None:
         )
         assert discounted < full and discounted > 0, "is_ai_application=False 應該打折但不歸零/不淘汰"
         print("[smoke_test] is_ai_application=False 打折不淘汰，驗證通過")
+
+        # 標籤同義詞分群：真的用本機 embedding 模型（免費、不用API key），
+        # 不 mock，直接驗證語意相近的詞會被分到同一組、不相關的詞不會。
+        sample_counts = {
+            "AI客服": 5,
+            "智能客服機器人": 3,
+            "客服自動化": 2,
+            "預測性維護": 4,
+            "RAG": 1,
+        }
+        clusters = compute_tag_clusters(sample_counts)
+        assert clusters["AI客服"] == clusters["智能客服機器人"] == clusters["客服自動化"], (
+            f"語意相近的客服類標籤沒有被分到同一組：{clusters}"
+        )
+        assert clusters["預測性維護"] != clusters["AI客服"], "不相關的標籤不應該被合併"
+        assert clusters["RAG"] != clusters["AI客服"], "不相關的標籤不應該被合併"
+        print(f"[smoke_test] 標籤同義詞分群驗證通過：{clusters}")
 
         selected = select_for_issue(conn, config)
         area_quota = selection_cfg["area_quota"]

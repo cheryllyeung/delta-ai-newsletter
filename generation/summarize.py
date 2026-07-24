@@ -1,8 +1,7 @@
 """呼叫 LLM API，把單一子領域的原始項目（arXiv 論文 + Reddit 討論）
 整理成給該領域同仁看的電子報段落。
 
-需要環境變數 ANTHROPIC_API_KEY／LLM_API_KEY（走台達內部 LLM gateway 時另外
-設定 ANTHROPIC_BASE_URL／LLM_BASE_URL，見 .env.example）。
+需要環境變數 LLM_API_KEY／LLM_BASE_URL（見 .env.example）。
 """
 from __future__ import annotations
 

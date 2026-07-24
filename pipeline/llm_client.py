@@ -18,8 +18,8 @@ DEFAULT_MODEL = "REPLACE_WITH_CLAWITH_QWEN_MODEL_NAME"
 
 def get_client() -> openai.OpenAI:
     return openai.OpenAI(
-        api_key=os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("LLM_API_KEY"),
-        base_url=os.environ.get("ANTHROPIC_BASE_URL") or os.environ.get("LLM_BASE_URL") or None,
+        api_key=os.environ.get("LLM_API_KEY"),
+        base_url=os.environ.get("LLM_BASE_URL") or None,
     )
 
 

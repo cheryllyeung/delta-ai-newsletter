@@ -44,6 +44,11 @@ CREATE TABLE IF NOT EXISTS article_tags (
 CREATE INDEX IF NOT EXISTS idx_article_tags_tag ON article_tags(tag);
 CREATE INDEX IF NOT EXISTS idx_article_tags_article ON article_tags(article_id);
 
+CREATE TABLE IF NOT EXISTS tag_aliases (
+    raw_tag TEXT PRIMARY KEY,
+    canonical_tag TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS issues (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     issue_date TEXT NOT NULL,
@@ -144,14 +149,29 @@ def save_score(
 
 
 def get_tag_counts_since(conn: sqlite3.Connection, since_iso: str) -> dict[str, int]:
+    """統計 tag 出現次數，會先把原始標籤透過 tag_aliases 轉成 canonical 寫法
+    再合併計數（見 pipeline/tag_clustering.py），沒有對應別名的標籤就用原字。
+    """
     rows = conn.execute(
-        """SELECT t.tag AS tag, COUNT(*) AS n
-           FROM article_tags t JOIN articles a ON a.id = t.article_id
+        """SELECT COALESCE(ta.canonical_tag, t.tag) AS tag, COUNT(*) AS n
+           FROM article_tags t
+           JOIN articles a ON a.id = t.article_id
+           LEFT JOIN tag_aliases ta ON ta.raw_tag = t.tag
            WHERE a.published_at >= ?
-           GROUP BY t.tag""",
+           GROUP BY COALESCE(ta.canonical_tag, t.tag)""",
         (since_iso,),
     ).fetchall()
     return {row["tag"]: row["n"] for row in rows}
+
+
+def set_tag_aliases(conn: sqlite3.Connection, mapping: dict[str, str]) -> None:
+    """整批覆寫標籤別名對照表（pipeline.tag_clustering.compute_tag_clusters() 的輸出）。"""
+    conn.execute("DELETE FROM tag_aliases")
+    conn.executemany(
+        "INSERT INTO tag_aliases (raw_tag, canonical_tag) VALUES (?, ?)",
+        list(mapping.items()),
+    )
+    conn.commit()
 
 
 def get_available_pool(conn: sqlite3.Connection) -> list[sqlite3.Row]:
@@ -163,8 +183,13 @@ def get_available_pool(conn: sqlite3.Connection) -> list[sqlite3.Row]:
 
 
 def get_tags_for_article(conn: sqlite3.Connection, article_id: int) -> list[str]:
+    """回傳這篇文章的標籤（canonical 寫法，見 get_tag_counts_since 的說明）。"""
     rows = conn.execute(
-        "SELECT tag FROM article_tags WHERE article_id = ?", (article_id,)
+        """SELECT DISTINCT COALESCE(ta.canonical_tag, t.tag) AS tag
+           FROM article_tags t
+           LEFT JOIN tag_aliases ta ON ta.raw_tag = t.tag
+           WHERE t.article_id = ?""",
+        (article_id,),
     ).fetchall()
     return [row["tag"] for row in rows]
 

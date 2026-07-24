@@ -71,7 +71,7 @@ output/drafts/（靜態檔案，等人工審核後發送）
 ## 目錄結構
 
 - `ingestion/` — 各來源爬蟲：`arxiv_source.py`、`reddit_source.py`（趨勢彙整）、`case_source.py`（Delta Pulse 案例來源RSS）與共用資料格式（`base.py`）
-- `pipeline/` — 去重排序（`dedupe.py`）；Delta Pulse 的評分（`case_scoring.py`）、文章池 schema/CRUD（`pool_db.py`）、趨勢計算（`trend.py`）、選文查詢（`pool_selection.py`）、prompt模板讀取（`prompt_loader.py`）、LLM client（`llm_client.py`）、呼叫落地記錄（`llm_logging.py`）
+- `pipeline/` — 去重排序（`dedupe.py`）；Delta Pulse 的評分（`case_scoring.py`）、文章池 schema/CRUD（`pool_db.py`）、標籤同義詞分群（`tag_clustering.py`，本機 embedding，不用API key）、趨勢計算（`trend.py`）、選文查詢（`pool_selection.py`）、prompt模板讀取（`prompt_loader.py`）、LLM client（`llm_client.py`）、呼叫落地記錄（`llm_logging.py`）
 - `generation/` — Claude API 串接：`summarize.py`（趨勢彙整重寫）、`case_generate.py`／`case_intro.py`（Delta Pulse 案例生成／動態導言）
 - `review/` — `case_selfcheck.py`：Delta Pulse 的獨立事實查核/風格審查關卡；`pending/` 是自動產生的待人工確認案例清單（不進版控）；舊 pipeline 的人工審核關卡仍待實作
 - `render/` — `build_newsletter.py`：趨勢彙整版 HTML 渲染（Delta Pulse 改用網頁輸出，見 `scripts/serve_pulse.py`）
@@ -95,7 +95,7 @@ output/drafts/（靜態檔案，等人工審核後發送）
 ```bash
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-cp .env.example .env   # 填入 ANTHROPIC_API_KEY,以及選填的 REDDIT_* 憑證
+cp .env.example .env   # 填入 LLM_API_KEY,以及選填的 REDDIT_* 憑證
 python -m scripts.run_pipeline
 ```
 
@@ -147,7 +147,7 @@ scripts/serve_pulse.py（本機網頁）
 
 ```bash
 python -m scripts.smoke_test_case_pipeline   # 離線邏輯測試：真實RSS + 假LLM回應，不用API key、不花額度
-python -m scripts.ingest_pool                # 抓取+評分，寫進長期文章池（需要 .env 設定 ANTHROPIC_API_KEY）
+python -m scripts.ingest_pool                # 抓取+評分，寫進長期文章池（需要 .env 設定 LLM_API_KEY）
 python -m scripts.compose_issue              # 對文章池組成一期
 python -m scripts.serve_pulse                # 啟動本機網頁，開瀏覽器連 http://localhost:8000
 ```
@@ -158,7 +158,7 @@ python -m scripts.serve_pulse                # 啟動本機網頁，開瀏覽器
 - **factory（現改名廠區現場）類案例天生稀少**：這 5 個來源都是雲端/企業 IT 導向的 blog，選文邏輯會優雅降級（從其他分類遞補），不會為了湊配額硬選低分文章
 - **去重目前只做網址正規化比對**，沒有做跨來源的語意相似度去重
 - **趨勢偵測公式是簡單的近期/基期密度比**，POC 階段刻意不做複雜的時間序列模型，之後要調準度優先從 `pipeline/trend.py` 下手
-- **尚未實際打過 Claude API 跑出真實案例草稿**：本地環境沒有可用的 `ANTHROPIC_API_KEY`（卡在公司內部 LLM gateway 的連線問題，見 `docs/status_report_2026-07-23.md`），`scripts/smoke_test_case_pipeline.py` 已經驗證過整條邏輯（DB寫入、趨勢計算、配額選文、自檢重試、網頁渲染）不會壞，但真正的評分/生成/自檢文字品質，需要金鑰打通後才能看到
+- **尚未實際打過 Claude API 跑出真實案例草稿**：本地環境沒有可用的 `LLM_API_KEY`（卡在公司內部 LLM gateway 的連線問題，見 `docs/status_report_2026-07-23.md`），`scripts/smoke_test_case_pipeline.py` 已經驗證過整條邏輯（DB寫入、趨勢計算、配額選文、自檢重試、網頁渲染）不會壞，但真正的評分/生成/自檢文字品質，需要金鑰打通後才能看到
 - **網頁只做到本機能看**，沒有部署、登入、權限這些，公司 VM 的串接留到 POC 驗證完之後
 
 ## 安全考量

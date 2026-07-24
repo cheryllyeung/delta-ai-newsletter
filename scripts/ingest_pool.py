@@ -29,7 +29,14 @@ load_dotenv()
 from ingestion.base import RawItem
 from ingestion.case_source import fetch_case_study_items
 from pipeline.case_scoring import compute_base_score, score_article
-from pipeline.pool_db import get_connection, get_unscored_articles, insert_article_if_new, save_score
+from pipeline.pool_db import (
+    get_connection,
+    get_unscored_articles,
+    insert_article_if_new,
+    save_score,
+    set_tag_aliases,
+)
+from pipeline.tag_clustering import compute_tag_clusters, tag_counts_from_pool
 
 CONFIG_PATH = Path(__file__).resolve().parent.parent / "config" / "pulse.yaml"
 
@@ -111,6 +118,14 @@ def main() -> None:
             print(f"[ingest_pool]   評分失敗，跳過（下次重跑會自動重試）：{exc}")
 
     print(f"[ingest_pool] 完成，評分成功 {scored_count} 篇，失敗 {failed_count} 篇。")
+
+    if scored_count > 0:
+        print("[ingest_pool] 重新計算標籤同義詞分組（本機 embedding，不花 LLM 額度）...")
+        tag_counts = tag_counts_from_pool(conn)
+        mapping = compute_tag_clusters(tag_counts)
+        set_tag_aliases(conn, mapping)
+        canonical_count = len(set(mapping.values()))
+        print(f"[ingest_pool] {len(mapping)} 個原始標籤 -> {canonical_count} 個標準化標籤。")
 
 
 if __name__ == "__main__":
