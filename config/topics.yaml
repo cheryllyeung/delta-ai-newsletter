@@ -1,0 +1,158 @@
+# 話題式週報設定（第三條 pipeline，依 docs/0724_v3_PRD.md 架構建置）
+#
+# 跟 config/domains.yaml（趨勢彙整）、config/pulse.yaml（Delta Pulse 案例式週報）
+# 是三條獨立產品線，互不影響，只共用 ingestion/base.py 的 RawItem 格式跟
+# pipeline/llm_client.py 等底層元件。
+#
+# 這份設定對應 PRD 的 topic-centric 模型：文章先聚類成「話題」，話題被 18 個
+# 模組打分，用組合最佳化選題，寫作時用 embedding+reranker 兩段式檢索素材。
+
+newsletter:
+  name: "Delta AI 趨勢週報（話題式，PRD v0.1 PoC）"
+  issue_day: thursday
+
+database:
+  path: "data/topics.db"
+
+# 向量庫與聚類：Qdrant 本機 embedded 模式（不需另外跑伺服器），
+# collection 存放路徑跟 SQLite pool 分開管理。
+vector_store:
+  path: "data/qdrant"
+  collection: "articles"
+
+embedding:
+  model: "Qwen/Qwen3-Embedding-0.6B"
+  # 話題聚類門檻：新文章 embedding 對現有話題代表向量的 cosine similarity
+  # 超過這個值就併入既有話題，否則新開話題。這是保守預設值，不是正式評測
+  # 結果（PRD §6 提到的 20-30 題繁中評測留待之後做，見 docs/status_report）。
+  # 目前的來源全部是企業案例（各公司各自的案例，本來就很少是同一事件被
+  # 多家媒體報導），預期聚類結果會接近 1 話題 = 1 文章，這是資料特性不是bug。
+  cluster_similarity_threshold: 0.72
+
+reranker:
+  model: "BAAI/bge-reranker-v2-m3"
+  retrieval_top_k: 20     # 第一段：embedding 從全池撈 top-20
+  rerank_top_k: 5          # 第二段：reranker 重排取 top-5 作為寫作素材
+
+# 18 個模組：10 個職能模組 + 8 個領域模組（PRD §2 原文列表）。
+# 每個話題會被 LLM 對這 18 個模組各打 0-10 分並附一句理由。
+modules:
+  functional:
+    - id: legal_compliance
+      name: 法務合規
+    - id: finance_audit
+      name: 財會稽核
+    - id: hr
+      name: 人資
+    - id: marketing_brand
+      name: 行銷品牌
+    - id: it_security
+      name: 資訊資安
+    - id: ops_logistics
+      name: 營運物流
+    - id: strategy_investment
+      name: 策略投資
+    - id: rd_engineering
+      name: 研發工程
+    - id: knowledge_management
+      name: 知識管理
+    - id: ehs
+      name: EHS
+  domain:
+    - id: energy_power
+      name: 能源電力
+    - id: building_automation
+      name: 樓宇自動化
+    - id: ev_automotive
+      name: 電動車車用
+    - id: network_infra
+      name: 網通基礎設施
+    - id: manufacturing
+      name: 製造廠務
+    - id: consumer_products
+      name: 消費性產品
+    - id: software_platform
+      name: 軟體平台
+    - id: sustainability
+      name: 永續節能
+
+content_types:
+  - id: insight
+    name: 洞見型
+  - id: practical
+    name: 實用型
+  - id: warning
+    name: 警示型
+  - id: flash
+    name: 快訊型
+
+selection:
+  # 暫時調小：只讓 1-2 個話題進到寫作+自檢（額度消耗最大的階段），
+  # 額度升級後可以調回 [5, 8]。
+  total_topics: [1, 2]
+  # content_type 配額，某類別缺貨就從別類遞補，不硬湊（比照 pool_selection.py 的 area_quota 寫法）。
+  content_type_quota:
+    insight: [1, 2]
+    practical: [2, 3]
+    warning: [0, 1]
+    flash: [1, 2]
+  # 每個模組最多輪動入選幾個話題（避免單一模組的高分話題把版位吃光）。
+  per_module_cap: 1
+  # 模組輪動這一輪，該模組排名最高的話題分數低於這個值就跳過，不硬湊
+  # （分數低代表這一期真的沒有適合這個模組的話題，比湊一則不相關的內容好）。
+  min_module_score_to_select: 1.0
+
+# 熱門度評分 = 報導家數 × 來源權重 × 時間衰減。
+# time_decay 用半衰期參數化：half_life_days 天後熱度打對折。
+# PRD 提到週報看7天、月報看30天、結構性變化看90天，這裡的 window_days
+# 是通用參數，週報 script 目前只用 7 天這組。
+hotness:
+  window_days: 7
+  half_life_days: 3.5
+
+quality:
+  confidence_threshold: 0.8
+  max_regeneration_retries: 2
+
+fetch:
+  days_back: 30
+  # 暫時調小：Gemini 免費層每天只有 20 次請求額度，5 個來源各抓 1 篇（共
+  # 5 篇候選話題）讓標籤+打分能控制在額度內，同時留額度給選題後的寫作+
+  # 自檢驗證。額度升級（開通計費）後可以調回較大值看完整規模的產出。
+  max_items_per_source: 1
+
+# 來源清單：先沿用 config/pulse.yaml 裡已實測過的 5 個企業案例來源。
+# tier 欄位為 PRD 的三層來源分級（核心層/訊號層/深度層）+ 專門來源類型
+# 預留擴充點，目前全部標成 case（企業案例來源），之後要接核心層一般新聞
+# 來源或垂直產業來源，補進來源清單並標對 tier 即可，不用改程式碼。
+sources:
+  - id: nvidia_customer_stories
+    name: "NVIDIA Blog - Customer Stories"
+    type: rss
+    tier: case
+    url: "https://blogs.nvidia.com/blog/tag/customer-stories/feed/"
+    weight: 1.0
+  - id: ms_ai_customer_stories
+    name: "Microsoft AI Blog - Customer Stories"
+    type: rss
+    tier: case
+    url: "https://www.microsoft.com/en-us/ai/blog/content-type/customer-stories/feed/"
+    weight: 1.0
+  - id: azure_customer_stories
+    name: "Azure Blog - Customer Stories"
+    type: rss
+    tier: case
+    url: "https://azure.microsoft.com/en-us/blog/content-type/customer-stories/feed/"
+    weight: 0.9
+  - id: aws_ml_blog
+    name: "AWS Machine Learning Blog"
+    type: rss
+    tier: case
+    url: "https://aws.amazon.com/blogs/machine-learning/feed/"
+    weight: 0.8
+  - id: google_cloud_blog
+    name: "Google Cloud Blog"
+    type: rss
+    tier: case
+    url: "https://cloudblog.withgoogle.com/rss/"
+    weight: 0.7

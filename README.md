@@ -161,6 +161,60 @@ python -m scripts.serve_pulse                # 啟動本機網頁，開瀏覽器
 - **尚未實際打過 Claude API 跑出真實案例草稿**：本地環境沒有可用的 `LLM_API_KEY`（卡在公司內部 LLM gateway 的連線問題，見 `docs/status_report_2026-07-23.md`），`scripts/smoke_test_case_pipeline.py` 已經驗證過整條邏輯（DB寫入、趨勢計算、配額選文、自檢重試、網頁渲染）不會壞，但真正的評分/生成/自檢文字品質，需要金鑰打通後才能看到
 - **網頁只做到本機能看**，沒有部署、登入、權限這些，公司 VM 的串接留到 POC 驗證完之後
 
+## 第三條 pipeline：話題式週報（依 `docs/0724_v3_PRD.md` 架構，PoC 建置中）
+
+前兩條 pipeline 都是「一篇文章＝一則內容」。這條是依 2026-07-24 版 PRD 重寫的
+topic-centric 架構：多來源同事件文章先聚類成「話題」，話題被 18 個模組
+（10 職能＋8 領域，對應台達 25+ 個單位）打分後用組合最佳化選題，寫作時
+用 embedding+reranker 兩段式檢索該話題最相關的素材。跟前兩條 pipeline
+一樣獨立、互不影響，只共用 `RawItem` 格式跟 `pipeline/llm_client.py` 等
+底層元件。
+
+```
+scripts/ingest_topics.py（可重複執行）
+    抓 5 個真實案例來源（沿用 Delta Pulse 已實測過的來源）→ 依網址去重
+    → 話題聚類（Qwen3-Embedding-0.6B 本機嵌入 + Qdrant 本機 embedded 模式
+      找最近鄰居，相似度夠高就併入既有話題）→ Prompt 抽多維標籤
+    → Prompt 對已標籤完的話題做 18 模組打分 + 內容型態判斷
+
+scripts/compose_topic_issue.py（要出刊時執行）
+    → 對話題池做組合最佳化選題（18模組輪動 + content_type配額）
+    → 每個入選話題用 embedding 從全池撈 top-20，reranker（bge-reranker-v2-m3）
+      重排取 top-5 當寫作素材 → 生成 + 獨立自檢（不過門檻回灌重新生成，最多2次）
+    → 寫進 issues / generated_topics 表，標記話題已用過
+
+scripts/serve_topics.py（本機網頁，開瀏覽器連 http://localhost:8001）
+```
+
+**技術選型跟 PRD 的差異，刻意的、有記錄下來**：
+- 關聯資料庫沿用 SQLite（`data/topics.db`），沒有換成 PRD 寫的 PostgreSQL。
+  現有 SQLite 方案已經跑通、零額外維運成本，PoC 階段換 PostgreSQL 只是多一個
+  要另外啟動的服務，對驗證架構沒有實質幫助，之後真的要多人並發再換
+- 向量庫用 Qdrant **本機 embedded 模式**（`QdrantClient(path=...)`），不需要
+  另外跑 Docker/伺服器
+- 來源目前只接現有已實測過的 5 個企業案例 RSS 來源，PRD 說的來源三層分級
+  （核心層/訊號層/深度層）跟垂直產業來源還沒接，找新來源是獨立的研究工作
+
+**目前的真實進度跟已知限制（誠實列出）：**
+
+- embedding（Qwen3-Embedding-0.6B）、Qdrant 聚類、reranker（bge-reranker-v2-m3）
+  這三塊完全跑在本機，不需要 LLM_API_KEY，已經用真實抓到的文章驗證過
+  （`scripts/smoke_test_topic_pipeline.py`）：相似度排序合理、檢索邏輯正常
+- 目前來源全部是企業案例（各公司各自的案例），話題聚類預期接近 1 話題=1
+  文章，很少真的合併，這是資料特性不是bug；等接進一般新聞來源（同一則
+  模型發布會被多家媒體同時報導），聚類合併才有東西可驗證
+- 標籤抽取、18模組打分、寫作、自檢已經接上 Google AI Studio 的 Gemini
+  key（OpenAI 相容介面），也修好了一個真實 bug：Gemini flash 系列的內部
+  思考過程會佔用 `max_tokens` 卻不算進看得到的輸出，導致回應被截斷成空的
+  或不完整的 JSON，加上 `reasoning_effort="low"` 並拉高 `max_tokens` 後解決
+- **目前卡住的是免費層額度，不是程式邏輯**：這把 key 的免費層每天只有
+  20 次請求（`gemini-flash-latest` 實際指向的 `gemini-3.6-flash`），且舊款
+  GA 模型（如 `gemini-2.0-flash`）對這個帳號完全是 0 額度，撐不起一次完整
+  五階段流程，還在等額度重置後用縮小過的範圍（`config/topics.yaml` 已暫時
+  調小 `max_items_per_source`／`selection.total_topics`）驗證真實產出品質
+- 聚類相似度門檻（`config/topics.yaml` 的 `cluster_similarity_threshold`）是
+  保守預設值，PRD §6 提到的 20-30 題繁中正式評測還沒做
+
 ## 安全考量
 
 - 只把公開來源的新聞內容送進外部 LLM API，不傳遞任何台達內部機敏資訊

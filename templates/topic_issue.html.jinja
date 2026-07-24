@@ -1,0 +1,169 @@
+<!--
+話題式週報版型（第三條 pipeline，依 docs/0724_v3_PRD.md 架構）。
+視覺語彙沿用 pulse.html.jinja 的「藍圖紙」淡網格 + 品牌藍，同一套設計系統，
+只是把 area_category（廠區現場/後勤支援/業務前台）換成 content_type
+（insight/practical/warning/flash）當作分類軸。
+-->
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{ issue_title }}</title>
+<style>
+  :root {
+    --bg: #eef1f4;
+    --panel-solid: #ffffff;
+    --panel-border: #dde3e8;
+    --accent: #2a5db0;
+    --accent-dim: #6f93cf;
+    --text-primary: #1c2b38;
+    --text-secondary: #57707f;
+    --text-tertiary: #8298a6;
+    --rule: #e2e8ec;
+    --warn: #b0662a;
+    --warn-dim: #cf9a6f;
+    --warn-bg: #fff6e8;
+    --warn-border: #e8c988;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    background-color: var(--bg);
+    background-image:
+      linear-gradient(var(--rule) 1px, transparent 1px),
+      linear-gradient(90deg, var(--rule) 1px, transparent 1px);
+    background-size: 28px 28px;
+    background-attachment: fixed;
+    color: var(--text-primary);
+    font-family: system-ui, -apple-system, "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .mono { font-family: ui-monospace, "SF Mono", "Cascadia Mono", "Roboto Mono", monospace; }
+  a { color: inherit; text-decoration: none; }
+  a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .masthead { padding: 28px clamp(16px, 4vw, 48px) 22px; border-bottom: 1px solid var(--panel-border); background: var(--panel-solid); }
+  .masthead-top { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin: 0 0 6px; }
+  .masthead-eyebrow { font-size: 11px; letter-spacing: 2px; color: var(--accent); text-transform: uppercase; margin: 0; }
+  .proto-badge { font-size: 10.5px; letter-spacing: 0.5px; color: var(--accent); border: 1px solid var(--accent-dim); background: rgba(42,93,176,0.08); padding: 2px 8px; border-radius: 100px; }
+  .masthead h1 { margin: 0; font-size: clamp(22px, 3vw, 30px); font-weight: 700; text-wrap: balance; letter-spacing: -0.01em; }
+  .masthead-meta { display: flex; flex-wrap: wrap; gap: 4px 18px; margin-top: 12px; font-size: 12px; color: var(--text-secondary); }
+
+  .card-nav { padding: 24px clamp(16px, 4vw, 48px) 8px; }
+  .card-nav h2 { margin: 0 0 12px; font-size: 13px; letter-spacing: 1px; color: var(--text-tertiary); text-transform: uppercase; }
+  .card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; }
+  .nav-card { display: block; background: var(--panel-solid); border: 1px solid var(--panel-border); border-radius: 4px; padding: 14px 16px; position: relative; border-left: 3px solid var(--accent); }
+  .nav-card.is-warning { border-left-color: var(--warn); }
+  .nav-card:hover { border-color: var(--accent-dim); }
+  .nav-card-type { font-size: 10.5px; letter-spacing: 0.5px; color: var(--accent); text-transform: uppercase; margin-bottom: 6px; }
+  .nav-card.is-warning .nav-card-type { color: var(--warn); }
+  .nav-card-text { font-size: 12.5px; line-height: 1.6; color: var(--text-primary); }
+  .needs-review-flag { position: absolute; top: 10px; right: 10px; font-size: 9.5px; color: #a35b00; background: var(--warn-bg); border: 1px solid var(--warn-border); padding: 1px 6px; border-radius: 100px; }
+
+  .topics { padding: 8px clamp(16px, 4vw, 48px) 40px; display: flex; flex-direction: column; gap: 28px; }
+  .topic { background: var(--panel-solid); border: 1px solid var(--panel-border); border-radius: 4px; padding: clamp(18px, 3vw, 28px); scroll-margin-top: 16px; border-top: 3px solid var(--accent); }
+  .topic.is-warning { border-top-color: var(--warn); }
+  .topic-eyebrow { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 8px; }
+  .topic-tag { font-size: 10.5px; letter-spacing: 0.5px; color: var(--accent); text-transform: uppercase; }
+  .topic.is-warning .topic-tag { color: var(--warn); }
+  .topic-sources { font-size: 11.5px; color: var(--text-tertiary); }
+  .topic h3 { margin: 0 0 16px; font-size: clamp(18px, 2.2vw, 22px); line-height: 1.4; }
+  .topic-section { margin-bottom: 16px; }
+  .topic-section:last-of-type { margin-bottom: 0; }
+  .topic-section h4 { margin: 0 0 8px; font-size: 13px; color: var(--text-tertiary); letter-spacing: 0.5px; }
+  .topic-section p { margin: 0 0 8px; font-size: 14px; line-height: 1.75; color: var(--text-primary); }
+  .topic-section p:last-child { margin-bottom: 0; }
+
+  .stats-row { display: flex; flex-wrap: wrap; gap: 12px; margin: 8px 0 16px; }
+  .stat-tile { background: var(--bg); border: 1px solid var(--rule); border-radius: 4px; padding: 10px 14px; min-width: 100px; }
+  .stat-value { font-size: 18px; font-weight: 700; color: var(--accent); }
+  .stat-label { font-size: 11px; color: var(--text-secondary); margin-top: 2px; }
+
+  .delta-insight { margin-top: 18px; padding: 14px 16px; background: rgba(42,93,176,0.05); border: 1px solid var(--accent-dim); border-radius: 4px; }
+  .delta-insight h4 { margin: 0 0 8px; font-size: 13px; color: var(--accent); letter-spacing: 0.5px; }
+  .delta-insight p { margin: 0 0 8px; font-size: 13.5px; line-height: 1.7; color: var(--text-primary); }
+  .delta-insight p:last-child { margin-bottom: 0; }
+
+  .footer { padding: 20px clamp(16px, 4vw, 48px) 32px; border-top: 1px solid var(--rule); font-size: 11px; line-height: 1.7; color: var(--text-tertiary); max-width: 80ch; text-wrap: pretty; }
+
+  @media (max-width: 480px) {
+    .card-grid { grid-template-columns: 1fr; }
+    .topics { gap: 20px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="masthead">
+  <div class="masthead-top">
+    <p class="masthead-eyebrow mono">{{ newsletter_name }}</p>
+    <span class="proto-badge mono">初稿 PROTOTYPE · 展示用</span>
+  </div>
+  <h1><a href="/">{{ newsletter_name }}</a></h1>
+  <div class="masthead-meta mono">
+    <span>第 {{ issue_id }} 期 · {{ issue_date }}</span>
+    <span>{{ topics | length }} 個話題</span>
+  </div>
+</header>
+
+<nav class="card-nav">
+  <h2 class="mono">本期話題</h2>
+  <div class="card-grid">
+    {% for topic in topics %}
+    <a class="nav-card{{ ' is-warning' if topic.content_type == 'warning' else '' }}" href="#topic-{{ loop.index }}">
+      {% if topic.needs_review %}<span class="needs-review-flag">待人工確認</span>{% endif %}
+      <div class="nav-card-type mono">{{ content_type_names.get(topic.content_type, topic.content_type) }}</div>
+      <p class="nav-card-text">{{ topic.card_summary.text }}</p>
+    </a>
+    {% endfor %}
+  </div>
+</nav>
+
+<div class="topics">
+  {% for topic in topics %}
+  <article class="topic{{ ' is-warning' if topic.content_type == 'warning' else '' }}" id="topic-{{ loop.index }}">
+    <div class="topic-eyebrow">
+      <span class="topic-tag mono">{{ content_type_names.get(topic.content_type, topic.content_type) }}</span>
+      <span class="topic-sources">來源：{{ topic.sources | map(attribute='source_name') | unique | join('、') }}</span>
+      {% if topic.needs_review %}<span class="needs-review-flag">待人工確認・信心度 {{ '%.2f' | format(topic.confidence) }}</span>{% endif %}
+    </div>
+    <h3>{{ topic.chosen_headline }}</h3>
+
+    {% for section in topic.sections %}
+    <div class="topic-section">
+      <h4 class="mono">{{ section.heading }}</h4>
+      {% for para in section.paragraphs %}<p>{{ para }}</p>{% endfor %}
+      {% if topic.stats and loop.last %}
+      <div class="stats-row">
+        {% for stat in topic.stats %}
+        <div class="stat-tile">
+          <div class="stat-value">{{ stat.value }}</div>
+          <div class="stat-label">{{ stat.label }}</div>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </div>
+    {% endfor %}
+
+    {% if topic.delta_insight %}
+    <div class="delta-insight">
+      <h4 class="mono">這對我們意味著什麼</h4>
+      {% for para in topic.delta_insight.paragraphs %}<p>{{ para }}</p>{% endfor %}
+    </div>
+    {% endif %}
+  </article>
+  {% endfor %}
+</div>
+
+<p class="footer">
+  內容由 AI 依公開來源改寫產出，經事實查核與風格審查關卡後發布，非原文轉載；標示「待人工確認」的話題代表自動審查信心度未達門檻，內容仍待人工複核。僅供台達內部參考。
+</p>
+
+</body>
+</html>
