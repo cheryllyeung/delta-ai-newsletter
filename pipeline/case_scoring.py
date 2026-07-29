@@ -9,7 +9,7 @@ from __future__ import annotations
 import json
 
 from ingestion.base import RawItem
-from pipeline.llm_client import get_client, get_model
+from pipeline.llm_client import create_chat_completion, get_client, get_model
 from pipeline.llm_logging import log_call
 from pipeline.prompt_loader import load_prompt_parts
 
@@ -46,7 +46,8 @@ def score_article(item: RawItem, client=None) -> dict:
         content=item.summary[:_CONTENT_CHARS_FOR_SCORING],
     )
 
-    response = client.chat.completions.create(
+    response = create_chat_completion(
+        client,
         model=get_model(),
         max_tokens=1500,
         temperature=0.2,

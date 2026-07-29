@@ -8,7 +8,7 @@ from __future__ import annotations
 import json
 
 from ingestion.base import RawItem
-from pipeline.llm_client import get_client, get_model
+from pipeline.llm_client import create_chat_completion, get_client, get_model
 
 _SYSTEM_PROMPT = """\
 你是台達內部 AI 電子報的編輯助理。你的讀者是特定專業領域的工程師/主管，
@@ -60,7 +60,8 @@ def summarize_subdomain(
 {json.dumps(items_payload, ensure_ascii=False, indent=2)}
 """
 
-    response = client.chat.completions.create(
+    response = create_chat_completion(
+        client,
         model=get_model(),
         max_tokens=2000,
         messages=[
@@ -76,11 +77,13 @@ def summarize_subdomain(
 
     raw_text = response.choices[0].message.content
 
+    # strict=False：LLM 常在字串值裡直接吐出沒跳脫的換行/tab 等控制字元，
+    # 嚴格模式的 json.loads 會直接拋 JSONDecodeError（Invalid control character）。
     try:
-        return json.loads(raw_text)
+        return json.loads(raw_text, strict=False)
     except json.JSONDecodeError:
         # LLM 偶爾會在 JSON 外加說明文字，嘗試抓出第一個 [ 到最後一個 ] 之間的內容再解析一次
         start, end = raw_text.find("["), raw_text.rfind("]")
         if start != -1 and end != -1:
-            return json.loads(raw_text[start : end + 1])
+            return json.loads(raw_text[start : end + 1], strict=False)
         raise

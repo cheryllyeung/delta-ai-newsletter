@@ -9,7 +9,7 @@ import json
 
 import openai
 
-from pipeline.llm_client import get_client, get_model
+from pipeline.llm_client import create_chat_completion, get_client, get_model
 from pipeline.llm_logging import log_call
 from pipeline.prompt_loader import load_prompt_parts
 
@@ -17,12 +17,14 @@ _CONTENT_CHARS_FOR_GENERATION = 8000
 
 
 def _parse_json_object(raw_text: str) -> dict:
+    # strict=False：LLM 常在字串值裡直接吐出沒跳脫的換行/tab 等控制字元，
+    # 嚴格模式的 json.loads 會直接拋 JSONDecodeError（Invalid control character）。
     try:
-        return json.loads(raw_text)
+        return json.loads(raw_text, strict=False)
     except json.JSONDecodeError:
         start, end = raw_text.find("{"), raw_text.rfind("}")
         if start != -1 and end != -1:
-            return json.loads(raw_text[start : end + 1])
+            return json.loads(raw_text[start : end + 1], strict=False)
         raise
 
 
@@ -63,7 +65,8 @@ def generate_case(
         revision_note=revision_note,
     )
 
-    response = client.chat.completions.create(
+    response = create_chat_completion(
+        client,
         model=get_model(),
         max_tokens=3000,
         temperature=0.7,
@@ -73,6 +76,10 @@ def generate_case(
         ],
     )
     raw_text = response.choices[0].message.content
-    parsed = _parse_json_object(raw_text)
+    try:
+        parsed = _parse_json_object(raw_text)
+    except json.JSONDecodeError:
+        log_call("generate", system, user, raw_text, None)
+        raise
     log_call("generate", system, user, raw_text, parsed)
     return parsed

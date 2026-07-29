@@ -12,20 +12,22 @@ import sqlite3
 import openai
 
 from generation.topic_generate import build_sources_text
-from pipeline.llm_client import get_client, get_model
+from pipeline.llm_client import create_chat_completion, get_client, get_writing_model
 from pipeline.llm_logging import log_call
 from pipeline.prompt_loader import load_prompt_parts
 
-_SOURCE_CHARS_FOR_CHECK = 8000
+_SOURCE_CHARS_FOR_CHECK = 3000
 
 
 def _parse_json_object(raw_text: str) -> dict:
+    # strict=False：LLM 常在字串值裡直接吐出沒跳脫的換行/tab 等控制字元，
+    # 嚴格模式的 json.loads 會直接拋 JSONDecodeError（Invalid control character）。
     try:
-        return json.loads(raw_text)
+        return json.loads(raw_text, strict=False)
     except json.JSONDecodeError:
         start, end = raw_text.find("{"), raw_text.rfind("}")
         if start != -1 and end != -1:
-            return json.loads(raw_text[start : end + 1])
+            return json.loads(raw_text[start : end + 1], strict=False)
         raise
 
 
@@ -58,18 +60,24 @@ def self_check(
         sources_text=sources_text,
     )
 
-    response = client.chat.completions.create(
-        model=get_model(),
+    response = create_chat_completion(
+        client,
+        model=get_writing_model(),
         max_tokens=4000,
         temperature=0,
-        reasoning_effort="low",
+        reasoning_effort="none",
         messages=[
             {"role": "system", "content": system},
             {"role": "user", "content": user},
         ],
     )
     raw_text = response.choices[0].message.content
-    parsed = _parse_json_object(raw_text)
+    try:
+        parsed = _parse_json_object(raw_text)
+    except json.JSONDecodeError:
+        # 解析失敗也要把原始回應存下來，不然沒辦法回頭比對到底是哪裡壞的。
+        log_call("topic_self_check", system, user, raw_text, None)
+        raise
     parsed["confidence"] = _compute_confidence(parsed)
     log_call("topic_self_check", system, user, raw_text, parsed)
     return parsed

@@ -10,7 +10,7 @@ from __future__ import annotations
 import json
 import sqlite3
 
-from pipeline.llm_client import get_client, get_model
+from pipeline.llm_client import create_chat_completion, get_client, get_model
 from pipeline.llm_logging import log_call
 from pipeline.prompt_loader import load_prompt_parts
 
@@ -89,11 +89,12 @@ def score_topic(
         modules_list=build_modules_list_text(modules_config),
     )
 
-    response = client.chat.completions.create(
+    response = create_chat_completion(
+        client,
         model=get_model(),
         max_tokens=5000,
         temperature=0.2,
-        reasoning_effort="low",
+        reasoning_effort="none",
         messages=[
             {"role": "system", "content": system},
             {"role": "user", "content": user},
