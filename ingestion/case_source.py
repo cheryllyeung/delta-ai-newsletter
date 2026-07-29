@@ -16,9 +16,15 @@ from ingestion.base import RawItem
 
 
 def _entry_html(entry: dict) -> str:
+    """有些來源（實測過 NVIDIA Blog、Google Cloud Blog）的 RSS content
+    欄位存在但 value 是空字串（不是欄位缺失，是那個欄位本身沒填內容），
+    這種情況要退回 summary，不然這篇文章會因為「有 content 就直接採用」
+    被判定成沒有正文、整篇跳過。"""
     content_list = entry.get("content")
     if content_list:
-        return content_list[0].get("value", "")
+        value = content_list[0].get("value", "")
+        if value.strip():
+            return value
     return entry.get("summary", "") or entry.get("description", "")
 
 
