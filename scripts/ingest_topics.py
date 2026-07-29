@@ -28,8 +28,13 @@ from dotenv import load_dotenv
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 load_dotenv()
 
+from ingestion.arxiv_source import fetch_arxiv_items
 from ingestion.base import RawItem
 from ingestion.case_source import fetch_case_study_items
+from ingestion.github_source import fetch_github_items
+from ingestion.hn_source import fetch_hn_items
+from ingestion.reddit_source import fetch_reddit_items
+from ingestion.stackexchange_source import fetch_stackexchange_items
 from pipeline.article_tagging import tag_article
 from pipeline.module_scoring import score_topic
 from pipeline.topic_clustering import cluster_new_articles
@@ -64,6 +69,84 @@ def _row_to_raw_item(row) -> RawItem:
     )
 
 
+def _fetch_source_items(source: dict, fetch_cfg: dict) -> list[RawItem]:
+    """依 source["type"] 分派到對應的抓取函式，預設當作 RSS 處理
+    （向下相容舊設定沒寫 type 的來源）。任何一個來源抓取失敗都不該
+    中斷其他來源，由呼叫端包 try/except。"""
+    source_type = source.get("type", "rss")
+
+    if source_type == "rss":
+        return fetch_case_study_items(
+            source_id=source["id"],
+            source_name=source["name"],
+            url=source["url"],
+            weight=source["weight"],
+            days_back=fetch_cfg["days_back"],
+            max_items=fetch_cfg["max_items_per_source"],
+        )
+
+    if source_type == "arxiv":
+        items = fetch_arxiv_items(
+            subdomain_id=source["id"],
+            categories=source["categories"],
+            keywords=source.get("keywords", []),
+            max_results=fetch_cfg["max_items_per_source"],
+            days_back=fetch_cfg["days_back"],
+            timeout=30,
+        )
+        for item in items:
+            item.extra.setdefault("source_name", source["name"])
+            item.extra.setdefault("source_weight", source["weight"])
+        return items
+
+    if source_type == "hn":
+        return fetch_hn_items(
+            source_id=source["id"],
+            source_name=source["name"],
+            queries=source["queries"],
+            weight=source["weight"],
+            min_points=source.get("min_points", 20),
+            days_back=fetch_cfg["days_back"],
+            max_items=fetch_cfg["max_items_per_source"],
+        )
+
+    if source_type == "reddit":
+        items = fetch_reddit_items(
+            subdomain_id=source["id"],
+            subreddits=source["subreddits"],
+            limit_per_subreddit=fetch_cfg["max_items_per_source"],
+        )
+        for item in items:
+            item.extra.setdefault("source_name", source["name"])
+            item.extra.setdefault("source_weight", source["weight"])
+        return items
+
+    if source_type == "stackexchange":
+        return fetch_stackexchange_items(
+            source_id=source["id"],
+            source_name=source["name"],
+            tags=source["tags"],
+            weight=source["weight"],
+            site=source.get("site", "stackoverflow"),
+            min_score=source.get("min_score", 1),
+            days_back=fetch_cfg["days_back"],
+            max_items=fetch_cfg["max_items_per_source"],
+        )
+
+    if source_type == "github":
+        return fetch_github_items(
+            source_id=source["id"],
+            source_name=source["name"],
+            queries=source["queries"],
+            weight=source["weight"],
+            min_stars=source.get("min_stars", 20),
+            days_back=fetch_cfg["days_back"],
+            max_items=fetch_cfg["max_items_per_source"],
+        )
+
+    raise ValueError(f"未知的來源類型：{source_type}（來源：{source['name']}）")
+
+
 def main() -> None:
     config = load_config()
     conn = get_connection(config["database"]["path"])
@@ -73,14 +156,11 @@ def main() -> None:
     inserted_count = 0
     for source in config["sources"]:
         print(f"[ingest_topics] 抓取來源：{source['name']} ...")
-        items = fetch_case_study_items(
-            source_id=source["id"],
-            source_name=source["name"],
-            url=source["url"],
-            weight=source["weight"],
-            days_back=fetch_cfg["days_back"],
-            max_items=fetch_cfg["max_items_per_source"],
-        )
+        try:
+            items = _fetch_source_items(source, fetch_cfg)
+        except Exception as exc:  # noqa: BLE001 -- 單一來源失敗不中斷其他來源
+            print(f"[ingest_topics]   抓取失敗，跳過這個來源：{exc}")
+            continue
         for item in items:
             if insert_article_if_new(conn, item) is not None:
                 inserted_count += 1

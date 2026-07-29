@@ -281,7 +281,7 @@ def save_generated_topic(
 
 
 def list_issues(conn: sqlite3.Connection) -> list[sqlite3.Row]:
-    return conn.execute("SELECT * FROM issues ORDER BY issue_date DESC").fetchall()
+    return conn.execute("SELECT * FROM issues ORDER BY issue_date DESC, created_at DESC").fetchall()
 
 
 def get_issue_detail(conn: sqlite3.Connection, issue_id: int) -> dict | None:

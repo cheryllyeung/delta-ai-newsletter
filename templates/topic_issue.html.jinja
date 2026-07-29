@@ -1,169 +1,429 @@
 <!--
-話題式週報版型（第三條 pipeline，依 docs/0724_v3_PRD.md 架構）。
-視覺語彙沿用 pulse.html.jinja 的「藍圖紙」淡網格 + 品牌藍，同一套設計系統，
-只是把 area_category（廠區現場/後勤支援/業務前台）換成 content_type
-（insight/practical/warning/flash）當作分類軸。
--->
+/* Hallmark · macrostructure: Marquee Hero + Catalogue (accordion) · genre: editorial (loud) · theme: Carnival
+ * custom drop "Delta Blue". 這是把 output/mockups/carnival-delta-v5.html 的 mockup 移植進正式
+ * pipeline 的版本。視覺／互動系統跟 mockup 完全一致（手風琴卡片、蓋章進度、跑馬燈、意見回饋
+ * 按鈕、語言切換器），差異是這裡改成從 Jinja 迴圈讀真實資料庫內容，不是寫死的示範資料。
+ * 拿掉了 content_type 標籤 chip（實用型／洞見型），跟 mockup 定案版一致。
+ * 語言切換器只做介面文字（範圍已跟使用者確認）：文章本文目前只有繁體中文，
+ * 切到簡中／英文只會換介面用詞，本文維持原文並顯示一行提示。
+ * 意見回饋按鈕是純前端 demo：內容存在使用者自己瀏覽器的 localStorage，
+ * 還沒有讓所有人共享看到彼此留言的後端，這點待後續評估。 -->
 <!DOCTYPE html>
-<html lang="zh-Hant">
+<html lang="zh-Hant" data-lang="zh-Hant">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>{{ issue_title }}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800&family=Noto+Sans+TC:wght@700;900&family=IBM+Plex+Sans:wght@400;500&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg: #eef1f4;
-    --panel-solid: #ffffff;
-    --panel-border: #dde3e8;
-    --accent: #2a5db0;
-    --accent-dim: #6f93cf;
-    --text-primary: #1c2b38;
-    --text-secondary: #57707f;
-    --text-tertiary: #8298a6;
-    --rule: #e2e8ec;
-    --warn: #b0662a;
-    --warn-dim: #cf9a6f;
-    --warn-bg: #fff6e8;
-    --warn-border: #e8c988;
+    --color-paper:   oklch(93% 0.020 240);
+    --color-paper-2: oklch(89% 0.024 238);
+    --color-paper-3: oklch(83% 0.028 235);
+    --color-ink:     oklch(16% 0.030 250);
+    --color-ink-2:   oklch(28% 0.028 248);
+    --color-muted:   oklch(46% 0.020 245);
+    --color-accent:      oklch(58% 0.160 247);
+    --color-accent-ink:  oklch(97% 0.010 240);
+    --color-accent-2:    oklch(76% 0.150  75);
+    --color-focus:   oklch(58% 0.160 247);
+    --font-display: "Big Shoulders Display", "Noto Sans TC", sans-serif;
+    --font-body:    "IBM Plex Sans", ui-sans-serif, "PingFang TC", "Noto Sans TC", "Noto Sans SC", sans-serif;
+    --font-label:   "JetBrains Mono", ui-monospace, monospace;
+    --page-gutter: clamp(1.25rem, 4vw, 3rem);
+    --shell: 46rem;
   }
-
   * { box-sizing: border-box; }
+  html, body { overflow-x: clip; margin: 0; padding: 0; }
+  body { background: var(--color-paper); color: var(--color-ink); font-family: var(--font-body); }
+  .shell { max-width: var(--shell); margin-inline: auto; padding-inline: var(--page-gutter); position: relative; }
+  a { color: var(--color-ink); }
+  a:focus-visible, button:focus-visible { outline: 3px solid var(--color-focus); outline-offset: 2px; }
+  h1, h2 { font-family: var(--font-display); font-weight: 800; font-variation-settings: "wdth" 110, "wght" 800; letter-spacing: 0.01em; line-height: 0.96; text-transform: uppercase; }
 
-  html, body {
-    margin: 0;
-    padding: 0;
-    background-color: var(--bg);
-    background-image:
-      linear-gradient(var(--rule) 1px, transparent 1px),
-      linear-gradient(90deg, var(--rule) 1px, transparent 1px);
-    background-size: 28px 28px;
-    background-attachment: fixed;
-    color: var(--text-primary);
-    font-family: system-ui, -apple-system, "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", sans-serif;
-    -webkit-font-smoothing: antialiased;
+  .lang-switcher { position: absolute; top: 1.1rem; right: var(--page-gutter); z-index: 5; }
+  .lang-btn { display: inline-flex; align-items: center; gap: 0.4em; background: var(--color-ink); color: var(--color-accent-ink); border: none; padding: 0.5em 0.9em; font-family: var(--font-label); font-size: 0.72rem; letter-spacing: 0.04em; cursor: pointer; }
+  .lang-menu { position: absolute; top: calc(100% + 0.3rem); right: 0; z-index: 30; background: var(--color-paper); border: 2px solid var(--color-ink); box-shadow: 4px 4px 0 var(--color-ink); padding: 0.3rem; min-width: 9rem; display: none; }
+  .lang-menu.is-open { display: block; }
+  .lang-option { display: block; width: 100%; text-align: left; background: none; border: none; padding: 0.5em 0.7em; font-family: var(--font-body); font-size: 0.85rem; color: var(--color-ink); cursor: pointer; }
+  .lang-option:hover { background: var(--color-paper-2); }
+  .lang-option[aria-checked="true"] { font-weight: 700; color: var(--color-accent); }
+  .lang-note { display: none; max-width: var(--shell); margin: 0 auto 1.5rem; padding: 0.7em 1em; background: var(--color-paper-2); border: 2px solid var(--color-ink); font-size: 0.85rem; }
+  html[data-lang="zh-Hans"] .lang-note, html[data-lang="en"] .lang-note { display: block; }
+
+  .halftone { height: 14px; background-image: radial-gradient(var(--color-ink) 1.5px, transparent 1.5px); background-size: 10px 10px; opacity: 0.5; }
+
+  .marquee { background: var(--color-ink); color: var(--color-accent-ink); overflow: hidden; white-space: nowrap; padding: 0.5rem 0; }
+  .marquee-track { display: inline-block; animation: marquee 26s linear infinite; }
+  .marquee span { font-family: var(--font-label); font-size: 0.78rem; letter-spacing: 0.08em; }
+  @keyframes marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+  @media (prefers-reduced-motion: reduce) { .marquee-track { animation: none; } }
+
+  .masthead { background: var(--color-accent); color: var(--color-accent-ink); padding: 3rem var(--page-gutter) 2.5rem; }
+  .masthead-inner { max-width: var(--shell); margin: 0 auto; position: relative; }
+  .masthead .eyebrow { font-family: var(--font-label); font-size: 0.75rem; letter-spacing: 0.1em; margin: 0 0 0.6rem; }
+  .masthead h1 { margin: 0 9rem 0 0; font-size: clamp(1.9rem, 3.6vw + 1rem, 3rem); overflow-wrap: anywhere; }
+  .masthead h1 a { color: inherit; text-decoration: none; }
+  .masthead-meta { margin-top: 1rem; font-family: var(--font-label); font-size: 0.8rem; letter-spacing: 0.04em; display: flex; gap: 1.2rem; flex-wrap: wrap; opacity: 0.9; }
+
+  .progress-row { display: flex; align-items: center; gap: 0.9rem; margin-top: 1.5rem; }
+  .progress-track { flex: 1; max-width: 12rem; height: 6px; background: color-mix(in oklch, var(--color-accent-ink) 30%, transparent); }
+  .progress-fill { height: 100%; width: 0%; background: var(--color-accent-2); transition: width 420ms ease; }
+  .progress-count { font-family: var(--font-label); font-size: 0.78rem; white-space: nowrap; }
+
+  .ornament-row { text-align: center; color: var(--color-accent-2); letter-spacing: 0.6em; padding: 1.5rem 0; font-size: 0.9rem; }
+  .shell-inner { padding-bottom: 3rem; }
+
+  .topic { margin-bottom: 3rem; position: relative; }
+  .topic-head { cursor: pointer; }
+
+  .stamp-mark {
+    position: absolute; top: 0; right: 0;
+    width: 44px; height: 44px; border-radius: 50%; flex-shrink: 0;
+    border: 2px dashed color-mix(in oklch, var(--color-ink) 40%, transparent);
+    display: flex; align-items: center; justify-content: center; opacity: 0.5;
   }
+  .stamp-mark svg { width: 18px; height: 18px; opacity: 0; transform: scale(0.3); }
+  .topic.is-collected .stamp-mark { opacity: 1; border-style: solid; border-color: var(--color-ink); background: var(--color-accent-2); animation: thump 320ms cubic-bezier(0.2,0.8,0.3,1); }
+  .topic.is-collected .stamp-mark svg { opacity: 1; transform: scale(1); color: var(--color-ink); }
+  @keyframes thump { 0% { transform: scale(1.6) rotate(-16deg); opacity: 0; } 60% { transform: scale(0.9) rotate(-8deg); } 100% { transform: scale(1) rotate(-8deg); } }
 
-  .mono { font-family: ui-monospace, "SF Mono", "Cascadia Mono", "Roboto Mono", monospace; }
-  a { color: inherit; text-decoration: none; }
-  a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .topic h2 { margin: 0 4.5rem 0.3rem 0; font-size: clamp(1.5rem, 2.2vw + 1rem, 2.1rem); overflow-wrap: anywhere; }
+  .topic-subhead { margin: 0 4.5rem 0.8rem 0; font-size: 1.05rem; line-height: 1.5; color: var(--color-accent); font-weight: 600; overflow-wrap: anywhere; }
+  .topic-teaser { margin: 0 0 1.2rem; font-size: 1rem; line-height: 1.6; color: var(--color-ink-2); max-width: 56ch; font-weight: 500; }
+  .needs-review-flag { display: inline-block; margin-bottom: 0.8rem; font-family: var(--font-label); font-size: 0.7rem; letter-spacing: 0.04em; background: var(--color-paper); border: 2px solid var(--color-ink); padding: 0.2em 0.6em; }
+  .primary-tag { display: inline-block; margin: 0 0 0.8rem; font-family: var(--font-label); font-size: 0.7rem; letter-spacing: 0.04em; color: var(--color-accent); border: 2px solid var(--color-accent); padding: 0.2em 0.6em; }
 
-  .masthead { padding: 28px clamp(16px, 4vw, 48px) 22px; border-bottom: 1px solid var(--panel-border); background: var(--panel-solid); }
-  .masthead-top { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin: 0 0 6px; }
-  .masthead-eyebrow { font-size: 11px; letter-spacing: 2px; color: var(--accent); text-transform: uppercase; margin: 0; }
-  .proto-badge { font-size: 10.5px; letter-spacing: 0.5px; color: var(--accent); border: 1px solid var(--accent-dim); background: rgba(42,93,176,0.08); padding: 2px 8px; border-radius: 100px; }
-  .masthead h1 { margin: 0; font-size: clamp(22px, 3vw, 30px); font-weight: 700; text-wrap: balance; letter-spacing: -0.01em; }
-  .masthead-meta { display: flex; flex-wrap: wrap; gap: 4px 18px; margin-top: 12px; font-size: 12px; color: var(--text-secondary); }
+  .stats-line { display: flex; flex-wrap: wrap; gap: 0.9rem; margin-bottom: 1.2rem; }
+  .stat-tile { background: var(--color-paper-2); border: 2px solid var(--color-ink); padding: 0.6rem 0.9rem; box-shadow: 4px 4px 0 var(--color-ink); }
+  .stat-value { display: block; font-family: var(--font-display); font-weight: 800; font-size: 1.35rem; font-variant-numeric: tabular-nums; }
+  .stat-label { display: block; margin-top: 0.2rem; font-family: var(--font-label); font-size: 0.62rem; letter-spacing: 0.04em; color: var(--color-muted); text-transform: none; }
 
-  .card-nav { padding: 24px clamp(16px, 4vw, 48px) 8px; }
-  .card-nav h2 { margin: 0 0 12px; font-size: 13px; letter-spacing: 1px; color: var(--text-tertiary); text-transform: uppercase; }
-  .card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; }
-  .nav-card { display: block; background: var(--panel-solid); border: 1px solid var(--panel-border); border-radius: 4px; padding: 14px 16px; position: relative; border-left: 3px solid var(--accent); }
-  .nav-card.is-warning { border-left-color: var(--warn); }
-  .nav-card:hover { border-color: var(--accent-dim); }
-  .nav-card-type { font-size: 10.5px; letter-spacing: 0.5px; color: var(--accent); text-transform: uppercase; margin-bottom: 6px; }
-  .nav-card.is-warning .nav-card-type { color: var(--warn); }
-  .nav-card-text { font-size: 12.5px; line-height: 1.6; color: var(--text-primary); }
-  .needs-review-flag { position: absolute; top: 10px; right: 10px; font-size: 9.5px; color: #a35b00; background: var(--warn-bg); border: 1px solid var(--warn-border); padding: 1px 6px; border-radius: 100px; }
+  .expand-btn {
+    display: inline-flex; align-items: center; gap: 0.5em; background: none; border: 2px solid var(--color-ink);
+    padding: 0.5em 1em; font-family: var(--font-label); font-size: 0.75rem; letter-spacing: 0.05em; cursor: pointer;
+    box-shadow: 3px 3px 0 var(--color-ink); margin-bottom: 1.25rem;
+  }
+  .expand-btn .chevron { display: inline-block; transition: transform 200ms ease; }
+  .topic.is-open .expand-btn .chevron { transform: rotate(180deg); }
 
-  .topics { padding: 8px clamp(16px, 4vw, 48px) 40px; display: flex; flex-direction: column; gap: 28px; }
-  .topic { background: var(--panel-solid); border: 1px solid var(--panel-border); border-radius: 4px; padding: clamp(18px, 3vw, 28px); scroll-margin-top: 16px; border-top: 3px solid var(--accent); }
-  .topic.is-warning { border-top-color: var(--warn); }
-  .topic-eyebrow { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 8px; }
-  .topic-tag { font-size: 10.5px; letter-spacing: 0.5px; color: var(--accent); text-transform: uppercase; }
-  .topic.is-warning .topic-tag { color: var(--warn); }
-  .topic-sources { font-size: 11.5px; color: var(--text-tertiary); }
-  .topic h3 { margin: 0 0 16px; font-size: clamp(18px, 2.2vw, 22px); line-height: 1.4; }
-  .topic-section { margin-bottom: 16px; }
+  .topic-panel { max-height: 0; overflow: hidden; transition: max-height 460ms ease; }
+  .topic.is-open .topic-panel { max-height: 6000px; }
+
+  .topic-body { background: var(--color-paper-2); border: 2px solid var(--color-ink); box-shadow: 6px 6px 0 var(--color-ink); padding: 1.5rem 1.75rem; margin-bottom: 1.2rem; }
+  .topic-section { margin-bottom: 1.1rem; }
   .topic-section:last-of-type { margin-bottom: 0; }
-  .topic-section h4 { margin: 0 0 8px; font-size: 13px; color: var(--text-tertiary); letter-spacing: 0.5px; }
-  .topic-section p { margin: 0 0 8px; font-size: 14px; line-height: 1.75; color: var(--text-primary); }
+  .topic-section .run-in { display: block; font-family: var(--font-label); font-size: 0.7rem; letter-spacing: 0.08em; color: var(--color-accent); margin-bottom: 0.5em; }
+  .topic-section p { margin: 0 0 0.7rem; line-height: 1.68; }
   .topic-section p:last-child { margin-bottom: 0; }
 
-  .stats-row { display: flex; flex-wrap: wrap; gap: 12px; margin: 8px 0 16px; }
-  .stat-tile { background: var(--bg); border: 1px solid var(--rule); border-radius: 4px; padding: 10px 14px; min-width: 100px; }
-  .stat-value { font-size: 18px; font-weight: 700; color: var(--accent); }
-  .stat-label { font-size: 11px; color: var(--text-secondary); margin-top: 2px; }
-
-  .delta-insight { margin-top: 18px; padding: 14px 16px; background: rgba(42,93,176,0.05); border: 1px solid var(--accent-dim); border-radius: 4px; }
-  .delta-insight h4 { margin: 0 0 8px; font-size: 13px; color: var(--accent); letter-spacing: 0.5px; }
-  .delta-insight p { margin: 0 0 8px; font-size: 13.5px; line-height: 1.7; color: var(--text-primary); }
+  .delta-insight { margin-top: 1.2rem; padding: 1rem 1.2rem; background: var(--color-accent); color: var(--color-accent-ink); }
+  .delta-insight .run-in { color: var(--color-accent-ink); opacity: 0.85; }
+  .delta-insight p { margin: 0 0 0.7rem; line-height: 1.68; }
   .delta-insight p:last-child { margin-bottom: 0; }
 
-  .footer { padding: 20px clamp(16px, 4vw, 48px) 32px; border-top: 1px solid var(--rule); font-size: 11px; line-height: 1.7; color: var(--text-tertiary); max-width: 80ch; text-wrap: pretty; }
+  .source-row { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1.2rem; }
+  .btn { display: inline-flex; align-items: center; gap: 0.4em; font-family: var(--font-label); font-size: 0.72rem; letter-spacing: 0.04em; text-decoration: none; color: var(--color-accent-ink); background: var(--color-accent); padding: 0.5em 0.9em; border: 2px solid var(--color-ink); box-shadow: 3px 3px 0 var(--color-ink); transition: transform 120ms ease-out, box-shadow 120ms ease-out; }
+  .btn:hover { transform: translate(-1px, -1px); box-shadow: 4px 4px 0 var(--color-ink); }
+  .btn:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 var(--color-ink); }
+  .btn--stamp { background: var(--color-accent-2); color: var(--color-ink); font-weight: 700; border: none; cursor: pointer; }
+  .topic.is-collected .btn--stamp { background: var(--color-paper-3); color: var(--color-muted); box-shadow: none; pointer-events: none; border: 2px solid var(--color-paper-3); }
 
-  @media (max-width: 480px) {
-    .card-grid { grid-template-columns: 1fr; }
-    .topics { gap: 20px; }
+  .foot { background: var(--color-ink); color: var(--color-accent-ink); padding: 1.5rem var(--page-gutter) 2.5rem; }
+  .foot-inner { max-width: var(--shell); margin: 0 auto; font-size: 0.8rem; line-height: 1.7; opacity: 0.85; }
+
+  /* ---------- feedback FAB + modal ---------- */
+  .feedback-fab {
+    position: fixed; right: 1.5rem; bottom: 1.5rem; z-index: 50;
+    display: inline-flex; align-items: center; gap: 0.5em;
+    background: var(--color-accent-2); color: var(--color-ink);
+    border: 2px solid var(--color-ink); border-radius: 999px;
+    padding: 0.75em 1.1em; font-family: var(--font-label); font-size: 0.78rem; font-weight: 700; letter-spacing: 0.03em;
+    cursor: pointer; box-shadow: 4px 4px 0 var(--color-ink);
+    transition: transform 140ms ease-out, box-shadow 140ms ease-out;
+  }
+  .feedback-fab:hover { transform: translate(-1px, -1px); box-shadow: 5px 5px 0 var(--color-ink); }
+  .feedback-fab:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 var(--color-ink); }
+
+  .feedback-overlay {
+    display: none; position: fixed; inset: 0; z-index: 60;
+    background: color-mix(in oklch, var(--color-ink) 55%, transparent);
+    align-items: flex-end; justify-content: flex-end;
+    padding: 1.5rem;
+  }
+  .feedback-overlay.is-open { display: flex; }
+  .feedback-modal {
+    background: var(--color-paper); border: 2px solid var(--color-ink);
+    box-shadow: 6px 6px 0 var(--color-ink);
+    padding: 1.5rem; width: min(22rem, 100%);
+  }
+  .feedback-title { margin: 0 0 0.35rem; font-family: var(--font-display); font-weight: 800; font-size: 1.15rem; text-transform: uppercase; letter-spacing: 0.01em; }
+  .feedback-desc { margin: 0 0 1rem; font-size: 0.85rem; color: var(--color-muted); line-height: 1.5; }
+  .feedback-textarea {
+    width: 100%; box-sizing: border-box; resize: vertical;
+    font-family: var(--font-body); font-size: 0.9rem; line-height: 1.5;
+    border: 2px solid var(--color-ink); padding: 0.7em 0.8em; background: var(--color-paper-2); color: var(--color-ink);
+  }
+  .feedback-textarea:focus-visible { outline: 3px solid var(--color-focus); outline-offset: 2px; }
+  .feedback-actions { display: flex; justify-content: flex-end; gap: 0.6rem; margin-top: 1rem; }
+  .feedback-thanks { margin: 0.9rem 0 0; font-size: 0.85rem; font-weight: 700; color: var(--color-accent); display: none; }
+  .feedback-thanks.is-visible { display: block; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .topic-panel, .expand-btn .chevron, .btn { transition-duration: 1ms !important; }
+    .topic.is-collected .stamp-mark { animation: none; }
+  }
+  @media (max-width: 30rem) {
+    .masthead { padding: 2.25rem var(--page-gutter) 2rem; }
+    .lang-switcher { position: static; margin-bottom: 1rem; }
+    .topic-body { padding: 1.1rem 1.25rem; }
+    .stamp-mark { width: 36px; height: 36px; }
+    .topic h2 { margin-right: 3.75rem; }
+    .feedback-fab span { display: none; }
+    .feedback-fab { padding: 0.85em; }
+    .feedback-overlay { padding: 1rem; }
   }
 </style>
 </head>
 <body>
 
-<header class="masthead">
-  <div class="masthead-top">
-    <p class="masthead-eyebrow mono">{{ newsletter_name }}</p>
-    <span class="proto-badge mono">初稿 PROTOTYPE · 展示用</span>
+<div class="marquee" aria-hidden="true">
+  <div class="marquee-track" id="marquee-track">
+    <span id="marquee-span-1"></span><span id="marquee-span-2"></span>
   </div>
-  <h1><a href="/">{{ newsletter_name }}</a></h1>
-  <div class="masthead-meta mono">
-    <span>第 {{ issue_id }} 期 · {{ issue_date }}</span>
-    <span>{{ topics | length }} 個話題</span>
+</div>
+<div class="halftone" aria-hidden="true"></div>
+
+<header class="masthead">
+  <div class="masthead-inner">
+    <div class="lang-switcher">
+      <button class="lang-btn" id="lang-btn" aria-haspopup="true" aria-expanded="false">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15 15 0 0 1 0 20 15 15 0 0 1 0-20z"/></svg>
+        <span id="lang-btn-label">繁體中文</span>
+      </button>
+      <div class="lang-menu" id="lang-menu" role="menu">
+        <button class="lang-option" role="menuitemradio" aria-checked="true" data-lang="zh-Hant">繁體中文</button>
+        <button class="lang-option" role="menuitemradio" aria-checked="false" data-lang="zh-Hans">简体中文</button>
+        <button class="lang-option" role="menuitemradio" aria-checked="false" data-lang="en">English</button>
+      </div>
+    </div>
+    <p class="eyebrow">DELTA AI TREND WEEKLY</p>
+    <h1><a href="/">Delta AI 本週精選 {{ topics | length }} 則案例分享</a></h1>
+    <div class="masthead-meta">
+      <span>第 {{ issue_id }} 期 · {{ issue_date }}</span>
+      <span>{{ topics | length }} 篇文章</span>
+    </div>
+    <div class="progress-row">
+      <span class="progress-track"><span class="progress-fill" id="progress-fill"></span></span>
+      <span class="progress-count" id="progress-count"></span>
+    </div>
   </div>
 </header>
 
-<nav class="card-nav">
-  <h2 class="mono">本期話題</h2>
-  <div class="card-grid">
+<p class="lang-note" id="lang-note"></p>
+
+<div class="ornament-row" aria-hidden="true">✱ ✱ ✱ ✱</div>
+
+<div class="shell">
+  <div class="shell-inner" id="topics">
     {% for topic in topics %}
-    <a class="nav-card{{ ' is-warning' if topic.content_type == 'warning' else '' }}" href="#topic-{{ loop.index }}">
-      {% if topic.needs_review %}<span class="needs-review-flag">待人工確認</span>{% endif %}
-      <div class="nav-card-type mono">{{ content_type_names.get(topic.content_type, topic.content_type) }}</div>
-      <p class="nav-card-text">{{ topic.card_summary.text }}</p>
-    </a>
+    <article class="topic" data-index="{{ loop.index0 }}">
+      <div class="topic-head" data-toggle>
+        <span class="stamp-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 12 9 17 20 6"></polyline></svg></span>
+        {% if topic.needs_review %}<span class="needs-review-flag">待人工確認・信心度 {{ '%.2f' | format(topic.confidence) }}</span>{% endif %}
+        {% if topic.primary_tag %}<span class="primary-tag">{{ topic.primary_tag }}</span>{% endif %}
+        <h2>{{ topic.chosen_headline }}</h2>
+        {% if topic.chosen_subhead %}<p class="topic-subhead">{{ topic.chosen_subhead }}</p>{% endif %}
+        {% if topic.card_summary %}<p class="topic-teaser">{{ topic.card_summary.text }}</p>{% endif %}
+        {% if topic.stats %}
+        <div class="stats-line">
+          {% for stat in topic.stats %}
+          <div class="stat-tile"><span class="stat-value">{{ stat.value }}</span><span class="stat-label">{{ stat.label }}</span></div>
+          {% endfor %}
+        </div>
+        {% endif %}
+        <button class="expand-btn" type="button" data-toggle-btn>
+          <span data-i18n-inline="expand">閱讀全文</span>
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+      </div>
+      <div class="topic-panel">
+        <div class="topic-body">
+          {% for section in topic.sections %}
+          <div class="topic-section">
+            <span class="run-in">{{ section.heading }}</span>
+            {% for para in section.paragraphs %}<p>{{ para }}</p>{% endfor %}
+          </div>
+          {% endfor %}
+          {% if topic.delta_insight %}
+          <div class="delta-insight">
+            <span class="run-in">{{ topic.delta_insight.heading or '這對我們意味著什麼' }}</span>
+            {% for para in topic.delta_insight.paragraphs %}<p>{{ para }}</p>{% endfor %}
+          </div>
+          {% endif %}
+        </div>
+        <div class="source-row">
+          {% for src in topic.sources %}<a class="btn" href="{{ src.url }}" target="_blank" rel="noopener noreferrer">{{ src.source_name | upper }} ↗</a>{% endfor %}
+          <button class="btn btn--stamp" type="button" data-stamp-btn>
+            <span data-i18n-inline="stamp">讀完了，蓋章</span>
+          </button>
+        </div>
+      </div>
+    </article>
+    {% if not loop.last %}<div class="ornament-row" aria-hidden="true">{{ '❋ ❋ ❋' if loop.index is odd else '✱ ✱ ✱ ✱' }}</div>{% endif %}
     {% endfor %}
   </div>
-</nav>
-
-<div class="topics">
-  {% for topic in topics %}
-  <article class="topic{{ ' is-warning' if topic.content_type == 'warning' else '' }}" id="topic-{{ loop.index }}">
-    <div class="topic-eyebrow">
-      <span class="topic-tag mono">{{ content_type_names.get(topic.content_type, topic.content_type) }}</span>
-      <span class="topic-sources">來源：{{ topic.sources | map(attribute='source_name') | unique | join('、') }}</span>
-      {% if topic.needs_review %}<span class="needs-review-flag">待人工確認・信心度 {{ '%.2f' | format(topic.confidence) }}</span>{% endif %}
-    </div>
-    <h3>{{ topic.chosen_headline }}</h3>
-
-    {% for section in topic.sections %}
-    <div class="topic-section">
-      <h4 class="mono">{{ section.heading }}</h4>
-      {% for para in section.paragraphs %}<p>{{ para }}</p>{% endfor %}
-      {% if topic.stats and loop.last %}
-      <div class="stats-row">
-        {% for stat in topic.stats %}
-        <div class="stat-tile">
-          <div class="stat-value">{{ stat.value }}</div>
-          <div class="stat-label">{{ stat.label }}</div>
-        </div>
-        {% endfor %}
-      </div>
-      {% endif %}
-    </div>
-    {% endfor %}
-
-    {% if topic.delta_insight %}
-    <div class="delta-insight">
-      <h4 class="mono">這對我們意味著什麼</h4>
-      {% for para in topic.delta_insight.paragraphs %}<p>{{ para }}</p>{% endfor %}
-    </div>
-    {% endif %}
-  </article>
-  {% endfor %}
 </div>
 
-<p class="footer">
-  內容由 AI 依公開來源改寫產出，經事實查核與風格審查關卡後發布，非原文轉載；標示「待人工確認」的話題代表自動審查信心度未達門檻，內容仍待人工複核。僅供台達內部參考。
-</p>
+<footer class="foot">
+  <div class="foot-inner"><p>內容由 AI 依公開來源改寫產出，經事實查核與風格審查關卡後發布，非原文轉載；標示「待人工確認」的話題代表自動審查信心度未達門檻，內容仍待人工複核。僅供台達內部參考。</p></div>
+</footer>
+
+<button class="feedback-fab" id="feedback-fab" type="button">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+  <span id="feedback-fab-label">意見回饋</span>
+</button>
+
+<div class="feedback-overlay" id="feedback-overlay">
+  <div class="feedback-modal" role="dialog" aria-modal="true" aria-labelledby="feedback-title">
+    <p class="feedback-title" id="feedback-title">下一期想看什麼？</p>
+    <p class="feedback-desc" id="feedback-desc">我們會精選更多不同產業的 AI 案例與議題，也歡迎跟我們分享更多你想看到的內容。</p>
+    <textarea class="feedback-textarea" id="feedback-textarea" rows="4" placeholder="例如：多一點能源產業案例，或想看 OpenAI 最新動態⋯⋯"></textarea>
+    <div class="feedback-actions">
+      <button class="expand-btn" type="button" id="feedback-cancel">取消</button>
+      <button class="btn btn--stamp" type="button" id="feedback-submit" style="cursor:pointer;"><span id="feedback-submit-label">送出</span></button>
+    </div>
+    <p class="feedback-thanks" id="feedback-thanks" aria-live="polite"></p>
+  </div>
+</div>
+
+<script>
+const CHROME_I18N = {
+  "zh-Hant": { expand: "閱讀全文", collapse: "收合", stamp: "讀完了，蓋章", stamped: "已收集 ✓", progress: n => `已收集 ${n} / {{ topics | length }} 枚印章`, marquee: "每週三準時出版，用一杯咖啡的時間，帶你發掘本週最值得一看的 AI 動態", langNote: "", feedbackBtn: "意見回饋", feedbackTitle: "下一期想看什麼？", feedbackDesc: "我們會精選更多不同產業的 AI 案例與議題，也歡迎跟我們分享更多你想看到的內容。", feedbackPlaceholder: "例如：多一點能源產業案例，或想看 OpenAI 最新動態⋯⋯", feedbackSubmit: "送出", feedbackCancel: "取消", feedbackThanks: "收到了，謝謝你的想法！" },
+  "zh-Hans": { expand: "阅读全文", collapse: "收起", stamp: "读完了，盖章", stamped: "已收集 ✓", progress: n => `已收集 ${n} / {{ topics | length }} 枚印章`, marquee: "每周三准时出版，用一杯咖啡的时间，带你发掘本周最值得一看的 AI 动态", langNote: "文章内文目前仅提供繁体中文版本。", feedbackBtn: "意见反馈", feedbackTitle: "下一期想看什么？", feedbackDesc: "我们会精选更多不同产业的 AI 案例与议题，也欢迎跟我们分享更多你想看到的内容。", feedbackPlaceholder: "例如：多一点能源产业案例，或想看 OpenAI 最新动态⋯⋯", feedbackSubmit: "送出", feedbackCancel: "取消", feedbackThanks: "收到了，谢谢你的想法！" },
+  "en": { expand: "Read full article", collapse: "Collapse", stamp: "Mark as read", stamped: "Collected ✓", progress: n => `${n} / {{ topics | length }} collected`, marquee: "PUBLISHED EVERY WEDNESDAY, GRAB A COFFEE AND DISCOVER THIS WEEK'S MOST WORTH-YOUR-TIME AI NEWS", langNote: "Article body copy is currently available in Traditional Chinese only.", feedbackBtn: "Feedback", feedbackTitle: "What do you want to see next issue?", feedbackDesc: "We'll keep curating AI cases and topics across more industries, and we'd love to hear what else you want to see.", feedbackPlaceholder: "e.g. more energy-sector cases, or the latest from OpenAI...", feedbackSubmit: "Send", feedbackCancel: "Cancel", feedbackThanks: "Got it, thanks for the input!" }
+};
+const LANG_LABEL = { "zh-Hant": "繁體中文", "zh-Hans": "简体中文", "en": "English" };
+const TOTAL_TOPICS = {{ topics | length }};
+
+let currentLang = 'zh-Hant';
+const STORAGE_KEY = 'deltaTopicStamps:{{ issue_id }}';
+let collected = new Set();
+try { collected = new Set(JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]')); } catch (e) {}
+
+function applyCollectedState() {
+  document.querySelectorAll('.topic').forEach(el => {
+    el.classList.toggle('is-collected', collected.has(Number(el.dataset.index)));
+  });
+  document.querySelectorAll('[data-stamp-btn]').forEach(btn => {
+    const topic = btn.closest('.topic');
+    const isCollected = topic.classList.contains('is-collected');
+    btn.disabled = isCollected;
+    btn.querySelector('span').textContent = isCollected ? CHROME_I18N[currentLang].stamped : CHROME_I18N[currentLang].stamp;
+  });
+}
+
+function updateProgress() {
+  document.getElementById('progress-count').textContent = CHROME_I18N[currentLang].progress(collected.size);
+  document.getElementById('progress-fill').style.width = (TOTAL_TOPICS ? (collected.size / TOTAL_TOPICS * 100) : 0) + '%';
+}
+
+function collect(i) {
+  if (collected.has(i)) return;
+  collected.add(i);
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(Array.from(collected)));
+  applyCollectedState();
+  updateProgress();
+}
+
+document.querySelectorAll('[data-toggle]').forEach(el => {
+  el.addEventListener('click', (e) => {
+    if (e.target.closest('[data-stamp-btn]')) return;
+    el.closest('.topic').classList.toggle('is-open');
+  });
+});
+document.querySelectorAll('[data-stamp-btn]').forEach(btn => {
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const topic = btn.closest('.topic');
+    collect(Number(topic.dataset.index));
+  });
+});
+
+function applyLang(lang) {
+  currentLang = lang;
+  document.documentElement.setAttribute('data-lang', lang);
+  document.documentElement.setAttribute('lang', lang);
+  document.getElementById('lang-btn-label').textContent = LANG_LABEL[lang];
+  document.querySelectorAll('.lang-option').forEach(opt => opt.setAttribute('aria-checked', opt.dataset.lang === lang));
+
+  const t = CHROME_I18N[lang];
+  document.getElementById('lang-note').textContent = t.langNote;
+  document.querySelectorAll('[data-i18n-inline="expand"]').forEach(el => { el.textContent = t.expand; });
+  document.getElementById('feedback-fab-label').textContent = t.feedbackBtn;
+  document.getElementById('feedback-title').textContent = t.feedbackTitle;
+  document.getElementById('feedback-desc').textContent = t.feedbackDesc;
+  document.getElementById('feedback-textarea').placeholder = t.feedbackPlaceholder;
+  document.getElementById('feedback-cancel').textContent = t.feedbackCancel;
+  document.getElementById('feedback-submit-label').textContent = t.feedbackSubmit;
+  document.getElementById('feedback-thanks').textContent = t.feedbackThanks;
+
+  const marqueeUnit = t.marquee + '　·　';
+  const marqueeRepeated = marqueeUnit.repeat(6);
+  document.getElementById('marquee-span-1').textContent = marqueeRepeated;
+  document.getElementById('marquee-span-2').textContent = marqueeRepeated;
+
+  applyCollectedState();
+  updateProgress();
+}
+
+applyLang('zh-Hant');
+
+const langBtn = document.getElementById('lang-btn');
+const langMenu = document.getElementById('lang-menu');
+langBtn.addEventListener('click', () => {
+  const open = langMenu.classList.toggle('is-open');
+  langBtn.setAttribute('aria-expanded', String(open));
+});
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.lang-switcher')) { langMenu.classList.remove('is-open'); langBtn.setAttribute('aria-expanded', 'false'); }
+});
+langMenu.querySelectorAll('.lang-option').forEach(opt => {
+  opt.addEventListener('click', () => { applyLang(opt.dataset.lang); langMenu.classList.remove('is-open'); });
+});
+
+/* feedback FAB: client-side only demo, see file header comment */
+const fabBtn = document.getElementById('feedback-fab');
+const fbOverlay = document.getElementById('feedback-overlay');
+const fbTextarea = document.getElementById('feedback-textarea');
+const fbThanks = document.getElementById('feedback-thanks');
+const FEEDBACK_KEY = 'deltaTopicFeedback:{{ issue_id }}';
+
+function openFeedback() {
+  fbOverlay.classList.add('is-open');
+  fbThanks.classList.remove('is-visible');
+  fbTextarea.value = '';
+  fbTextarea.focus();
+}
+function closeFeedback() { fbOverlay.classList.remove('is-open'); }
+
+fabBtn.addEventListener('click', openFeedback);
+document.getElementById('feedback-cancel').addEventListener('click', closeFeedback);
+fbOverlay.addEventListener('click', (e) => { if (e.target === fbOverlay) closeFeedback(); });
+document.getElementById('feedback-submit').addEventListener('click', () => {
+  const text = fbTextarea.value.trim();
+  if (!text) { fbTextarea.focus(); return; }
+  let stored = [];
+  try { stored = JSON.parse(localStorage.getItem(FEEDBACK_KEY) || '[]'); } catch (e) {}
+  stored.push({ text, lang: currentLang, at: new Date().toISOString() });
+  localStorage.setItem(FEEDBACK_KEY, JSON.stringify(stored));
+  fbThanks.classList.add('is-visible');
+  fbTextarea.value = '';
+  setTimeout(closeFeedback, 1400);
+});
+</script>
 
 </body>
 </html>

@@ -1,6 +1,7 @@
 <!--
-話題式週報：期數列表首頁（POC 網頁版）。沿用 topic_issue.html.jinja 的
-「藍圖紙」視覺語言，保持同一套設計系統。
+/* Hallmark · macrostructure: Index-First · genre: editorial (loud) · theme: Carnival custom drop "Delta Blue" */
+話題式週報：期數列表首頁。跟 topic_issue.html.jinja 共用同一套 Carnival 藍設計系統，
+拿掉了列表用不到的手風琴／蓋章／跑馬燈互動，保留一致的字體、色彩、硬邊陰影語彙。
 -->
 <!DOCTYPE html>
 <html lang="zh-Hant">
@@ -8,53 +9,100 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>{{ newsletter_name }}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800&family=Noto+Sans+TC:wght@700;900&family=IBM+Plex+Sans:wght@400;500&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg: #eef1f4; --panel-solid: #ffffff; --panel-border: #dde3e8;
-    --accent: #2a5db0; --accent-dim: #6f93cf;
-    --text-primary: #1c2b38; --text-secondary: #57707f; --text-tertiary: #8298a6;
-    --rule: #e2e8ec;
+    --color-paper:   oklch(93% 0.020 240);
+    --color-paper-2: oklch(89% 0.024 238);
+    --color-paper-3: oklch(83% 0.028 235);
+    --color-ink:     oklch(16% 0.030 250);
+    --color-ink-2:   oklch(28% 0.028 248);
+    --color-muted:   oklch(46% 0.020 245);
+    --color-accent:      oklch(58% 0.160 247);
+    --color-accent-ink:  oklch(97% 0.010 240);
+    --color-accent-2:    oklch(76% 0.150  75);
+    --color-focus:   oklch(58% 0.160 247);
+    --font-display: "Big Shoulders Display", "Noto Sans TC", sans-serif;
+    --font-body:    "IBM Plex Sans", ui-sans-serif, "PingFang TC", "Noto Sans TC", sans-serif;
+    --font-label:   "JetBrains Mono", ui-monospace, monospace;
+    --page-gutter: clamp(1.25rem, 4vw, 3rem);
+    --shell: 46rem;
   }
   * { box-sizing: border-box; }
-  html, body {
-    margin: 0; padding: 0; background-color: var(--bg);
-    background-image: linear-gradient(var(--rule) 1px, transparent 1px), linear-gradient(90deg, var(--rule) 1px, transparent 1px);
-    background-size: 28px 28px; background-attachment: fixed;
-    color: var(--text-primary);
-    font-family: system-ui, -apple-system, "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", sans-serif;
-  }
-  .mono { font-family: ui-monospace, "SF Mono", "Cascadia Mono", "Roboto Mono", monospace; }
+  html, body { overflow-x: clip; margin: 0; padding: 0; }
+  body { background: var(--color-paper); color: var(--color-ink); font-family: var(--font-body); }
+  .shell { max-width: var(--shell); margin-inline: auto; padding-inline: var(--page-gutter); }
   a { color: inherit; text-decoration: none; }
-  .masthead { padding: 28px clamp(16px, 4vw, 48px) 22px; border-bottom: 1px solid var(--panel-border); background: var(--panel-solid); }
-  .masthead-eyebrow { font-size: 11px; letter-spacing: 2px; color: var(--accent); text-transform: uppercase; margin: 0 0 6px; }
-  .masthead h1 { margin: 0; font-size: clamp(22px, 3vw, 30px); font-weight: 700; }
-  .masthead p { margin: 8px 0 0; font-size: 13.5px; color: var(--text-secondary); }
-  .issue-list { padding: 24px clamp(16px, 4vw, 48px) 40px; display: flex; flex-direction: column; gap: 14px; }
-  .issue-card { display: block; background: var(--panel-solid); border: 1px solid var(--panel-border); border-radius: 4px; padding: 16px 20px; }
-  .issue-card:hover { border-color: var(--accent-dim); }
-  .issue-card-meta { font-size: 11px; color: var(--text-tertiary); margin-bottom: 6px; }
-  .empty { padding: 24px clamp(16px, 4vw, 48px); color: var(--text-tertiary); font-size: 13px; }
+  a:focus-visible { outline: 3px solid var(--color-focus); outline-offset: 2px; }
+  h1 { font-family: var(--font-display); font-weight: 800; font-variation-settings: "wdth" 110, "wght" 800; letter-spacing: 0.01em; line-height: 0.96; text-transform: uppercase; }
+
+  .halftone { height: 14px; background-image: radial-gradient(var(--color-ink) 1.5px, transparent 1.5px); background-size: 10px 10px; opacity: 0.5; }
+
+  .masthead { background: var(--color-accent); color: var(--color-accent-ink); padding: 3rem var(--page-gutter) 2.5rem; }
+  .masthead-inner { max-width: var(--shell); margin: 0 auto; }
+  .masthead .eyebrow { font-family: var(--font-label); font-size: 0.75rem; letter-spacing: 0.1em; margin: 0 0 0.6rem; }
+  .masthead h1 { margin: 0; font-size: clamp(1.9rem, 3.6vw + 1rem, 3rem); }
+  .masthead p { margin: 1rem 0 0; font-size: 0.9rem; line-height: 1.6; color: color-mix(in oklch, var(--color-accent-ink) 82%, transparent); max-width: 56ch; }
+
+  .ornament-row { text-align: center; color: var(--color-accent-2); letter-spacing: 0.6em; padding: 1.5rem 0; font-size: 0.9rem; }
+
+  .issue-index { max-width: var(--shell); margin: 0 auto; padding: 0 var(--page-gutter) 4rem; display: flex; flex-direction: column; gap: 1rem; }
+  .issue-card {
+    display: block; background: var(--color-paper-2); border: 2px solid var(--color-ink);
+    box-shadow: 4px 4px 0 var(--color-ink); padding: 1.1rem 1.4rem;
+    transition: transform 120ms ease-out, box-shadow 120ms ease-out;
+  }
+  .issue-card:hover { transform: translate(-1px, -1px); box-shadow: 5px 5px 0 var(--color-ink); }
+  .issue-card:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 var(--color-ink); }
+  .issue-card-row { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+  .issue-card-title { font-family: var(--font-display); font-weight: 800; font-size: clamp(1.1rem, 1.6vw + 0.7rem, 1.5rem); text-transform: uppercase; }
+  .issue-card-date { font-family: var(--font-label); font-size: 0.8rem; color: var(--color-muted); white-space: nowrap; }
+
+  .empty { max-width: var(--shell); margin: 0 auto; padding: 3rem var(--page-gutter); color: var(--color-muted); }
+  .empty p { margin: 0 0 0.75rem; line-height: 1.6; }
+  .empty code { font-family: var(--font-label); background: var(--color-paper-2); border: 1px solid var(--color-paper-3); padding: 0.15em 0.5em; }
+
+  .foot { background: var(--color-ink); color: var(--color-accent-ink); padding: 1.5rem var(--page-gutter) 2.5rem; }
+  .foot-inner { max-width: var(--shell); margin: 0 auto; font-size: 0.8rem; line-height: 1.7; opacity: 0.85; }
 </style>
 </head>
 <body>
 
+<div class="halftone" aria-hidden="true"></div>
+
 <header class="masthead">
-  <p class="masthead-eyebrow mono">話題式週報 · PRD v0.1 PoC</p>
-  <h1>{{ newsletter_name }}</h1>
-  <p>PoC 階段：本機網頁檢視，資料來源為話題池（SQLite + Qdrant）。</p>
+  <div class="masthead-inner">
+    <p class="eyebrow">DELTA AI TREND WEEKLY</p>
+    <h1>{{ newsletter_name }}</h1>
+    <p>每週三準時出版，用一杯咖啡的時間，帶你發掘本週最值得一看的 AI 動態。</p>
+  </div>
 </header>
 
+<div class="ornament-row" aria-hidden="true">✱ ✱ ✱ ✱</div>
+
 {% if issues %}
-<div class="issue-list">
+<nav class="issue-index" aria-label="期數列表">
   {% for issue in issues %}
   <a class="issue-card" href="/issues/{{ issue.id }}">
-    <div class="issue-card-meta mono">第 {{ issue.id }} 期 · {{ issue.issue_date }}</div>
+    <div class="issue-card-row">
+      <span class="issue-card-title">第 {{ issue.id }} 期</span>
+      <span class="issue-card-date">{{ issue.issue_date }}</span>
+    </div>
   </a>
   {% endfor %}
-</div>
+</nav>
 {% else %}
-<p class="empty">目前還沒有任何一期。跑 <code>python -m scripts.compose_topic_issue</code> 組一期看看。</p>
+<div class="empty">
+  <p>目前還沒有任何一期。</p>
+  <p>跑 <code>python -m scripts.compose_topic_issue</code> 組一期看看。</p>
+</div>
 {% endif %}
+
+<footer class="foot">
+  <div class="foot-inner"><p>{{ newsletter_name }}．內容由 AI 依公開來源改寫產出，經事實查核與風格審查關卡後發布，非原文轉載。僅供台達內部參考。</p></div>
+</footer>
 
 </body>
 </html>

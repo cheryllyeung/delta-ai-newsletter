@@ -48,25 +48,29 @@ def generate_and_check(conn, selected: list[dict], config: dict) -> list[dict]:
         content_type = entry["content_type"]
         print(f"[compose_topic_issue] 檢索素材：{topic_row['representative_title'][:50]} ...")
 
-        source_rows = retrieve_sources_for_topic(conn, config, topic_row)
-        article = generate_topic_article(newsletter_name, topic_row["representative_title"], content_type, source_rows)
+        try:
+            source_rows = retrieve_sources_for_topic(conn, config, topic_row)
+            article = generate_topic_article(newsletter_name, topic_row["representative_title"], content_type, source_rows)
 
-        revision_instructions = None
-        check_result = None
-        for attempt in range(max_retries + 1):
-            check_result = self_check(article, source_rows)
-            if check_result["confidence"] >= confidence_threshold:
-                break
-            revision_instructions = check_result.get("revision_instructions", "")
-            if attempt < max_retries:
-                print(
-                    f"[compose_topic_issue]   自檢信心度 {check_result['confidence']:.2f} "
-                    f"< {confidence_threshold}，回灌重新生成（第 {attempt + 1} 次重試）"
-                )
-                article = generate_topic_article(
-                    newsletter_name, topic_row["representative_title"], content_type, source_rows,
-                    revision_instructions,
-                )
+            revision_instructions = None
+            check_result = None
+            for attempt in range(max_retries + 1):
+                check_result = self_check(article, source_rows)
+                if check_result["confidence"] >= confidence_threshold:
+                    break
+                revision_instructions = check_result.get("revision_instructions", "")
+                if attempt < max_retries:
+                    print(
+                        f"[compose_topic_issue]   自檢信心度 {check_result['confidence']:.2f} "
+                        f"< {confidence_threshold}，回灌重新生成（第 {attempt + 1} 次重試）"
+                    )
+                    article = generate_topic_article(
+                        newsletter_name, topic_row["representative_title"], content_type, source_rows,
+                        revision_instructions,
+                    )
+        except Exception as exc:  # noqa: BLE001 -- 單篇失敗不中斷整批，這個話題留在池裡下次重跑會重新入選
+            print(f"[compose_topic_issue]   這篇生成失敗，跳過（下次重跑會重新入選）：{exc}")
+            continue
 
         needs_review = check_result["confidence"] < confidence_threshold
         results.append(
@@ -93,6 +97,9 @@ def main() -> None:
         return
 
     results = generate_and_check(conn, selected, config)
+    if not results:
+        print("[compose_topic_issue] 入選話題全部生成失敗，沒有組成新的一期，中止。")
+        return
 
     issue_id = create_issue(conn, date.today().isoformat())
     for r in results:
