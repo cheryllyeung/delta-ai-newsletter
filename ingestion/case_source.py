@@ -9,6 +9,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 
 import feedparser
+import requests
 from bs4 import BeautifulSoup
 
 from ingestion.base import RawItem
@@ -43,8 +44,16 @@ def fetch_case_study_items(
     RawItem.extra 帶 source_name/source_weight，供評分/生成階段組 prompt 用。
     RawItem.score 直接用來源權重，方便沿用 pipeline/dedupe.py 既有的
     「同網址留分數較高那筆」邏輯。
+
+    先用 requests 帶 timeout 抓內容，再交給 feedparser 解析字串，不能直接把
+    url 丟給 feedparser.parse()：那個寫法底層是用 urllib 開連線，不接受
+    timeout 參數，遇到回應很慢或掛住的來源會讓整支 pipeline 卡死。
     """
-    feed = feedparser.parse(url, agent="delta-ai-newsletter/0.1")
+    response = requests.get(
+        url, timeout=timeout, headers={"User-Agent": "delta-ai-newsletter/0.1"}
+    )
+    response.raise_for_status()
+    feed = feedparser.parse(response.content)
     cutoff = datetime.now(timezone.utc) - timedelta(days=days_back)
 
     items: list[RawItem] = []

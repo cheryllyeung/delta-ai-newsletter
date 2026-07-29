@@ -8,7 +8,7 @@
 # 模組打分，用組合最佳化選題，寫作時用 embedding+reranker 兩段式檢索素材。
 
 newsletter:
-  name: "Delta AI 趨勢週報（話題式，PRD v0.1 PoC）"
+  name: "Delta AI 趨勢週報"
   issue_day: thursday
 
 database:
@@ -32,7 +32,8 @@ embedding:
 reranker:
   model: "BAAI/bge-reranker-v2-m3"
   retrieval_top_k: 20     # 第一段：embedding 從全池撈 top-20
-  rerank_top_k: 5          # 第二段：reranker 重排取 top-5 作為寫作素材
+  rerank_top_k: 2          # 第二段：reranker 重排取 top-2 作為寫作素材（暫時調小：
+                            # Groq 免費層 TPM 上限 8000，5 篇來源全文會爆量，見 .env 註解）
 
 # 18 個模組：10 個職能模組 + 8 個領域模組（PRD §2 原文列表）。
 # 每個話題會被 LLM 對這 18 個模組各打 0-10 分並附一句理由。
@@ -87,9 +88,7 @@ content_types:
     name: 快訊型
 
 selection:
-  # 暫時調小：只讓 1-2 個話題進到寫作+自檢（額度消耗最大的階段），
-  # 額度升級後可以調回 [5, 8]。
-  total_topics: [1, 2]
+  total_topics: [5, 8]
   # content_type 配額，某類別缺貨就從別類遞補，不硬湊（比照 pool_selection.py 的 area_quota 寫法）。
   content_type_quota:
     insight: [1, 2]
@@ -116,10 +115,8 @@ quality:
 
 fetch:
   days_back: 30
-  # 暫時調小：Gemini 免費層每天只有 20 次請求額度，5 個來源各抓 1 篇（共
-  # 5 篇候選話題）讓標籤+打分能控制在額度內，同時留額度給選題後的寫作+
-  # 自檢驗證。額度升級（開通計費）後可以調回較大值看完整規模的產出。
-  max_items_per_source: 1
+  # 比照 config/pulse.yaml 對同一批來源已驗證過的規模。
+  max_items_per_source: 15
 
 # 來源清單：先沿用 config/pulse.yaml 裡已實測過的 5 個企業案例來源。
 # tier 欄位為 PRD 的三層來源分級（核心層/訊號層/深度層）+ 專門來源類型
@@ -156,3 +153,120 @@ sources:
     tier: case
     url: "https://cloudblog.withgoogle.com/rss/"
     weight: 0.7
+
+  # 核心層：頂級科技媒體，2026-07-29 加入，各來源已用 curl 驗證過確實
+  # 抓得到文章（The Verge、Wired 的 RSS 測起來是空的或太稀疏，先不加）
+  - id: techcrunch_ai
+    name: "TechCrunch - AI"
+    type: rss
+    tier: core
+    url: "https://techcrunch.com/category/artificial-intelligence/feed/"
+    weight: 1.0
+  - id: mit_tech_review_ai
+    name: "MIT Technology Review - AI"
+    type: rss
+    tier: core
+    url: "https://www.technologyreview.com/topic/artificial-intelligence/feed"
+    weight: 1.0
+  - id: ars_technica_ai
+    name: "Ars Technica - AI"
+    type: rss
+    tier: core
+    url: "https://arstechnica.com/ai/feed/"
+    weight: 0.9
+  - id: venturebeat_ai
+    name: "VentureBeat - AI"
+    type: rss
+    tier: core
+    url: "https://venturebeat.com/category/ai/feed/"
+    weight: 0.9
+
+  # 垂直產業來源：2026-07-29 加入，服務事業單位的產業視角需求，同樣
+  # 已用 curl 驗證過（McKinsey、Gartner、Siemens、Schneider Electric、
+  # ABB、pv-magazine、Automotive News、Commercial Property Executive
+  # 都測過，RSS 不是 404 就是 403，免費路線走不通，先不加）
+  - id: digitimes_daily
+    name: "DIGITIMES"
+    type: rss
+    tier: vertical
+    url: "https://www.digitimes.com/rss/daily.xml"
+    weight: 0.8
+  - id: utility_dive
+    name: "Utility Dive"
+    type: rss
+    tier: vertical
+    url: "https://www.utilitydive.com/feeds/news/"
+    weight: 0.7
+  - id: insideevs
+    name: "InsideEVs"
+    type: rss
+    tier: vertical
+    url: "https://insideevs.com/rss/articles/all/"
+    weight: 0.7
+
+  # 深度層：arXiv 官方 API，免費、不需金鑰，抓取程式本來就已經存在
+  # （ingestion/arxiv_source.py，原本給趨勢彙整那條 pipeline 用），這裡是
+  # 第一次接進話題式週報。keywords 只影響 score 排序，不影響是否抓到。
+  - id: arxiv_ai
+    name: "arXiv (cs.AI / cs.CL / cs.LG)"
+    type: arxiv
+    tier: depth
+    categories: ["cs.AI", "cs.CL", "cs.LG"]
+    keywords: ["enterprise", "production", "deployment", "industry", "benchmark"]
+    weight: 0.6
+
+  # 訊號層：Hacker News，透過 Algolia 公開搜尋 API，免費、不需金鑰。
+  # min_points 過濾掉討論度太低的貼文，降低雜訊。
+  - id: hn_ai
+    name: "Hacker News"
+    type: hn
+    tier: signal
+    # Algolia 的 query 是全文比對不是布林查詢，要涵蓋多個關鍵字要分開列，
+    # 不能塞 "A OR B" 這種字串（詳見 ingestion/hn_source.py 的說明）
+    queries: ["AI", "LLM", "artificial intelligence"]
+    min_points: 20
+    weight: 0.6
+
+  # 訊號層：Reddit，走官方 OAuth（PRAW），需要 .env 裡的 REDDIT_CLIENT_ID /
+  # REDDIT_CLIENT_SECRET / REDDIT_USER_AGENT，目前這三個環境變數是空的，
+  # 沒填之前 fetch_reddit_items() 會印警告並回傳空列表，不會讓整批中斷。
+  - id: reddit_ai
+    name: "Reddit (r/artificial, r/MachineLearning, r/mcp)"
+    type: reddit
+    tier: signal
+    # r/mcp 是 2026-07-29 加的，社群討論 MCP（Model Context Protocol）跟
+    # skill 實際怎麼用/踩什麼雷，比 HN 對這個主題的搜尋量高很多（HN 30 天
+    # 內查 "MCP model context protocol" 幾乎是 0 篇，已測過，先不加 HN 查詢）
+    subreddits: ["artificial", "MachineLearning", "mcp"]
+    weight: 0.5
+
+  # 訊號層：Slashdot，老牌科技社群新聞聚合站，RSS 格式是 RDF（跟一般
+  # RSS 2.0 長得不太一樣），feedparser 可以正常處理，已驗證抓得到內容。
+  - id: slashdot
+    name: "Slashdot"
+    type: rss
+    tier: signal
+    url: "https://rss.slashdot.org/Slashdot/slashdotMain"
+    weight: 0.5
+
+  # 訊號層：Stack Overflow，官方 API 不需金鑰，用來看開發者實際踩到的
+  # AI/LLM 相關技術問題，是「怎麼用、踩什麼雷」最直接的訊號來源之一。
+  - id: stackoverflow_ai
+    name: "Stack Overflow (AI/LLM tags)"
+    type: stackexchange
+    tier: signal
+    site: stackoverflow
+    tags: ["large-language-model", "openai-api", "artificial-intelligence"]
+    min_score: 1
+    weight: 0.5
+
+  # 訊號層：GitHub，官方 Search API 不需金鑰，抓近期建立、star 數成長快的
+  # repo，用來偵測「開發者實際在用什麼工具/框架」的早期訊號，跟今天想追蹤
+  # 的 MCP 討論也對得上（query 直接搜 "mcp" topic）。
+  - id: github_trending_ai
+    name: "GitHub (trending AI/MCP repos)"
+    type: github
+    tier: signal
+    queries: ["topic:llm", "topic:mcp", "topic:agent"]
+    min_stars: 20
+    weight: 0.5
