@@ -1,0 +1,312 @@
+<!--
+/* Hallmark · macrostructure: Marquee Hero + Catalogue (accordion variant) · genre: editorial (loud) · theme: Carnival
+ * custom drop "Delta Blue". v2.1 — chosen as the lead direction. Changes from v2:
+ * (1) dropped the content-type tag chip (實用型/洞見型) per feedback — reads as internal taxonomy
+ *     leaking onto the page, not something a reader needs.
+ * (2) headlines + full body copy rewritten in a livelier, more vivid voice (per user's 4Gamers
+ *     reference — punchier hooks, more contrast, conversational verbs) while keeping every fact,
+ *     stat, and source exactly as reported. Tone change only, no invented content.
+ * (3) language switcher now actually swaps article content, not just chrome: zh-Hant is the
+ *     native voice; zh-Hans is a real translation (OpenCC tw2sp conversion + manual correction
+ *     pass for mistranslated technical terms — 指標≠指针, 核心≠内核, 查詢≠查找); en is a full
+ *     human-quality translation preserving the same tone. TOPICS_BY_LANG holds all three,
+ *     re-rendered on language switch with collected/open state preserved across the switch. */
+-->
+<!DOCTYPE html>
+<html lang="zh-Hant" data-lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Carnival 台達藍版 v2 — Delta AI 趨勢週報</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800&family=Noto+Sans+TC:wght@700;900&family=IBM+Plex+Sans:wght@400;500&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --color-paper:   oklch(93% 0.020 240);
+    --color-paper-2: oklch(89% 0.024 238);
+    --color-paper-3: oklch(83% 0.028 235);
+    --color-ink:     oklch(16% 0.030 250);
+    --color-ink-2:   oklch(28% 0.028 248);
+    --color-muted:   oklch(46% 0.020 245);
+    --color-accent:      oklch(58% 0.160 247);
+    --color-accent-ink:  oklch(97% 0.010 240);
+    --color-accent-2:    oklch(76% 0.150  75);
+    --color-focus:   oklch(58% 0.160 247);
+    --font-display: "Big Shoulders Display", "Noto Sans TC", sans-serif;
+    --font-body:    "IBM Plex Sans", ui-sans-serif, "PingFang TC", "Noto Sans TC", "Noto Sans SC", sans-serif;
+    --font-label:   "JetBrains Mono", ui-monospace, monospace;
+    --page-gutter: clamp(1.25rem, 4vw, 3rem);
+    --shell: 46rem;
+  }
+  * { box-sizing: border-box; }
+  html, body { overflow-x: clip; margin: 0; padding: 0; }
+  body { background: var(--color-paper); color: var(--color-ink); font-family: var(--font-body); }
+  .shell { max-width: var(--shell); margin-inline: auto; padding-inline: var(--page-gutter); position: relative; }
+  a { color: var(--color-ink); }
+  a:focus-visible, button:focus-visible { outline: 3px solid var(--color-focus); outline-offset: 2px; }
+  h1, h2 { font-family: var(--font-display); font-weight: 800; font-variation-settings: "wdth" 110, "wght" 800; letter-spacing: 0.01em; line-height: 0.96; text-transform: uppercase; }
+
+  .lang-switcher { position: absolute; top: 1.1rem; right: var(--page-gutter); z-index: 5; }
+  .lang-btn { display: inline-flex; align-items: center; gap: 0.4em; background: var(--color-ink); color: var(--color-accent-ink); border: none; padding: 0.5em 0.9em; font-family: var(--font-label); font-size: 0.72rem; letter-spacing: 0.04em; cursor: pointer; }
+  .lang-menu { position: absolute; top: calc(100% + 0.3rem); right: 0; z-index: 30; background: var(--color-paper); border: 2px solid var(--color-ink); box-shadow: 4px 4px 0 var(--color-ink); padding: 0.3rem; min-width: 9rem; display: none; }
+  .lang-menu.is-open { display: block; }
+  .lang-option { display: block; width: 100%; text-align: left; background: none; border: none; padding: 0.5em 0.7em; font-family: var(--font-body); font-size: 0.85rem; color: var(--color-ink); cursor: pointer; }
+  .lang-option:hover { background: var(--color-paper-2); }
+  .lang-option[aria-checked="true"] { font-weight: 700; color: var(--color-accent); }
+
+  .halftone { height: 14px; background-image: radial-gradient(var(--color-ink) 1.5px, transparent 1.5px); background-size: 10px 10px; opacity: 0.5; }
+
+  .marquee { background: var(--color-ink); color: var(--color-accent-ink); overflow: hidden; white-space: nowrap; padding: 0.5rem 0; }
+  .marquee-track { display: inline-block; animation: marquee 22s linear infinite; }
+  .marquee span { font-family: var(--font-label); font-size: 0.78rem; letter-spacing: 0.08em; padding: 0 1.2rem; }
+  @keyframes marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+  @media (prefers-reduced-motion: reduce) { .marquee-track { animation: none; } }
+
+  .masthead { background: var(--color-accent); color: var(--color-accent-ink); padding: 3rem var(--page-gutter) 2.5rem; }
+  .masthead-inner { max-width: var(--shell); margin: 0 auto; position: relative; }
+  .masthead .eyebrow { font-family: var(--font-label); font-size: 0.75rem; letter-spacing: 0.1em; margin: 0 0 0.6rem; }
+  .masthead h1 { margin: 0; font-size: clamp(2.1rem, 4vw + 1rem, 3.4rem); max-width: 14ch; }
+  .masthead-meta { margin-top: 1rem; font-family: var(--font-label); font-size: 0.8rem; letter-spacing: 0.04em; display: flex; gap: 1.2rem; flex-wrap: wrap; opacity: 0.9; }
+
+  .progress-row { display: flex; align-items: center; gap: 0.9rem; margin-top: 1.5rem; }
+  .progress-track { flex: 1; max-width: 12rem; height: 6px; background: color-mix(in oklch, var(--color-accent-ink) 30%, transparent); }
+  .progress-fill { height: 100%; width: 0%; background: var(--color-accent-2); transition: width 420ms ease; }
+  .progress-count { font-family: var(--font-label); font-size: 0.78rem; white-space: nowrap; }
+
+  .ornament-row { text-align: center; color: var(--color-accent-2); letter-spacing: 0.6em; padding: 1.5rem 0; font-size: 0.9rem; }
+  .shell-inner { padding-bottom: 3rem; }
+
+  .topic { margin-bottom: 3rem; position: relative; }
+  .topic-head { cursor: pointer; }
+
+  .stamp-mark {
+    position: absolute; top: 0; right: 0;
+    width: 44px; height: 44px; border-radius: 50%; flex-shrink: 0;
+    border: 2px dashed color-mix(in oklch, var(--color-ink) 40%, transparent);
+    display: flex; align-items: center; justify-content: center; opacity: 0.5;
+    transform: rotate(0deg) scale(1);
+  }
+  .stamp-mark svg { width: 18px; height: 18px; opacity: 0; transform: scale(0.3); }
+  .topic.is-collected .stamp-mark { opacity: 1; border-style: solid; border-color: var(--color-ink); background: var(--color-accent-2); animation: thump 320ms cubic-bezier(0.2,0.8,0.3,1); }
+  .topic.is-collected .stamp-mark svg { opacity: 1; transform: scale(1); color: var(--color-ink); }
+  @keyframes thump { 0% { transform: scale(1.6) rotate(-16deg); opacity: 0; } 60% { transform: scale(0.9) rotate(-8deg); } 100% { transform: scale(1) rotate(-8deg); } }
+
+  .topic h2 { margin: 0 4.5rem 0.8rem 0; font-size: clamp(1.6rem, 2.4vw + 1rem, 2.3rem); overflow-wrap: anywhere; }
+  .topic-teaser { margin: 0 0 1.2rem; font-size: 1rem; line-height: 1.6; color: var(--color-ink-2); max-width: 56ch; font-weight: 500; }
+
+  .stats-line { display: flex; flex-wrap: wrap; gap: 0.9rem; margin-bottom: 1.2rem; }
+  .stat-tile { background: var(--color-paper-2); border: 2px solid var(--color-ink); padding: 0.6rem 0.9rem; box-shadow: 4px 4px 0 var(--color-ink); }
+  .stat-value { display: block; font-family: var(--font-display); font-weight: 800; font-size: 1.35rem; font-variant-numeric: tabular-nums; }
+  .stat-label { display: block; margin-top: 0.2rem; font-family: var(--font-label); font-size: 0.62rem; letter-spacing: 0.04em; color: var(--color-muted); text-transform: none; }
+
+  .expand-btn {
+    display: inline-flex; align-items: center; gap: 0.5em; background: none; border: 2px solid var(--color-ink);
+    padding: 0.5em 1em; font-family: var(--font-label); font-size: 0.75rem; letter-spacing: 0.05em; cursor: pointer;
+    box-shadow: 3px 3px 0 var(--color-ink); margin-bottom: 1.25rem;
+  }
+  .expand-btn .chevron { display: inline-block; transition: transform 200ms ease; }
+  .topic.is-open .expand-btn .chevron { transform: rotate(180deg); }
+
+  .topic-panel { max-height: 0; overflow: hidden; transition: max-height 460ms ease; }
+  .topic.is-open .topic-panel { max-height: 4000px; }
+
+  .topic-body { background: var(--color-paper-2); border: 2px solid var(--color-ink); box-shadow: 6px 6px 0 var(--color-ink); padding: 1.5rem 1.75rem; margin-bottom: 1.2rem; }
+  .topic-section { margin-bottom: 1.1rem; }
+  .topic-section:last-of-type { margin-bottom: 0; }
+  .topic-section .run-in { display: block; font-family: var(--font-label); font-size: 0.7rem; letter-spacing: 0.08em; color: var(--color-accent); margin-bottom: 0.5em; }
+  .topic-section p { margin: 0 0 0.7rem; line-height: 1.68; }
+  .topic-section p:last-child { margin-bottom: 0; }
+  .topic-section ul { margin: 0 0 0.7rem; padding-left: 0; list-style: none; }
+  .topic-section ul li { position: relative; padding-left: 1.2em; margin-bottom: 0.4em; line-height: 1.5; }
+  .topic-section ul li::before { content: "●"; position: absolute; left: 0; color: var(--color-accent); font-size: 0.5em; top: 0.55em; }
+  .topic-section ul li:last-child { margin-bottom: 0; }
+
+  .delta-insight { margin-top: 1.2rem; padding: 1rem 1.2rem; background: var(--color-accent); color: var(--color-accent-ink); }
+  .delta-insight .run-in { color: var(--color-accent-ink); opacity: 0.85; }
+  .delta-insight p { margin: 0 0 0.7rem; line-height: 1.68; }
+  .delta-insight p:last-child { margin-bottom: 0; }
+
+  .source-row { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1.2rem; }
+  .btn { display: inline-flex; align-items: center; gap: 0.4em; font-family: var(--font-label); font-size: 0.72rem; letter-spacing: 0.04em; text-decoration: none; color: var(--color-accent-ink); background: var(--color-accent); padding: 0.5em 0.9em; border: 2px solid var(--color-ink); box-shadow: 3px 3px 0 var(--color-ink); transition: transform 120ms ease-out, box-shadow 120ms ease-out; }
+  .btn:hover { transform: translate(-1px, -1px); box-shadow: 4px 4px 0 var(--color-ink); }
+  .btn:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 var(--color-ink); }
+  .btn--stamp { background: var(--color-accent-2); color: var(--color-ink); font-weight: 700; border: none; cursor: pointer; }
+  .topic.is-collected .btn--stamp { background: var(--color-paper-3); color: var(--color-muted); box-shadow: none; pointer-events: none; border: 2px solid var(--color-paper-3); }
+
+  .foot { background: var(--color-ink); color: var(--color-accent-ink); padding: 1.5rem var(--page-gutter) 2.5rem; }
+  .foot-inner { max-width: var(--shell); margin: 0 auto; font-size: 0.8rem; line-height: 1.7; opacity: 0.85; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .topic-panel, .expand-btn .chevron, .btn { transition-duration: 1ms !important; }
+    .topic.is-collected .stamp-mark { animation: none; }
+  }
+  @media (max-width: 30rem) {
+    .masthead { padding: 2.25rem var(--page-gutter) 2rem; }
+    .lang-switcher { position: static; margin-bottom: 1rem; }
+    .topic-body { padding: 1.1rem 1.25rem; }
+    .stamp-mark { width: 36px; height: 36px; }
+    .topic h2 { margin-right: 3.75rem; }
+  }
+</style>
+</head>
+<body>
+
+<div class="marquee" aria-hidden="true">
+  <div class="marquee-track">
+    <span data-i18n-inline="marqueeText">DELTA AI 趨勢週報 ◆ 本週精選 ◆ 07/19–07/25 ◆ 僅供內部參考 ◆</span><span data-i18n-inline="marqueeText">DELTA AI 趨勢週報 ◆ 本週精選 ◆ 07/19–07/25 ◆ 僅供內部參考 ◆</span>
+  </div>
+</div>
+<div class="halftone" aria-hidden="true"></div>
+
+<header class="masthead">
+  <div class="masthead-inner">
+    <div class="lang-switcher">
+      <button class="lang-btn" id="lang-btn" aria-haspopup="true" aria-expanded="false">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15 15 0 0 1 0 20 15 15 0 0 1 0-20z"/></svg>
+        <span id="lang-btn-label">繁體中文</span>
+      </button>
+      <div class="lang-menu" id="lang-menu" role="menu">
+        <button class="lang-option" role="menuitemradio" aria-checked="true" data-lang="zh-Hant">繁體中文</button>
+        <button class="lang-option" role="menuitemradio" aria-checked="false" data-lang="zh-Hans">简体中文</button>
+        <button class="lang-option" role="menuitemradio" aria-checked="false" data-lang="en">English</button>
+      </div>
+    </div>
+    <p class="eyebrow">DELTA AI TREND WEEKLY</p>
+    <h1 data-i18n-inline="weeklyPicks">本週精選</h1>
+    <div class="masthead-meta" data-i18n-inline="metaRange">2026-07-19 – 2026-07-25 · 7 篇文章</div>
+    <div class="progress-row">
+      <span class="progress-track"><span class="progress-fill" id="progress-fill"></span></span>
+      <span class="progress-count" id="progress-count"></span>
+    </div>
+  </div>
+</header>
+
+<div class="ornament-row" aria-hidden="true">✱ ✱ ✱ ✱</div>
+
+<div class="shell">
+  <div class="shell-inner" id="topics"></div>
+</div>
+
+<footer class="foot">
+  <div class="foot-inner"><p data-i18n-inline="footerNote"></p></div>
+</footer>
+
+<script>
+const CHROME_I18N = {
+  "zh-Hant": { weeklyPicks: "本週精選", metaRange: "2026-07-19 – 2026-07-25 · 7 篇文章", marqueeText: "DELTA AI 趨勢週報 ◆ 本週精選 ◆ 07/19–07/25 ◆ 僅供內部參考 ◆ ", progress: n => `已收集 ${n} / 7 枚印章`, expand: "閱讀全文", collapse: "收合", stamp: "讀完了，蓋章", stamped: "已收集 ✓", insightLabel: "這對我們意味著什麼", footerNote: "內容由 AI 依公開來源改寫產出，經事實查核與風格審查關卡後發布，非原文轉載。僅供台達內部參考。" },
+  "zh-Hans": { weeklyPicks: "本周精选", metaRange: "2026-07-19 – 2026-07-25 · 7 篇文章", marqueeText: "DELTA AI 趋势周报 ◆ 本周精选 ◆ 07/19–07/25 ◆ 仅供内部参考 ◆ ", progress: n => `已收集 ${n} / 7 枚印章`, expand: "阅读全文", collapse: "收起", stamp: "读完了，盖章", stamped: "已收集 ✓", insightLabel: "这对我们意味着什么", footerNote: "内容由 AI 依据公开来源改写产出，经事实查核与风格审查关卡后发布，非原文转载。仅供台达内部参考。" },
+  "en": { weeklyPicks: "This Week's Picks", metaRange: "Jul 19 – Jul 25, 2026 · 7 articles", marqueeText: "DELTA AI TREND WEEKLY ◆ THIS WEEK'S PICKS ◆ 07/19–07/25 ◆ INTERNAL USE ONLY ◆ ", progress: n => `${n} / 7 collected`, expand: "Read full article", collapse: "Collapse", stamp: "Mark as read", stamped: "Collected ✓", insightLabel: "What this means for us", footerNote: "Content is AI-rewritten from public sources, fact-checked and style-reviewed before publishing. Not a verbatim reprint. Delta internal use only." }
+};
+const LANG_LABEL = { "zh-Hant": "繁體中文", "zh-Hans": "简体中文", "en": "English" };
+
+const TOPICS_BY_LANG = {"zh-Hant": [{"content_type": "insight", "chosen_headline": "月燒 7000 億 Token 什麼概念？AT&T 砸 530 張 GPU 硬幹電信專屬 AI", "card_summary": {"text": "別家電信公司還在觀望。AT&T 直接跟 Microsoft Foundry 聯手，動用 530 張混合 GPU，養出一個月能吃下數千億 Token 的電信專屬怪獸模型。"}, "stats": [{"value": "700B+", "label": "Phi-4 一個月吃掉的 Token 量"}, {"value": "430", "label": "壓陣的 AMD MI300X GPU 數量"}], "sources": [{"source_name": "Microsoft AI Blog", "url": "https://www.microsoft.com/en-us/microsoft-cloud/blog/2026/07/23/ai-appreciation-day-impact-through-action/"}, {"source_name": "Azure Blog", "url": "https://azure.microsoft.com/en-us/blog/att-and-microsoft-scale-trillion-token-workloads-with-microsoft-foundry-and-amd/"}, {"source_name": "AWS ML Blog", "url": "https://aws.amazon.com/blogs/machine-learning/best-practices-for-applying-amazon-bedrock-guardrails-to-code-generation-workflows/"}], "sections": [{"heading": "到底在燒什麼", "paragraphs": ["通用大模型有多不懂電信？標準、網路架構、營運眉角，它一竅不通。", "AT&T 索性自己下海，端出新一代 Open Telco（OTel2.0）模型，掛在 Microsoft Foundry Managed Compute 平台上，把好幾款開源模型跟硬體混著用，硬是啃下萬億級 Token 的資料量。", "這次陣容豪華到誇張，Hugging Face 上的 Phi-4、OSS-120B、Gemma 4 全部找齊。光 Phi-4 一個模型，光是準備資料跟造合成數據，一個月就吃掉超過 7000 億個 Token。", "底層更是狠。約 530 張 GPU 頂上去，其中 430 張是 AMD Instinct MI300X，剩下配 NVIDIA GPU，硬是把原本要花好幾週的部署時間，壓縮到只剩幾小時。"]}, {"heading": "為什麼這事值得你多看一眼", "paragraphs": ["這件事真正厲害的地方，是它戳破了一個迷思：企業不必被單一模型或單一晶片廠商綁死。", "以前團隊得自己扛硬體、扛維運，現在丟給託管計算平台，想怎麼調酒就怎麼調。不同任務配不同模型跟算力，愛怎麼混就怎麼混。", "高階推理丟給 OSS 120B，資料準備交給 Phi-4，開發流程讓 Gemma 4 頂著。再搭配跨晶片架構的算力調度，成本跟效能就能抓在最佳平衡點，讓大規模、領域專用的 AI 開發變得真的可行，不再只是紙上談兵。"]}, {"heading": "接下來要盯緊什麼", "paragraphs": ["聽起來很美好，但異質算力加多模型組合的彈性背後，藏著真實的麻煩。", "不同 GPU 架構之間軟體優化程度不一，吞吐量卡關，跨架構調度的維運成本也不便宜，這些都是大規模上線後躲不掉的硬仗。", "AT&T 已經把 OTel 模型回饋給社群。這套開放架構在真實電信場景裡，長期總持有成本跟維護複雜度，會是接下來大家評估時最該盯緊的核心指標。"]}], "delta_insight": {"paragraphs": ["換個角度想，我們在規劃廠區設備報修、IT Helpdesk 這類內部 AI 應用時，其實不用逼自己全公司只認一顆昂貴的大模型。", "任務可以拆開來看，日常假勤查詢、格式整理這種輕量活，丟給便宜的小模型就好，真正燒腦的推理才留給高階模型。", "硬體規劃上也是同一套邏輯。靈活分配算力，搭配不同規格的硬體去打不同的任務，既能滿足各部門對回應速度的胃口，又能把整體營運成本抓得死死的。"]}}, {"content_type": "practical", "chosen_headline": "兩人測試好好的，十五人一起開工系統直接暴斃：AI 寫程式的防護牆到底卡在哪", "card_summary": {"text": "15 個工程師一起用 Claude Code，系統當場僵住不動。兇手竟然是那個每 50 個字元就要跳出來檢查一次的預設防護牆。"}, "stats": [{"value": "15 人", "label": "一開工就把系統玩當機的人數"}, {"value": "5,000 字元", "label": "工程師平均每個函式產生的程式碼長度"}, {"value": "50 字元", "label": "預設觸發防護牆評估的串流間隔"}], "sources": [{"source_name": "AWS ML Blog", "url": "https://aws.amazon.com/blogs/machine-learning/best-practices-for-applying-amazon-bedrock-guardrails-to-code-generation-workflows/"}], "sections": [{"heading": "災情現場", "paragraphs": ["一個團隊把 Amazon Bedrock 上的 Claude Code 推給 15 位工程師用。", "兩人小規模測試時一切順順利利。結果 15 人同時開工，系統馬上翻臉，瘋狂丟出 ThrottlingException 錯誤，程式碼寫到一半直接當機卡死。"]}, {"heading": "問題出在哪、怎麼修", "paragraphs": ["兇手抓到了：檢查機制太勤勞。工程師平均寫一個函式會產生約 5,000 個字元，但預設串流設定下，系統每吐出 50 個字元就要跳出來檢查一次防護牆，等於瘋狂觸發，API 請求量瞬間炸開。", "當然防護牆不能拆，它負責擋下這些事：", "<ul><li>提示詞攻擊</li><li>金鑰外洩</li><li>個資外流</li><li>違規內容</li></ul>", "真正該做的是重新校準串流評估的字元間隔跟吞吐量配置，別讓檢測頻率高到干擾整個開發節奏。"]}, {"heading": "調完之後", "paragraphs": ["如果沒事先幫團隊的併發需求做容量規劃，防護牆隨時可能反過來變成瓶頸：", "<ul><li>限流</li><li>成本飆升</li><li>延遲拉長</li></ul>", "把串流檢查頻率調準之後，金鑰防護跟安全審查照樣在線。多位開發者終於可以順暢並肩作戰，不再互相卡。"]}], "delta_insight": null}, {"content_type": "practical", "chosen_headline": "儀表板紅燈一亮，然後呢？Quick 聯手 NeMo 把供應鏈調查串成一條龍", "card_summary": {"text": "供應商可能要 delay 了？Quick 搭上 NVIDIA NeMo，自動把散落各處的數據兜在一起，還直接端出帶證據的解法，不用你自己土法煉鋼查半天。"}, "stats": [{"value": "100+", "label": "現成能直接用的動作連接器數量"}], "sources": [{"source_name": "AWS ML Blog", "url": "https://aws.amazon.com/blogs/machine-learning/build-specialized-agent-workflows-for-your-business-with-amazon-quick-and-nvidia-nemo-agent-toolkit/"}, {"source_name": "AWS ML Blog", "url": "https://aws.amazon.com/blogs/machine-learning/evolving-from-legacy-bi-to-agentic-ai-at-tradeshift-with-amazon-quick/"}], "sections": [{"heading": "真正頭痛的不是發現問題", "paragraphs": ["儀表板紅燈一亮，代表供應商可能要 delay 了。但真正燒時間的從來不是「發現問題」，而是接下來得一項一項慢慢查：", "<ul><li>採購單</li><li>庫存</li><li>客戶承諾</li><li>合約條款</li><li>物流選項</li></ul>", "計畫員手上數據通常夠多，早就知道出事了，卻沒時間逐一調查每個環節。他們缺的不是更多訊號，而是一套能直接推薦下一步、還附證據的工作流。"]}, {"heading": "怎麼做到的", "paragraphs": ["這套方案把 Amazon Quick 跟 NVIDIA NeMo Agent Toolkit 兜在一起。Quick 是業務端的單一對話工作區，能接上 Amazon S3、SharePoint、Confluence 這類結構化跟非結構化知識庫。", "透過 NeMo Agent Toolkit 建好供應鏈風險範例後，系統能直接引導計畫員從儀表板一路走到緩解建議。Quick 內建超過 100 個現成的動作連接器，能直接在 Outlook、Slack、Jira 上動手執行，還能透過 Model Context Protocol 呼叫 Agent 工作流。"]}, {"heading": "這套架構厲害在哪", "paragraphs": ["重點不是多一份報表，而是 AI 能自己比對多來源數據、給出附證據的建議。原本得在好幾個系統之間跳來跳去查資料的時間，直接被壓縮成一套結構化的決策助攻。"]}], "delta_insight": null}, {"content_type": "practical", "chosen_headline": "QuickSight 畫不出來的圖，Highcharts 出手補位", "card_summary": {"text": "美國跟英國市場結構根本是兩個世界，QuickSight 原生圖表怎麼畫都畫不對，最後靠 Highcharts 補上雷達圖跟彈道圖才解套。"}, "stats": [{"value": "49", "label": "美國涵蓋的州數"}, {"value": "7", "label": "同時描繪的績效類別數"}], "sources": [{"source_name": "AWS ML Blog", "url": "https://aws.amazon.com/blogs/machine-learning/building-multi-region-visualizations-with-highcharts-in-amazon-quick/"}, {"source_name": "AWS ML Blog", "url": "https://aws.amazon.com/blogs/machine-learning/how-couchbase-built-a-multi-model-ai-architecture-for-capella-iq-with-amazon-bedrock/"}], "sections": [{"heading": "同一把尺，量不出兩種市場", "paragraphs": ["運送商的績效數據橫跨美國跟英國，你會發現標準儀表板根本兼顧不了兩邊的結構差異。美國市場橫跨 49 州、數百個都會區，競爭者只有三家；英國是全國性劃分，競爭者卻有四家。", "地圖範圍不一樣，市場密度不一樣，競爭者數量也不一樣。沒有一種現成圖表能同時把這兩個故事講清楚。", "你要的不只是秀出地理位置，而是要一次回答：誰領先、領先多少、穩不穩、走勢往哪去。"]}, {"heading": "土法煉鋼行不通，換 Highcharts", "paragraphs": ["硬要用 Amazon QuickSight 的原生功能去湊這些視覺效果，就像拿同一把尺去量圓形跟方形的面積，邊角永遠對不齊。", "最後不是被迫幫每個區域各開一個獨立儀表板，就是用堆疊長條圖硬撐，甚至乾脆把指標平均化。結果反而把某個運送商在最好跟最差市場之間的落差整個蓋掉。", "解法是把 Highcharts 拉進來擴充 QuickSight。它能畫出原生功能畫不出來的圖，像是同時呈現七家運送商、七項績效指標的雷達圖，還有彈道圖、啞鈴圖，把數據裡細膩的差異跟對比攤開來，一張圖就能講完兩種完全不同的競爭結構。"]}, {"heading": "換掉之後", "paragraphs": ["接上 Highcharts 之後，不用再為了兼顧不同地區的結構差異，犧牲數據完整性或搞一堆繞路的 workaround。", "儀表板能在同一個畫面裡同時處理地理跟結構的雙重挑戰，決策者看到的是完整的數據故事，不是被平均數字蓋過去的局部真相。"]}], "delta_insight": null}, {"content_type": "practical", "chosen_headline": "小企業沒空等 AI 邀請函：58% 員工已經在做一年前做不到的事", "card_summary": {"text": "手上現金只夠撐 27 天，卻是最先把 AI 用出成績的一群人。58% 的員工已經在做一年前根本做不到的事。"}, "stats": [{"value": "27天", "label": "中小企業現金儲備天數中位數"}, {"value": "58%", "label": "AI 使用者已產出一年前做不到的工作"}, {"value": "90%", "label": "全球企業中中小企業佔比"}], "sources": [{"source_name": "Microsoft AI Blog", "url": "https://www.microsoft.com/en-us/microsoft-cloud/blog/2026/07/23/ai-appreciation-day-impact-through-action/"}, {"source_name": "Microsoft AI Blog", "url": "https://www.microsoft.com/en-us/microsoft-cloud/blog/2026/06/29/small-and-medium-businesses-arent-waiting-for-an-ai-invitation-theyre-already-leading/"}], "sections": [{"heading": "沒有試錯的本錢", "paragraphs": ["中小企業的經濟地位穩得很：佔了全球 90% 的企業數量、50% 的 GDP、70% 的就業人口。", "但他們沒有大企業那種「先試錯再說」的奢侈，現金儲備中位數只有 27 天，一步走錯方向很可能就沒有下一步了，得一次就做對。"]}, {"heading": "不等邀請函，直接上手", "paragraphs": ["資源有限，這些企業沒空等一個完美時機，直接把 AI 嵌進日常營運流程裡。", "他們不炫技，只解決真正卡住的問題。像動物保護組織用數據預測「小貓季節」的收容需求，非營利組織把行政文書時間砍掉、把心力還給志工輔導。", "核心邏輯很簡單：AI 是解決具體痛點的工具，不是單純的技術升級秀。"]}, {"heading": "數字說話", "paragraphs": ["根據 Microsoft Work Trend Index 2026，AI 已經從「加分項」變成「競爭優勢」。", "58% 的 AI 使用者說，他們正在做一年前根本做不到的工作內容。66% 回報了具體的效率提升或工作範圍擴大。", "當 AI 真正貼合業務場景，就算資源有限，照樣能生出過去不可能的產能跟價值。"]}], "delta_insight": null}, {"content_type": "practical", "chosen_headline": "查詢快了 30 倍、成本降 40%：Tradeshift 砍掉自研 BI 全面轉向 Agentic AI", "card_summary": {"text": "自己養的 BI 養到養不動，Tradeshift 乾脆全部砍掉重練，換上 Amazon Quick 的 Agentic AI。查詢速度衝上 30 倍，成本砍 40%，分析這件事還順便變成賺錢的產品。"}, "stats": [{"value": "30x", "label": "查詢回應時間提升倍數"}, {"value": "40%", "label": "總擁有成本降低比例"}], "sources": [{"source_name": "AWS ML Blog", "url": "https://aws.amazon.com/blogs/machine-learning/build-specialized-agent-workflows-for-your-business-with-amazon-quick-and-nvidia-nemo-agent-toolkit/"}, {"source_name": "AWS ML Blog", "url": "https://aws.amazon.com/blogs/machine-learning/evolving-from-legacy-bi-to-agentic-ai-at-tradeshift-with-amazon-quick/"}], "sections": [{"heading": "自己養的 BI，養不動了", "paragraphs": ["業務越做越大，Tradeshift 才發現自己內部養的商業智能（BI）工具已經扛不住暴增的資料量。", "查詢速度慢到讓買賣雙方都等不下去，直接變成業務發展的天花板。"]}, {"heading": "砍掉重練，換 Agentic AI", "paragraphs": ["他們選擇直接部署 Amazon Quick 這個 Agentic AI 工作區，取代舊系統。Amazon Quick 能接上所有應用程式、工具跟數據，企業級安全防護也一併到位。", "靠對話代理，員工用講的就能問業務數據。Flows 功能能把多步驟工作流直接自動化，不用寫一行程式碼。研究功能還能整合多來源資訊，生出一份長篇深度分析報告。"]}, {"heading": "換完之後有多爽", "paragraphs": ["查詢回應時間最多衝上 30 倍，總擁有成本砍掉 40%。", "更狠的是，他們直接把嵌入式分析變成一款能賺錢的產品，成功把成本中心翻轉成營收來源。"]}], "delta_insight": null}, {"content_type": "practical", "chosen_headline": "別再被表格淹死：AI 把時間還給非營利組織真正該做的事", "card_summary": {"text": "表格對帳單堆到淹過頭，非營利組織終於靠 AI 從文書海裡爬出來，把時間還給真正重要的使命。"}, "stats": [{"value": "90%", "label": "全球企業中中小企業佔比"}, {"value": "50%", "label": "中小企業對全球 GDP 的貢獻"}, {"value": "70%", "label": "中小企業佔全球勞動力比例"}], "sources": [{"source_name": "Microsoft AI Blog", "url": "https://www.microsoft.com/en-us/microsoft-cloud/blog/2026/07/23/ai-appreciation-day-impact-through-action/"}], "sections": [{"heading": "被表格淹沒的日常", "paragraphs": ["你想像過那種感覺嗎？明明只是想幫忙，卻被無止盡的表格跟對帳單活埋。", "對很多非營利組織來說，這就是日常。", "組織一旦擴大，收容所、志工、支持者的數據像潮水一樣湧進來。團隊每個月得花上好幾個小時，手動把不同系統的資料兜在一起。", "不只累人，連預測需求、調度資源都變得綁手綁腳。"]}, {"heading": "AI 接手之後", "paragraphs": ["丹麥動物保護協會（Animal Protection Denmark）也踩過同樣的坑。每年「小貓季節」來臨前，他們得精準預測哪裡會出現照顧缺口，過去全靠經驗猜。現在靠微軟的數據跟 AI 工具，把一團亂的資訊變成看得懂的洞察。", "另一個例子是小型非營利組織 Everything Suarve，不再讓志工把寶貴時間耗在瑣碎行政流程上。AI 接手例行工作，團隊終於能把心力放回核心使命：陪伴跟指導年輕人。", "還有研究神經退化疾病的團隊，也靠 AI 加速治療方案的開發進度。這些做法的重點從來不是技術有多先進，而是把人力從重複勞動裡解放出來。"]}, {"heading": "結果很直接", "paragraphs": ["他們現在能做以前做不到的事：AI 幫這些組織擴大機會、強化社區連結，替受助者創造新的可能性。", "就算資源有限，照樣能發揮超出自身規模的影響力。這證明 AI 不是大企業的專利，它正在幫全球非營利組織對抗最迫切的挑戰。"]}], "delta_insight": null}], "zh-Hans": [{"content_type": "insight", "chosen_headline": "月烧 7000 亿 Token 什么概念？AT&T 砸 530 张 GPU 硬干电信专属 AI", "card_summary": {"text": "别家电信公司还在观望。AT&T 直接跟 Microsoft Foundry 联手，动用 530 张混合 GPU，养出一个月能吃下数千亿 Token 的电信专属怪兽模型。"}, "stats": [{"value": "700B+", "label": "Phi-4 一个月吃掉的 Token 量"}, {"value": "430", "label": "压阵的 AMD MI300X GPU 数量"}], "sources": [{"source_name": "Microsoft AI Blog", "url": "https://www.microsoft.com/en-us/microsoft-cloud/blog/2026/07/23/ai-appreciation-day-impact-through-action/"}, {"source_name": "Azure Blog", "url": "https://azure.microsoft.com/en-us/blog/att-and-microsoft-scale-trillion-token-workloads-with-microsoft-foundry-and-amd/"}, {"source_name": "AWS ML Blog", "url": "https://aws.amazon.com/blogs/machine-learning/best-practices-for-applying-amazon-bedrock-guardrails-to-code-generation-workflows/"}], "sections": [{"heading": "到底在烧什么", "paragraphs": ["通用大模型有多不懂电信？标准、网络架构、营运眉角，它一窍不通。", "AT&T 索性自己下海，端出新一代 Open Telco（OTel2.0）模型，挂在 Microsoft Foundry Managed Compute 平台上，把好几款开源模型跟硬件混着用，硬是啃下万亿级 Token 的数据量。", "这次阵容豪华到夸张，Hugging Face 上的 Phi-4、OSS-120B、Gemma 4 全部找齐。光 Phi-4 一个模型，光是准备数据跟造合成数据，一个月就吃掉超过 7000 亿个 Token。", "底层更是狠。约 530 张 GPU 顶上去，其中 430 张是 AMD Instinct MI300X，剩下配 NVIDIA GPU，硬是把原本要花好几周的部署时间，压缩到只剩几小时。"]}, {"heading": "为什么这事值得你多看一眼", "paragraphs": ["这件事真正厉害的地方，是它戳破了一个迷思：企业不必被单一模型或单一芯片厂商绑死。", "以前团队得自己扛硬件、扛维运，现在丢给托管计算平台，想怎么调酒就怎么调。不同任务配不同模型跟算力，爱怎么混就怎么混。", "高端推理丢给 OSS 120B，数据准备交给 Phi-4，开发流程让 Gemma 4 顶着。再搭配跨芯片架构的算力调度，成本跟性能就能抓在最佳平衡点，让大规模、领域专用的 AI 开发变得真的可行，不再只是纸上谈兵。"]}, {"heading": "接下来要盯紧什么", "paragraphs": ["听起来很美好，但异质算力加多模型组合的弹性背后，藏着真实的麻烦。", "不同 GPU 架构之间软件优化程度不一，吞吐量卡关，跨架构调度的维运成本也不便宜，这些都是大规模上线后躲不掉的硬仗。", "AT&T 已经把 OTel 模型回馈给社群。这套开放架构在真实电信场景里，长期总持有成本跟维护复杂度，会是接下来大家评估时最该盯紧的核心指标。"]}], "delta_insight": {"paragraphs": ["换个角度想，我们在规划厂区设备报修、IT Helpdesk 这类内部 AI 应用时，其实不用逼自己全公司只认一颗昂贵的大模型。", "任务可以拆开来看，日常假勤查询、格式整理这种轻量活，丢给便宜的小模型就好，真正烧脑的推理才留给高端模型。", "硬件规划上也是同一套逻辑。灵活分配算力，搭配不同规格的硬件去打不同的任务，既能满足各部门对回应速度的胃口，又能把整体营运成本抓得死死的。"]}}, {"content_type": "practical", "chosen_headline": "两人测试好好的，十五人一起开工系统直接暴毙：AI 写程序的防护墙到底卡在哪", "card_summary": {"text": "15 个工程师一起用 Claude Code，系统当场僵住不动。凶手竟然是那个每 50 个字符就要跳出来检查一次的缺省防护墙。"}, "stats": [{"value": "15 人", "label": "一开工就把系统玩当机的人数"}, {"value": "5,000 字符", "label": "工程师平均每个函数产生的代码长度"}, {"value": "50 字符", "label": "缺省触发防护墙评估的串流间隔"}], "sources": [{"source_name": "AWS ML Blog", "url": "https://aws.amazon.com/blogs/machine-learning/best-practices-for-applying-amazon-bedrock-guardrails-to-code-generation-workflows/"}], "sections": [{"heading": "灾情现场", "paragraphs": ["一个团队把 Amazon Bedrock 上的 Claude Code 推给 15 位工程师用。", "两人小规模测试时一切顺顺利利。结果 15 人同时开工，系统马上翻脸，疯狂丢出 ThrottlingException 错误，代码写到一半直接当机卡死。"]}, {"heading": "问题出在哪、怎么修", "paragraphs": ["凶手抓到了：检查机制太勤劳。工程师平均写一个函数会产生约 5,000 个字符，但缺省串流设置下，系统每吐出 50 个字符就要跳出来检查一次防护墙，等于疯狂触发，API 请求量瞬间炸开。", "当然防护墙不能拆，它负责挡下这些事：", "<ul><li>提示词攻击</li><li>密钥外泄</li><li>个资外流</li><li>违规内容</li></ul>", "真正该做的是重新校准串流评估的字符间隔跟吞吐量配置，别让检测频率高到干扰整个开发节奏。"]}, {"heading": "调完之后", "paragraphs": ["如果没事先帮团队的并发需求做容量规划，防护墙随时可能反过来变成瓶颈：", "<ul><li>限流</li><li>成本飙升</li><li>延迟拉长</li></ul>", "把串流检查频率调准之后，密钥防护跟安全审查照样在线。多位开发者终于可以顺畅并肩作战，不再互相卡。"]}], "delta_insight": null}, {"content_type": "practical", "chosen_headline": "仪表板红灯一亮，然后呢？Quick 联手 NeMo 把供应链调查串成一条龙", "card_summary": {"text": "供应商可能要 delay 了？Quick 搭上 NVIDIA NeMo，自动把散落各处的数据兜在一起，还直接端出带证据的解法，不用你自己土法炼钢查半天。"}, "stats": [{"value": "100+", "label": "现成能直接用的动作连接器数量"}], "sources": [{"source_name": "AWS ML Blog", "url": "https://aws.amazon.com/blogs/machine-learning/build-specialized-agent-workflows-for-your-business-with-amazon-quick-and-nvidia-nemo-agent-toolkit/"}, {"source_name": "AWS ML Blog", "url": "https://aws.amazon.com/blogs/machine-learning/evolving-from-legacy-bi-to-agentic-ai-at-tradeshift-with-amazon-quick/"}], "sections": [{"heading": "真正头痛的不是发现问题", "paragraphs": ["仪表板红灯一亮，代表供应商可能要 delay 了。但真正烧时间的从来不是「发现问题」，而是接下来得一项一项慢慢查：", "<ul><li>采购单</li><li>库存</li><li>客户承诺</li><li>合约条款</li><li>物流选项</li></ul>", "计划员手上数据通常够多，早就知道出事了，却没时间逐一调查每个环节。他们缺的不是更多信号，而是一套能直接推荐下一步、还附证据的工作流。"]}, {"heading": "怎么做到的", "paragraphs": ["这套方案把 Amazon Quick 跟 NVIDIA NeMo Agent Toolkit 兜在一起。Quick 是业务端的单一对话工作区，能接上 Amazon S3、SharePoint、Confluence 这类结构化跟非结构化知识库。", "通过 NeMo Agent Toolkit 建好供应链风险范例后，系统能直接引导计划员从仪表板一路走到缓解建议。Quick 内置超过 100 个现成的动作连接器，能直接在 Outlook、Slack、Jira 上动手运行，还能通过 Model Context Protocol 调用 Agent 工作流。"]}, {"heading": "这套架构厉害在哪", "paragraphs": ["重点不是多一份报表，而是 AI 能自己比对多来源数据、给出附证据的建议。原本得在好几个系统之间跳来跳去查数据的时间，直接被压缩成一套结构化的决策助攻。"]}], "delta_insight": null}, {"content_type": "practical", "chosen_headline": "QuickSight 画不出来的图，Highcharts 出手补位", "card_summary": {"text": "美国跟英国市场结构根本是两个世界，QuickSight 原生图表怎么画都画不对，最后靠 Highcharts 补上雷达图跟弹道图才解套。"}, "stats": [{"value": "49", "label": "美国涵盖的州数"}, {"value": "7", "label": "同时描绘的绩效类别数"}], "sources": [{"source_name": "AWS ML Blog", "url": "https://aws.amazon.com/blogs/machine-learning/building-multi-region-visualizations-with-highcharts-in-amazon-quick/"}, {"source_name": "AWS ML Blog", "url": "https://aws.amazon.com/blogs/machine-learning/how-couchbase-built-a-multi-model-ai-architecture-for-capella-iq-with-amazon-bedrock/"}], "sections": [{"heading": "同一把尺，量不出两种市场", "paragraphs": ["运送商的绩效数据横跨美国跟英国，你会发现标准仪表板根本兼顾不了两边的结构差异。美国市场横跨 49 州、数百个都会区，竞争者只有三家；英国是全国性划分，竞争者却有四家。", "地图范围不一样，市场密度不一样，竞争者数量也不一样。没有一种现成图表能同时把这两个故事讲清楚。", "你要的不只是秀出地理位置，而是要一次回答：谁领先、领先多少、稳不稳、走势往哪去。"]}, {"heading": "土法炼钢行不通，换 Highcharts", "paragraphs": ["硬要用 Amazon QuickSight 的原生功能去凑这些视觉效果，就像拿同一把尺去量圆形跟方形的面积，边角永远对不齐。", "最后不是被迫帮每个区域各开一个独立仪表板，就是用堆栈长条图硬撑，甚至干脆把指标平均化。结果反而把某个运送商在最好跟最差市场之间的落差整个盖掉。", "解法是把 Highcharts 拉进来扩充 QuickSight。它能画出原生功能画不出来的图，像是同时呈现七家运送商、七项绩效指标的雷达图，还有弹道图、哑铃图，把数据里细腻的差异跟对比摊开来，一张图就能讲完两种完全不同的竞争结构。"]}, {"heading": "换掉之后", "paragraphs": ["接上 Highcharts 之后，不用再为了兼顾不同地区的结构差异，牺牲数据完整性或搞一堆绕路的 workaround。", "仪表板能在同一个画面里同时处理地理跟结构的双重挑战，决策者看到的是完整的数据故事，不是被平均数字盖过去的局部真相。"]}], "delta_insight": null}, {"content_type": "practical", "chosen_headline": "小企业没空等 AI 邀请函：58% 员工已经在做一年前做不到的事", "card_summary": {"text": "手上现金只够撑 27 天，却是最先把 AI 用出成绩的一群人。58% 的员工已经在做一年前根本做不到的事。"}, "stats": [{"value": "27天", "label": "中小企业现金储备天数中位数"}, {"value": "58%", "label": "AI 用户已产出一年前做不到的工作"}, {"value": "90%", "label": "全球企业中中小企业占比"}], "sources": [{"source_name": "Microsoft AI Blog", "url": "https://www.microsoft.com/en-us/microsoft-cloud/blog/2026/07/23/ai-appreciation-day-impact-through-action/"}, {"source_name": "Microsoft AI Blog", "url": "https://www.microsoft.com/en-us/microsoft-cloud/blog/2026/06/29/small-and-medium-businesses-arent-waiting-for-an-ai-invitation-theyre-already-leading/"}], "sections": [{"heading": "没有试错的本钱", "paragraphs": ["中小企业的经济地位稳得很：占了全球 90% 的企业数量、50% 的 GDP、70% 的就业人口。", "但他们没有大企业那种「先试错再说」的奢侈，现金储备中位数只有 27 天，一步走错方向很可能就没有下一步了，得一次就做对。"]}, {"heading": "不等邀请函，直接上手", "paragraphs": ["资源有限，这些企业没空等一个完美时机，直接把 AI 嵌进日常营运流程里。", "他们不炫技，只解决真正卡住的问题。像动物保护组织用数据预测「小猫季节」的收容需求，非营利组织把行政文书时间砍掉、把心力还给志工辅导。", "核心逻辑很简单：AI 是解决具体痛点的工具，不是单纯的技术升级秀。"]}, {"heading": "数字说话", "paragraphs": ["根据 Microsoft Work Trend Index 2026，AI 已经从「加分项」变成「竞争优势」。", "58% 的 AI 用户说，他们正在做一年前根本做不到的工作内容。66% 回报了具体的效率提升或工作范围扩大。", "当 AI 真正贴合业务场景，就算资源有限，照样能生出过去不可能的产能跟价值。"]}], "delta_insight": null}, {"content_type": "practical", "chosen_headline": "查询快了 30 倍、成本降 40%：Tradeshift 砍掉自研 BI 全面转向 Agentic AI", "card_summary": {"text": "自己养的 BI 养到养不动，Tradeshift 干脆全部砍掉重练，换上 Amazon Quick 的 Agentic AI。查询速度冲上 30 倍，成本砍 40%，分析这件事还顺便变成赚钱的产品。"}, "stats": [{"value": "30x", "label": "查询回应时间提升倍数"}, {"value": "40%", "label": "总拥有成本降低比例"}], "sources": [{"source_name": "AWS ML Blog", "url": "https://aws.amazon.com/blogs/machine-learning/build-specialized-agent-workflows-for-your-business-with-amazon-quick-and-nvidia-nemo-agent-toolkit/"}, {"source_name": "AWS ML Blog", "url": "https://aws.amazon.com/blogs/machine-learning/evolving-from-legacy-bi-to-agentic-ai-at-tradeshift-with-amazon-quick/"}], "sections": [{"heading": "自己养的 BI，养不动了", "paragraphs": ["业务越做越大，Tradeshift 才发现自己内部养的商业智能（BI）工具已经扛不住暴增的数据量。", "查询速度慢到让买卖双方都等不下去，直接变成业务发展的天花板。"]}, {"heading": "砍掉重练，换 Agentic AI", "paragraphs": ["他们选择直接部署 Amazon Quick 这个 Agentic AI 工作区，取代旧系统。Amazon Quick 能接上所有应用程序、工具跟数据，企业级安全防护也一并到位。", "靠对话代理，员工用讲的就能问业务数据。Flows 功能能把多步骤工作流直接自动化，不用写一行代码。研究功能还能集成多来源信息，生出一份长篇深度分析报告。"]}, {"heading": "换完之后有多爽", "paragraphs": ["查询回应时间最多冲上 30 倍，总拥有成本砍掉 40%。", "更狠的是，他们直接把嵌入式分析变成一款能赚钱的产品，成功把成本中心翻转成营收来源。"]}], "delta_insight": null}, {"content_type": "practical", "chosen_headline": "别再被表格淹死：AI 把时间还给非营利组织真正该做的事", "card_summary": {"text": "表格对帐单堆到淹过头，非营利组织终于靠 AI 从文书海里爬出来，把时间还给真正重要的使命。"}, "stats": [{"value": "90%", "label": "全球企业中中小企业占比"}, {"value": "50%", "label": "中小企业对全球 GDP 的贡献"}, {"value": "70%", "label": "中小企业占全球劳动力比例"}], "sources": [{"source_name": "Microsoft AI Blog", "url": "https://www.microsoft.com/en-us/microsoft-cloud/blog/2026/07/23/ai-appreciation-day-impact-through-action/"}], "sections": [{"heading": "被表格淹没的日常", "paragraphs": ["你想像过那种感觉吗？明明只是想帮忙，却被无止尽的表格跟对帐单活埋。", "对很多非营利组织来说，这就是日常。", "组织一旦扩大，收容所、志工、支持者的数据像潮水一样涌进来。团队每个月得花上好几个小时，手动把不同系统的数据兜在一起。", "不只累人，连预测需求、调度资源都变得绑手绑脚。"]}, {"heading": "AI 接手之后", "paragraphs": ["丹麦动物保护协会（Animal Protection Denmark）也踩过同样的坑。每年「小猫季节」来临前，他们得精准预测哪里会出现照顾缺口，过去全靠经验猜。现在靠微软的数据跟 AI 工具，把一团乱的信息变成看得懂的洞察。", "另一个例子是小型非营利组织 Everything Suarve，不再让志工把宝贵时间耗在琐碎行政流程上。AI 接手例行工作，团队终于能把心力放回核心使命：陪伴跟指导年轻人。", "还有研究神经退化疾病的团队，也靠 AI 加速治疗方案的开发进度。这些做法的重点从来不是技术有多先进，而是把人力从重复劳动里解放出来。"]}, {"heading": "结果很直接", "paragraphs": ["他们现在能做以前做不到的事：AI 帮这些组织扩大机会、强化社区链接，替受助者创造新的可能性。", "就算资源有限，照样能发挥超出自身规模的影响力。这证明 AI 不是大企业的专利，它正在帮全球非营利组织对抗最迫切的挑战。"]}], "delta_insight": null}], "en": [{"content_type": "insight", "chosen_headline": "700 Billion Tokens a Month? AT&T Just Brute-Forced Its Own Telecom AI With 530 GPUs", "card_summary": {"text": "Other telcos are still deciding whether to bother. AT&T teamed up with Microsoft Foundry and threw 530 mixed GPUs at the problem, raising a telecom-only model that eats hundreds of billions of tokens a month."}, "stats": [{"value": "700B+", "label": "Tokens Phi-4 chews through monthly"}, {"value": "430", "label": "AMD MI300X GPUs doing the heavy lifting"}], "sources": [{"source_name": "Microsoft AI Blog", "url": "https://www.microsoft.com/en-us/microsoft-cloud/blog/2026/07/23/ai-appreciation-day-impact-through-action/"}, {"source_name": "Azure Blog", "url": "https://azure.microsoft.com/en-us/blog/att-and-microsoft-scale-trillion-token-workloads-with-microsoft-foundry-and-amd/"}, {"source_name": "AWS ML Blog", "url": "https://aws.amazon.com/blogs/machine-learning/best-practices-for-applying-amazon-bedrock-guardrails-to-code-generation-workflows/"}], "sections": [{"heading": "What's actually burning here", "paragraphs": ["General-purpose models know embarrassingly little about telecom. The standards, the network architecture, the operational quirks, none of it.", "So AT&T just went and built its own: a new-generation Open Telco (OTel2.0) model, running on the Microsoft Foundry Managed Compute platform. It mixes several open models with heterogeneous hardware to chew through trillion-token-scale data.", "The lineup is stacked. Phi-4, OSS-120B, and Gemma 4 from the Hugging Face community, all in play. Phi-4 alone burns through over 700 billion tokens a month just on data prep and synthetic data generation.", "The hardware underneath is no joke either. Roughly 530 GPUs, 430 of them AMD Instinct MI300X, the rest NVIDIA. That's enough to shrink a deployment that used to take weeks down to hours."]}, {"heading": "Why this is worth your attention", "paragraphs": ["The real takeaway: enterprises no longer have to be hostage to one model or one chip vendor.", "Teams used to have to run and maintain their own giant hardware stack. Now, on a managed compute platform, you mix and match like a bartender. Different tasks get different models and different compute, however you like.", "High-stakes reasoning goes to OSS 120B. Data prep goes to Phi-4. Dev workflows go to Gemma 4. Pair that with cross-chip heterogeneous compute, and companies can hit the sweet spot between cost and performance, making large-scale, domain-specific AI something you can actually ship, not just talk about."]}, {"heading": "What to keep watching", "paragraphs": ["Sounds great, but the flexibility of heterogeneous compute plus multi-model combos hides real headaches.", "Uneven software optimization across GPU architectures, throughput bottlenecks, and the maintenance cost of orchestrating across architectures. None of that goes away once you're running at scale.", "AT&T has already open-sourced the OTel model back to the community. The long-term total cost of ownership and maintenance complexity of this open architecture, in a real telecom setting, is the number everyone should be watching next."]}], "delta_insight": {"paragraphs": ["Flip the frame: when we're planning internal AI for things like facility repair tickets or the IT Helpdesk, we don't have to force the whole company onto one expensive model.", "Split the task. Cheap, lightweight models can handle routine stuff like leave-balance lookups or reformatting data. Save the expensive reasoning for the model that actually needs to think.", "The same logic applies to hardware planning. Allocate compute flexibly, mix hardware tiers to match the task, and you can satisfy every department's appetite for response speed while keeping a tight lid on total operating cost."]}}, {"content_type": "practical", "chosen_headline": "Fine With 2 Engineers, Dead on Arrival With 15: Why Your AI Coding Guardrail Just Choked", "card_summary": {"text": "15 engineers hit Claude Code at once and the whole system froze solid. The culprit: a default guardrail that stops to check every 50 characters."}, "stats": [{"value": "15", "label": "Engineers who took the system down at once"}, {"value": "5,000 chars", "label": "Avg. code length per function, per engineer"}, {"value": "50 chars", "label": "Default streaming interval that triggers a guardrail check"}], "sources": [{"source_name": "AWS ML Blog", "url": "https://aws.amazon.com/blogs/machine-learning/best-practices-for-applying-amazon-bedrock-guardrails-to-code-generation-workflows/"}], "sections": [{"heading": "The crime scene", "paragraphs": ["A team rolled Claude Code on Amazon Bedrock out to 15 engineers.", "The small test with 2 people went smoothly. The moment all 15 started coding at once, the system turned on them. A flood of ThrottlingException errors, code generation dying mid-stream."]}, {"heading": "The actual bug, and the fix", "paragraphs": ["Culprit found: the check ran too often. Engineers produce roughly 5,000 characters per function on average, but under the default streaming setup, the system fires a guardrail check every 50 characters. That's what spikes the API request volume the moment more than a couple of people are working.", "You can't just rip the guardrail out. It's what blocks:", "<ul><li>Prompt injection</li><li>Credential leaks</li><li>PII exposure</li><li>Policy violations</li></ul>", "The real fix is recalibrating the streaming evaluation interval and throughput settings so the check frequency stops strangling the dev workflow."]}, {"heading": "After the fix", "paragraphs": ["Skip capacity planning for concurrent usage and the guardrail can flip from protection to bottleneck:", "<ul><li>Rate limits</li><li>Rising costs</li><li>Longer latency</li></ul>", "Tune the streaming check frequency correctly and you keep the credential protection and security review intact. Multiple developers can finally work side by side without stepping on each other."]}], "delta_insight": null}, {"content_type": "practical", "chosen_headline": "Dashboard Flashes Red. Now What? Quick + NeMo Turn Supply-Chain Sleuthing Into One Flow", "card_summary": {"text": "Supplier running late? Quick paired with NVIDIA NeMo pulls the scattered data together automatically and hands you an evidence-backed answer, instead of leaving you to dig through six systems yourself."}, "stats": [{"value": "100+", "label": "Ready-made action connectors"}], "sources": [{"source_name": "AWS ML Blog", "url": "https://aws.amazon.com/blogs/machine-learning/build-specialized-agent-workflows-for-your-business-with-amazon-quick-and-nvidia-nemo-agent-toolkit/"}, {"source_name": "AWS ML Blog", "url": "https://aws.amazon.com/blogs/machine-learning/evolving-from-legacy-bi-to-agentic-ai-at-tradeshift-with-amazon-quick/"}], "sections": [{"heading": "The pain was never spotting the problem", "paragraphs": ["A red light on the dashboard usually means a supplier might be late. What actually eats your day is the manual slog through:", "<ul><li>Purchase orders</li><li>Inventory</li><li>Customer commitments</li><li>Contract terms</li><li>Shipping options</li></ul>", "Planners usually have enough data to know something's wrong. What they don't have is time to chase down every broken link themselves. What they need isn't more signal, it's a workflow that recommends the next move and backs it up with evidence."]}, {"heading": "How it actually works", "paragraphs": ["The setup pairs Amazon Quick with the NVIDIA NeMo Agent Toolkit. Quick is the single conversational workspace for business users, connecting structured and unstructured sources like Amazon S3, SharePoint, and Confluence.", "Once a supply-chain risk pattern is built with the NeMo Agent Toolkit, the system can walk a planner straight from the dashboard alert to a mitigation recommendation. Quick ships with 100+ prebuilt action connectors that execute directly inside Outlook, Slack, and Jira, and can call the agent workflow via Model Context Protocol."]}, {"heading": "Why this setup actually matters", "paragraphs": ["The point isn't one more report. It's AI cross-referencing multiple data sources on its own and returning a recommendation with the receipts attached. What used to be a scavenger hunt across systems becomes a structured decision assist instead."]}], "delta_insight": null}, {"content_type": "practical", "chosen_headline": "The Chart QuickSight Couldn't Draw. Highcharts Stepped In", "card_summary": {"text": "US and UK markets are structurally different animals. QuickSight's native charts couldn't reconcile them, so the team brought in Highcharts for radar and bullet charts instead."}, "stats": [{"value": "49", "label": "US states covered"}, {"value": "7", "label": "Performance categories plotted at once"}], "sources": [{"source_name": "AWS ML Blog", "url": "https://aws.amazon.com/blogs/machine-learning/building-multi-region-visualizations-with-highcharts-in-amazon-quick/"}, {"source_name": "AWS ML Blog", "url": "https://aws.amazon.com/blogs/machine-learning/how-couchbase-built-a-multi-model-ai-architecture-for-capella-iq-with-amazon-bedrock/"}], "sections": [{"heading": "One ruler can't measure two different shapes", "paragraphs": ["Once your carrier performance data spans the US and UK, standard dashboards simply can't hold both structures at once. The US market covers 49 states and hundreds of metro areas with only three real competitors. The UK is divided nationally, with four.", "Different map scope. Different market density. Different competitor counts. No off-the-shelf chart type tells both stories at once.", "You don't just need to show where things are. You need to answer: who's leading, by how much, how stable that is, and where the trend is heading."]}, {"heading": "Native charts couldn't cut it, Highcharts could", "paragraphs": ["Trying to approximate this with Amazon QuickSight's native charting is like measuring a circle and a square with the same ruler. The edges never line up.", "Teams end up spinning up a separate dashboard per region, faking it with stacked bar charts, or worse, averaging the metric down to a single number. That erases exactly the volatility between a carrier's best and worst markets.", "The fix was pulling in Highcharts to extend QuickSight. It renders chart types the native tool can't, like a radar chart plotting seven carriers across seven performance categories at once, plus bullet and dumbbell charts that surface the finer differences data hides. One view, two fundamentally different competitive structures, fully told."]}, {"heading": "What changed", "paragraphs": ["With Highcharts in place, nobody has to trade off data completeness for regional structure anymore. Nobody's duct-taping workarounds together.", "The dashboard now handles the geographic and structural challenge in a single view, so decision-makers see the full data story instead of a partial truth flattened by an average."]}], "delta_insight": null}, {"content_type": "practical", "chosen_headline": "Small Businesses Didn't Wait for an AI Invitation. 58% of Their Staff Are Already Doing Work That Was Impossible a Year Ago", "card_summary": {"text": "27 days of cash on hand, and they're still the ones pulling ahead with AI. 58% of employees are now doing work that simply wasn't possible a year ago."}, "stats": [{"value": "27 days", "label": "Median SMB cash reserve"}, {"value": "58%", "label": "AI users producing work impossible a year ago"}, {"value": "90%", "label": "Share of global businesses that are SMBs"}], "sources": [{"source_name": "Microsoft AI Blog", "url": "https://www.microsoft.com/en-us/microsoft-cloud/blog/2026/07/23/ai-appreciation-day-impact-through-action/"}, {"source_name": "Microsoft AI Blog", "url": "https://www.microsoft.com/en-us/microsoft-cloud/blog/2026/06/29/small-and-medium-businesses-arent-waiting-for-an-ai-invitation-theyre-already-leading/"}], "sections": [{"heading": "No room to fail", "paragraphs": ["SMBs hold a rock-solid position in the global economy: 90% of all businesses, 50% of GDP, 70% of employment.", "But they don't get the luxury of trial and error the way big companies do, with median cash reserves sitting at just 27 days. One wrong bet on transformation and there may not be a next move."]}, {"heading": "No invite needed, they just started", "paragraphs": ["With limited resources, these businesses aren't waiting for the perfect moment. They're embedding AI straight into day-to-day operations.", "They're not chasing flash, they're solving actual bottlenecks. An animal welfare group uses data to predict shelter demand during \"kitten season.\" A nonprofit cuts admin paperwork time to free up hours for volunteer coaching.", "The core logic is simple: AI is a tool for a specific pain point, not a technology upgrade for its own sake."]}, {"heading": "The numbers back it up", "paragraphs": ["Per Microsoft's Work Trend Index 2026, AI has shifted from a productivity nice-to-have to a competitive edge.", "58% of AI users say they're now producing work that was impossible a year ago. 66% report concrete efficiency gains or expanded scope of work.", "When AI actually fits the business context, even resource-constrained teams can generate output and value that used to be out of reach."]}], "delta_insight": null}, {"content_type": "practical", "chosen_headline": "30x Faster Queries, 40% Cheaper: Why Tradeshift Ditched Its Homegrown BI for Agentic AI", "card_summary": {"text": "Tradeshift's in-house BI stack finally gave out, so they tore it up and moved to Amazon Quick's Agentic AI. 30x faster queries, 40% lower cost, and analytics turned into a revenue product on the side."}, "stats": [{"value": "30x", "label": "Query response time improvement"}, {"value": "40%", "label": "Total cost of ownership reduction"}], "sources": [{"source_name": "AWS ML Blog", "url": "https://aws.amazon.com/blogs/machine-learning/build-specialized-agent-workflows-for-your-business-with-amazon-quick-and-nvidia-nemo-agent-toolkit/"}, {"source_name": "AWS ML Blog", "url": "https://aws.amazon.com/blogs/machine-learning/evolving-from-legacy-bi-to-agentic-ai-at-tradeshift-with-amazon-quick/"}], "sections": [{"heading": "The homegrown BI stack couldn't keep up", "paragraphs": ["As the business scaled, Tradeshift found its internally-built business intelligence tools couldn't handle the growing data volume anymore.", "Query speed slowed to the point that neither buyers nor sellers could get real-time answers. A hard ceiling on growth."]}, {"heading": "Tear it up, go Agentic", "paragraphs": ["They deployed Amazon Quick as an Agentic AI workspace to replace the old system entirely. Amazon Quick connects every app, tool, and dataset, with enterprise-grade security built in.", "A chat agent lets staff just ask business questions in plain language. The Flows feature automates multi-step workflows with zero code. Research pulls together multiple sources to generate long-form, in-depth analysis reports."]}, {"heading": "How much better it got", "paragraphs": ["Query response time improved up to 30x. Total cost of ownership dropped 40%.", "More striking still: they turned embedded analytics into a revenue-generating product, flipping a cost center into a business line."]}], "delta_insight": null}, {"content_type": "practical", "chosen_headline": "Buried Under Paperwork No More: How AI Is Giving Nonprofits Their Time Back", "card_summary": {"text": "Drowning in spreadsheets and reconciliation, nonprofits are finally climbing out of the paperwork with AI, putting the time back into the mission that matters."}, "stats": [{"value": "90%", "label": "Share of global businesses that are SMBs"}, {"value": "50%", "label": "SMB contribution to global GDP"}, {"value": "70%", "label": "SMB share of the global workforce"}], "sources": [{"source_name": "Microsoft AI Blog", "url": "https://www.microsoft.com/en-us/microsoft-cloud/blog/2026/07/23/ai-appreciation-day-impact-through-action/"}], "sections": [{"heading": "Drowning in spreadsheets, day after day", "paragraphs": ["Ever know that feeling? You just wanted to help, and instead you're buried alive under spreadsheets and reconciliation.", "For a lot of nonprofits, that's every day.", "As an org grows, data from shelters, volunteers, and donors pours in like a flood. Teams spend hours every month manually stitching together records from different systems.", "It's exhausting on its own, and it makes forecasting demand or allocating resources that much harder."]}, {"heading": "What changed once AI took over", "paragraphs": ["Animal Protection Denmark ran into exactly this. Every year ahead of \"kitten season,\" they needed to predict where care gaps would open up, historically pure guesswork based on experience. Now, using Microsoft's data and AI tools, they turn messy information into clear insight.", "A smaller nonprofit, Everything Suarve, stopped burning volunteers' valuable time on tedious admin work. AI took over the routine tasks, freeing the team to refocus on the actual mission: mentoring and supporting young people.", "A team researching neurodegenerative disease is using AI the same way, to speed up treatment development. None of this is about how advanced the technology is. It's about freeing people from repetitive labor."]}, {"heading": "The results speak for themselves", "paragraphs": ["They can now do things that used to be impossible. AI is helping these organizations create new opportunities, strengthen community ties, and open up new possibilities for the people they serve.", "Even with limited resources, they're punching above their weight. Proof that AI isn't a luxury reserved for big companies. It's helping nonprofits worldwide tackle the challenges that matter most."]}], "delta_insight": null}]};
+
+let currentLang = 'zh-Hant';
+const STORAGE_KEY = 'deltaMockStamps:carnival-v2';
+let collected = new Set();
+try { collected = new Set(JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]')); } catch (e) {}
+let openSet = new Set();
+
+function renderPara(p) {
+  return p.startsWith('<ul') ? p : `<p>${p}</p>`;
+}
+
+function renderTopics() {
+  const wrap = document.getElementById('topics');
+  const topics = TOPICS_BY_LANG[currentLang];
+  wrap.innerHTML = topics.map((t, i) => {
+    const sectionsHtml = t.sections.map(s => `<div class="topic-section"><span class="run-in">${s.heading}</span>${s.paragraphs.map(renderPara).join('')}</div>`).join('');
+    const insightHtml = t.delta_insight ? `<div class="delta-insight"><span class="run-in">${CHROME_I18N[currentLang].insightLabel}</span>${t.delta_insight.paragraphs.map(renderPara).join('')}</div>` : '';
+    const sourceHtml = t.sources.map(s => `<a class="btn" href="${s.url}" target="_blank" rel="noopener noreferrer">${s.source_name.toUpperCase()} ↗</a>`).join('');
+    const statsHtml = t.stats.map(s => `<div class="stat-tile"><span class="stat-value">${s.value}</span><span class="stat-label">${s.label}</span></div>`).join('');
+    const isOpen = openSet.has(i);
+    const isCollected = collected.has(i);
+    return `
+    <article class="topic${isOpen ? ' is-open' : ''}${isCollected ? ' is-collected' : ''}" data-index="${i}">
+      <div class="topic-head" data-toggle>
+        <span class="stamp-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 12 9 17 20 6"></polyline></svg></span>
+        <h2>${t.chosen_headline}</h2>
+        <p class="topic-teaser">${t.card_summary.text}</p>
+        <div class="stats-line">${statsHtml}</div>
+        <button class="expand-btn" type="button" data-toggle-btn>
+          <span>${CHROME_I18N[currentLang].expand}</span>
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+      </div>
+      <div class="topic-panel">
+        <div class="topic-body">${sectionsHtml}${insightHtml}</div>
+        <div class="source-row">
+          ${sourceHtml}
+          <button class="btn btn--stamp" type="button" data-stamp-btn ${isCollected ? 'disabled' : ''}>
+            <span>${isCollected ? CHROME_I18N[currentLang].stamped : CHROME_I18N[currentLang].stamp}</span>
+          </button>
+        </div>
+      </div>
+    </article>
+    ${i < topics.length - 1 ? `<div class="ornament-row" aria-hidden="true">${i % 2 === 0 ? '❋ ❋ ❋' : '✱ ✱ ✱ ✱'}</div>` : ''}
+    `;
+  }).join('');
+
+  wrap.querySelectorAll('[data-toggle]').forEach(el => {
+    el.addEventListener('click', (e) => {
+      if (e.target.closest('[data-stamp-btn]')) return;
+      const topic = el.closest('.topic');
+      const idx = Number(topic.dataset.index);
+      topic.classList.toggle('is-open');
+      if (openSet.has(idx)) openSet.delete(idx); else openSet.add(idx);
+    });
+  });
+  wrap.querySelectorAll('[data-stamp-btn]').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const topic = btn.closest('.topic');
+      const idx = Number(topic.dataset.index);
+      if (collected.has(idx)) return;
+      collect(idx);
+    });
+  });
+}
+
+function collect(i) {
+  collected.add(i);
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(Array.from(collected)));
+  updateProgress();
+  renderTopics();
+}
+function updateProgress() {
+  const topics = TOPICS_BY_LANG[currentLang];
+  document.getElementById('progress-count').textContent = CHROME_I18N[currentLang].progress(collected.size);
+  document.getElementById('progress-fill').style.width = (collected.size / topics.length * 100) + '%';
+}
+
+function applyLang(lang) {
+  currentLang = lang;
+  document.documentElement.setAttribute('data-lang', lang);
+  document.documentElement.setAttribute('lang', lang);
+  document.getElementById('lang-btn-label').textContent = LANG_LABEL[lang];
+  document.querySelectorAll('[data-i18n-inline]').forEach(el => {
+    el.textContent = CHROME_I18N[lang][el.dataset.i18nInline];
+  });
+  document.querySelectorAll('.lang-option').forEach(opt => opt.setAttribute('aria-checked', opt.dataset.lang === lang));
+  updateProgress();
+  renderTopics();
+}
+
+applyLang('zh-Hant');
+
+const langBtn = document.getElementById('lang-btn');
+const langMenu = document.getElementById('lang-menu');
+langBtn.addEventListener('click', () => {
+  const open = langMenu.classList.toggle('is-open');
+  langBtn.setAttribute('aria-expanded', String(open));
+});
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.lang-switcher')) { langMenu.classList.remove('is-open'); langBtn.setAttribute('aria-expanded', 'false'); }
+});
+langMenu.querySelectorAll('.lang-option').forEach(opt => {
+  opt.addEventListener('click', () => { applyLang(opt.dataset.lang); langMenu.classList.remove('is-open'); });
+});
+</script>
+</body>
+</html>

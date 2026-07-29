@@ -1,0 +1,192 @@
+<!--
+比較用途：prompts/style_guide.md 修改前後，真的呼叫 generate_topic_article()
+產出的同一篇文章（topic_id=3，AT&T + Microsoft Foundry）。兩次都是正式呼叫
+生產模型，不是手寫模擬。視覺套用跟 carnival-delta-v5.html 一樣的系統，方便
+跟其他 mockup 對照。BEFORE 那邊刻意保留模型實際輸出的重複 section 標題，
+不做美化，因為那正是舊版 prompt 造成的結構性問題本身。
+-->
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Prompt 修改前後對比 — AT&T 文章</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800&family=Noto+Sans+TC:wght@700;900&family=IBM+Plex+Sans:wght@400;500&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --color-paper:   oklch(93% 0.020 240);
+    --color-paper-2: oklch(89% 0.024 238);
+    --color-paper-3: oklch(83% 0.028 235);
+    --color-ink:     oklch(16% 0.030 250);
+    --color-ink-2:   oklch(28% 0.028 248);
+    --color-muted:   oklch(46% 0.020 245);
+    --color-accent:      oklch(58% 0.160 247);
+    --color-accent-ink:  oklch(97% 0.010 240);
+    --color-accent-2:    oklch(76% 0.150  75);
+    --color-bad:          oklch(55% 0.190  25);
+    --color-bad-paper:    oklch(90% 0.045  30);
+    --color-good:         oklch(50% 0.140 150);
+    --color-good-paper:   oklch(90% 0.045 140);
+    --font-display: "Big Shoulders Display", "Noto Sans TC", sans-serif;
+    --font-body:    "IBM Plex Sans", ui-sans-serif, "PingFang TC", "Noto Sans TC", sans-serif;
+    --font-label:   "JetBrains Mono", ui-monospace, monospace;
+    --page-gutter: clamp(1.25rem, 4vw, 3rem);
+    --shell: 46rem;
+  }
+  * { box-sizing: border-box; }
+  html, body { overflow-x: clip; margin: 0; padding: 0; }
+  body { background: var(--color-paper); color: var(--color-ink); font-family: var(--font-body); }
+  .shell { max-width: var(--shell); margin-inline: auto; padding-inline: var(--page-gutter); }
+  a { color: var(--color-ink); }
+  h1, h2 { font-family: var(--font-display); font-weight: 800; font-variation-settings: "wdth" 110, "wght" 800; letter-spacing: 0.01em; line-height: 0.98; text-transform: uppercase; }
+
+  .masthead { background: var(--color-ink); color: var(--color-accent-ink); padding: 2.5rem var(--page-gutter) 2rem; }
+  .masthead-inner { max-width: var(--shell); margin: 0 auto; }
+  .masthead .eyebrow { font-family: var(--font-label); font-size: 0.72rem; letter-spacing: 0.08em; margin: 0 0 0.6rem; opacity: 0.7; }
+  .masthead h1 { margin: 0; font-size: clamp(1.6rem, 3vw + 1rem, 2.4rem); }
+  .masthead p { margin: 0.75rem 0 0; font-size: 0.9rem; line-height: 1.6; color: color-mix(in oklch, var(--color-accent-ink) 80%, transparent); max-width: 56ch; }
+
+  .panel { margin: 2.5rem 0; }
+  .panel-tag {
+    display: inline-flex; align-items: center; gap: 0.5em;
+    font-family: var(--font-label); font-size: 0.78rem; letter-spacing: 0.06em;
+    padding: 0.4em 0.9em; margin-bottom: 1rem; text-transform: uppercase;
+  }
+  .panel--bad .panel-tag { background: var(--color-bad); color: var(--color-accent-ink); }
+  .panel--good .panel-tag { background: var(--color-good); color: var(--color-accent-ink); }
+
+  .article-box { background: var(--color-paper-2); border: 2px solid var(--color-ink); box-shadow: 6px 6px 0 var(--color-ink); padding: clamp(1.25rem, 3vw, 2rem); }
+  .panel--bad .article-box { border-color: var(--color-bad); box-shadow: 6px 6px 0 var(--color-bad); }
+  .panel--good .article-box { border-color: var(--color-good); box-shadow: 6px 6px 0 var(--color-good); }
+
+  .article-headline { margin: 0 0 1rem; font-size: clamp(1.25rem, 2vw + 0.8rem, 1.7rem); }
+  .stats-line { display: flex; flex-wrap: wrap; gap: 0.7rem; margin-bottom: 1.25rem; }
+  .stat-tile { background: var(--color-paper); border: 2px solid var(--color-ink); padding: 0.5rem 0.8rem; }
+  .stat-value { display: block; font-family: var(--font-display); font-weight: 800; font-size: 1.1rem; }
+  .stat-label { display: block; margin-top: 0.15rem; font-family: var(--font-label); font-size: 0.6rem; color: var(--color-muted); }
+
+  .section { margin-bottom: 1.1rem; padding-bottom: 1.1rem; border-bottom: 1px dashed var(--color-paper-3); }
+  .section:last-of-type { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+  .section-heading { display: block; font-family: var(--font-label); font-size: 0.72rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--color-accent); margin-bottom: 0.5em; }
+  .panel--bad .section-heading.is-dupe { color: var(--color-bad); }
+  .dupe-flag { display: inline-block; margin-left: 0.6em; font-family: var(--font-label); font-size: 0.62rem; background: var(--color-bad); color: var(--color-accent-ink); padding: 0.1em 0.5em; border-radius: 100px; text-transform: none; letter-spacing: 0; }
+  .section p { margin: 0 0 0.6rem; line-height: 1.65; font-size: 0.95rem; }
+  .section p:last-child { margin-bottom: 0; }
+
+  .delta-box { margin-top: 1.25rem; padding: 1rem 1.2rem; background: var(--color-accent); color: var(--color-accent-ink); }
+  .delta-box .section-heading { color: var(--color-accent-ink); opacity: 0.85; }
+  .delta-box p { margin: 0 0 0.6rem; line-height: 1.65; font-size: 0.95rem; }
+  .delta-box p:last-child { margin-bottom: 0; }
+
+  .verdict { max-width: var(--shell); margin: 0 auto var(--page-gutter); padding: 1.25rem var(--page-gutter); }
+  .verdict ul { margin: 0.75rem 0 0; padding-left: 1.2rem; }
+  .verdict li { margin-bottom: 0.4rem; line-height: 1.6; font-size: 0.92rem; }
+
+  @media (max-width: 30rem) {
+    .stats-line { gap: 0.5rem; }
+  }
+</style>
+</head>
+<body>
+
+<header class="masthead">
+  <div class="masthead-inner">
+    <p class="eyebrow">PROMPT A/B · TOPIC_ID=3 · REAL GENERATION CALLS, NOT SIMULATED</p>
+    <h1>同一篇文章，改 Prompt 前後</h1>
+    <p>來源：AT&amp;T and Microsoft scale trillion-token workloads with Microsoft Foundry and AMD。兩邊都是真的呼叫 generate_topic_article()，只換了 prompts/style_guide.md，其他條件完全一樣。</p>
+  </div>
+</header>
+
+<div class="shell">
+
+  <div class="panel panel--bad">
+    <span class="panel-tag">BEFORE · 現行 prompt</span>
+    <div class="article-box">
+      <h2 class="article-headline">AT&amp;T 訓練電信 AI 的轉折：不再自己管伺服器，而是租用算力</h2>
+      <div class="stats-line">
+        <div class="stat-tile"><span class="stat-value">Trillion</span><span class="stat-label">TOKEN 工作負載規模</span></div>
+        <div class="stat-tile"><span class="stat-value">OTel2.0</span><span class="stat-label">AT&amp;T 電信 AI 模型版本</span></div>
+      </div>
+
+      <div class="section">
+        <span class="section-heading is-dupe">發生了什麼 <span class="dupe-flag">重複 #1</span></span>
+        <p>AT&amp;T 正在開發名為 Open Telco (OTel) 的電信專用 AI 模型。這類模型需要理解電信網路、標準與運作細節，通用型 AI 往往缺乏這些專業知識。</p>
+      </div>
+      <div class="section">
+        <span class="section-heading is-dupe">發生了什麼 <span class="dupe-flag">重複 #2</span></span>
+        <p>為了推進 OTel2.0，AT&amp;T 面臨的成本與營運複雜度挑戰日益嚴峻。他們選擇與微軟及 AMD 合作，利用 Microsoft Foundry Managed Compute 來處理數兆級 (trillion-token) 的運算工作負載。</p>
+      </div>
+      <div class="section">
+        <span class="section-heading is-dupe">發生了什麼 <span class="dupe-flag">重複 #3</span></span>
+        <p>過去，團隊必須自行擁有並管理部署、基礎設施及相關的營運負擔。現在，透過 Foundry Managed Compute，AT&amp;T 能以更簡化的方式取得專屬的 GPU 運算能力。</p>
+      </div>
+      <div class="section">
+        <span class="section-heading is-dupe">為什麼重要 <span class="dupe-flag">重複 #1</span></span>
+        <p>這顯示出企業在建立垂直領域 AI 時，焦點正從「建構模型」轉向「管理運算資源」。許多組織的瓶頸不在於算法，而在於如何平衡成本、效能與營運複雜度。</p>
+      </div>
+      <div class="section">
+        <span class="section-heading is-dupe">為什麼重要 <span class="dupe-flag">重複 #2</span></span>
+        <p>AT&amp;T 的案例表明，透過託管式運算服務，企業可以在多個開源模型間進行實驗，並在不同 GPU 架構上最佳化工作負載。這種模式讓規模擴展不再受限於內部基礎設施的維護能力。</p>
+      </div>
+      <div class="section">
+        <span class="section-heading">值得追蹤的後續</span>
+        <p>目前我們知道 AT&amp;T 能處理大量電信數據並實驗多種模型，但具體的成本節省比例或效能提升數字尚未公開。未來需觀察這種託管模式在長期營運中，是否能持續維持成本效益與靈活性。</p>
+      </div>
+
+      <div class="delta-box">
+        <span class="section-heading">這對我們意味著什麼 <span class="dupe-flag">跟上面三個「這對我們意味著什麼」section 內容完全重複</span></span>
+        <p>可以想像，當台達內部各事業群嘗試導入專用 AI 時，初期最大的阻力可能不是模型選型，而是 IT 部門如何分配與維護龐大的 GPU 資源。</p>
+        <p>如果我們也能採用類似 Foundry 的託管運算服務，研發團隊或許能更專注於優化品檢演算法或售後服務知識庫，而不必花費大量時間在基礎設施的維運上。</p>
+        <p>這提醒我們在評估 AI 專案時，除了看模型精度，更要精算「基礎設施營運成本」。將固定資本支出轉為可變的運算服務費用，可能是未來內部 IT 採購策略的一個選項。</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel panel--good">
+    <span class="panel-tag">AFTER · 修改後的 prompt</span>
+    <div class="article-box">
+      <h2 class="article-headline">處理兆級 Token 的代價：AT&amp;T 如何用 Microsoft Foundry 解決成本與擴展困境</h2>
+      <div class="stats-line">
+        <div class="stat-tile"><span class="stat-value">Trillion</span><span class="stat-label">TOKEN 工作負載規模</span></div>
+      </div>
+
+      <div class="section">
+        <span class="section-heading">發生了什麼</span>
+        <p>AT&amp;T 最近推出了一代名為 Open Telco (OTel) 的電信專用 AI 模型，特別是第二代 OTel 2.0。這不只是換個更大的語言模型那麼簡單，背後的核心挑戰在於如何處理海量且高度專業的電信數據。通用 AI 模型往往缺乏對電信網路標準、協議和營運細節的深刻理解，因此 AT&amp;T 需要一個能容納這些垂直領域知識的系統。</p>
+        <p>為了支撐 OTel 2.0 的開發，AT&amp;T 將工作負載規模擴大到兆級 Token（trillion-token workloads）。他們放棄了過去由內部團隊完全擁有和管理 GPU 基礎設施、並承擔相關營運開銷的做法，轉而採用 Microsoft Foundry Managed Compute。這個平台讓他們能夠在多種開放模型之間進行實驗，並在不同 GPU 架構上優化工作負載，同時處理海量的電信數據。</p>
+      </div>
+      <div class="section">
+        <span class="section-heading">為什麼重要</span>
+        <p>這件案子揭示了一個常被忽視的結構性問題：當企業試圖從「使用通用 AI」轉向「建立領域專用 AI」時，最大的瓶頸往往不是算法，而是基礎設施的管理成本與復雜度。過去，團隊必須自己購買硬體、維護伺服器、處理驅動程式和排程問題，這些營運開銷（operational overhead）會迅速吞噬掉 AI 應用帶來的效率紅利。</p>
+        <p>Foundry Managed Compute 的出現，將「擁有硬體」轉變為「購買算力服務」。對於像 AT&amp;T 這樣需要處理極大規模數據的企業來說，這意味著他們可以專注於模型本身的優化與電信領域知識的注入，而不必被底層 GPU 的維護問題綁架。這種從 CapEx（資本支出）思維轉向 OpEx（營運支出）思維的基礎設施轉型，是許多大型企業在 AI 規模化階段必須面對的關鍵抉擇。</p>
+      </div>
+      <div class="section">
+        <span class="section-heading">值得追蹤的後續</span>
+        <p>雖然這種託管運算模式簡化了基礎設施管理，但具體的成本效益數據尚未公開。我們需要觀察這種模式在長期運行下的性價比，以及在不同 GPU 架構間切換時是否會帶來新的整合挑戰。此外，電信數據的高度敏感性如何與雲端託管服務的安全合規要求取得平衡，也是後續需要持續關注的重點。</p>
+      </div>
+
+      <div class="delta-box">
+        <span class="section-heading">這對我們意味著什麼</span>
+        <p>可以想像，當我們內部各事業群想要訓練專屬的設備維護 AI 或客戶服務 AI 時，初期可能會傾向自己搭建小型伺服器來測試。但隨著數據量增加，維護這些測試環境的人力成本可能會超過 AI 本身帶來的節省。</p>
+        <p>可以參考 AT&amp;T 的思路，評估是否將非核心、高計算需求的 AI 訓練任務，轉向使用雲端託管運算服務。這讓我們能更靈活地嘗試不同的模型架構，而不必擔心硬體採購週期長或閒置資源浪費的問題。</p>
+        <p>對於 IT 部門來說，這也意味著未來的支援重點將從「硬體維護」轉向「算力資源調度與成本監控」。我們需要建立新的機制來追蹤各項 AI 專案的雲端運算費用，確保規模擴大時，成本依然可控。</p>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<footer class="verdict">
+  <strong style="font-family: var(--font-label); font-size: 0.8rem; letter-spacing: 0.04em; text-transform: uppercase;">看到的差異</strong>
+  <ul>
+    <li>舊版把「每段最多三句話」執行成「每個小節只能塞一段」，逼模型用重複標題硬拆出一堆迷你 section（「發生了什麼」×3、「為什麼重要」×2、「這對我們意味著什麼」×3）</li>
+    <li>舊版 delta_insight 欄位跟 sections 裡的「這對我們意味著什麼」內容一字不差重複了一次</li>
+    <li>新版句子用逗號自然連接，段落數正確對應 prompt 指定的三個小節，沒有結構性錯誤</li>
+    <li>新版自己想出「CapEx 轉 OpEx」這個扣著這篇內容的框架，不是套用萬用句</li>
+  </ul>
+</footer>
+
+</body>
+</html>

@@ -1,0 +1,239 @@
+<!--
+/* Hallmark · macrostructure: Marquee Hero + Catalogue · genre: editorial (loud) · theme: Carnival
+ * custom drop: "Delta Blue" (accent = brand blue #0087DC, accent-2 = amber-gold, blue kept dominant
+ * per user request — gold used only for ornament/contrast, not equal section-fill weight)
+ * comparison mockup C of 3 — real content from data/topics.db issue 1, single scrolling page */
+-->
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>方案 C · Carnival 台達藍版 — Delta AI 趨勢週報</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800&family=Noto+Sans+TC:wght@700;900&family=IBM+Plex+Sans:wght@400;500&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --color-paper:   oklch(93% 0.020 240);
+    --color-paper-2: oklch(89% 0.024 238);
+    --color-paper-3: oklch(83% 0.028 235);
+    --color-ink:     oklch(16% 0.030 250);
+    --color-ink-2:   oklch(28% 0.028 248);
+    --color-muted:   oklch(46% 0.020 245);
+    --color-accent:      oklch(58% 0.160 247);  /* Delta brand blue #0087DC — dominant */
+    --color-accent-ink:  oklch(97% 0.010 240);  /* near-white, for text on blue fill */
+    --color-accent-2:    oklch(76% 0.150  75);  /* amber-gold — secondary, ornament only */
+    --color-focus:   oklch(58% 0.160 247);
+
+    --font-display: "Big Shoulders Display", "Noto Sans TC", sans-serif;
+    --font-body:    "IBM Plex Sans", ui-sans-serif, "PingFang TC", "Noto Sans TC", sans-serif;
+    --font-label:   "JetBrains Mono", ui-monospace, monospace;
+
+    --page-gutter: clamp(1.25rem, 4vw, 3rem);
+    --shell: 46rem;
+  }
+  * { box-sizing: border-box; }
+  html, body { overflow-x: clip; margin: 0; padding: 0; }
+  body { background: var(--color-paper); color: var(--color-ink); font-family: var(--font-body); }
+  .shell { max-width: var(--shell); margin-inline: auto; padding-inline: var(--page-gutter); }
+  a { color: var(--color-ink); }
+  a:focus-visible, button:focus-visible { outline: 3px solid var(--color-focus); outline-offset: 2px; }
+
+  h1, h2 {
+    font-family: var(--font-display); font-weight: 800;
+    font-variation-settings: "wdth" 110, "wght" 800;
+    letter-spacing: 0.01em; line-height: 0.96; text-transform: uppercase;
+  }
+
+  .halftone {
+    height: 14px;
+    background-image: radial-gradient(var(--color-ink) 1.5px, transparent 1.5px);
+    background-size: 10px 10px;
+    opacity: 0.5;
+  }
+
+  /* marquee banner */
+  .marquee {
+    background: var(--color-ink); color: var(--color-accent-ink);
+    overflow: hidden; white-space: nowrap; padding: 0.5rem 0;
+  }
+  .marquee-track { display: inline-block; animation: marquee 22s linear infinite; }
+  .marquee span { font-family: var(--font-label); font-size: 0.78rem; letter-spacing: 0.08em; padding: 0 1.2rem; }
+  @keyframes marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+  @media (prefers-reduced-motion: reduce) { .marquee-track { animation: none; } }
+
+  .masthead {
+    background: var(--color-accent); color: var(--color-accent-ink);
+    padding: 3rem var(--page-gutter) 2.5rem;
+  }
+  .masthead-inner { max-width: var(--shell); margin: 0 auto; }
+  .masthead .eyebrow { font-family: var(--font-label); font-size: 0.75rem; letter-spacing: 0.1em; margin: 0 0 0.6rem; }
+  .masthead h1 { margin: 0; font-size: clamp(2.1rem, 4vw + 1rem, 3.4rem); max-width: 14ch; }
+  .masthead-meta { margin-top: 1rem; font-family: var(--font-label); font-size: 0.8rem; letter-spacing: 0.04em; display: flex; gap: 1.2rem; flex-wrap: wrap; opacity: 0.9; }
+
+  .ornament-row { text-align: center; color: var(--color-accent-2); letter-spacing: 0.6em; padding: 1.5rem 0; font-size: 0.9rem; }
+
+  .shell-inner { padding-bottom: 3rem; }
+
+  .topic { margin-bottom: 3rem; }
+  .topic-head {
+    display: inline-block;
+    background: var(--color-ink); color: var(--color-accent-ink);
+    padding: 0.35em 0.9em; margin-bottom: 1rem;
+    box-shadow: 4px 4px 0 var(--color-accent-2);
+  }
+  .topic-head .mono { font-family: var(--font-label); font-size: 0.72rem; letter-spacing: 0.08em; }
+
+  .topic h2 { margin: 0 0 0.8rem; font-size: clamp(1.6rem, 2.4vw + 1rem, 2.3rem); overflow-wrap: anywhere; }
+  .topic-teaser { margin: 0 0 1.2rem; font-size: 1rem; line-height: 1.6; color: var(--color-ink-2); max-width: 56ch; font-weight: 500; }
+
+  .stats-line { display: flex; flex-wrap: wrap; gap: 0.9rem; margin-bottom: 1.5rem; }
+  .stat-tile {
+    background: var(--color-paper-2); border: 2px solid var(--color-ink); padding: 0.6rem 0.9rem;
+    box-shadow: 4px 4px 0 var(--color-ink);
+  }
+  .stat-value { display: block; font-family: var(--font-display); font-weight: 800; font-size: 1.35rem; font-variant-numeric: tabular-nums; }
+  .stat-label { display: block; margin-top: 0.2rem; font-family: var(--font-label); font-size: 0.62rem; letter-spacing: 0.04em; color: var(--color-muted); text-transform: none; }
+
+  .topic-body {
+    background: var(--color-paper-2); border: 2px solid var(--color-ink);
+    box-shadow: 6px 6px 0 var(--color-ink);
+    padding: 1.5rem 1.75rem;
+  }
+  .topic-section { margin-bottom: 1.1rem; }
+  .topic-section:last-of-type { margin-bottom: 0; }
+  .topic-section .run-in { display: block; font-family: var(--font-label); font-size: 0.7rem; letter-spacing: 0.08em; color: var(--color-accent); margin-bottom: 0.5em; }
+  .topic-section p { margin: 0 0 0.7rem; line-height: 1.68; }
+  .topic-section p:last-child { margin-bottom: 0; }
+
+  .delta-insight { margin-top: 1.2rem; padding: 1rem 1.2rem; background: var(--color-accent); color: var(--color-accent-ink); }
+  .delta-insight .run-in { color: var(--color-accent-ink); opacity: 0.85; }
+  .delta-insight p { margin: 0 0 0.7rem; line-height: 1.68; }
+  .delta-insight p:last-child { margin-bottom: 0; }
+
+  .source-row { margin-top: 1.2rem; display: flex; flex-wrap: wrap; gap: 0.5rem; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 0.4em;
+    font-family: var(--font-label); font-size: 0.72rem; letter-spacing: 0.04em;
+    text-decoration: none; color: var(--color-accent-ink); background: var(--color-accent);
+    padding: 0.5em 0.9em; border: 2px solid var(--color-ink);
+    box-shadow: 3px 3px 0 var(--color-ink);
+    transition: transform 120ms ease-out, box-shadow 120ms ease-out;
+  }
+  .btn:hover { transform: translate(-1px, -1px); box-shadow: 4px 4px 0 var(--color-ink); }
+  .btn:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 var(--color-ink); }
+
+  .foot {
+    background: var(--color-ink); color: var(--color-accent-ink);
+    padding: 1.5rem var(--page-gutter) 2.5rem;
+  }
+  .foot-inner { max-width: var(--shell); margin: 0 auto; font-size: 0.8rem; line-height: 1.7; opacity: 0.85; }
+
+  @media (max-width: 30rem) {
+    .masthead { padding: 2.25rem var(--page-gutter) 2rem; }
+    .topic-body { padding: 1.1rem 1.25rem; }
+  }
+</style>
+</head>
+<body>
+
+<div class="marquee" aria-hidden="true">
+  <div class="marquee-track">
+    <span>DELTA AI 趨勢週報 ◆ 話題式 · PoC ◆ 第 1 期 ◆ 僅供內部參考 ◆</span><span>DELTA AI 趨勢週報 ◆ 話題式 · PoC ◆ 第 1 期 ◆ 僅供內部參考 ◆</span>
+  </div>
+</div>
+<div class="halftone" aria-hidden="true"></div>
+
+<header class="masthead">
+  <div class="masthead-inner">
+    <p class="eyebrow">話題式週報 · POC</p>
+    <h1>Delta AI 趨勢週報</h1>
+    <div class="masthead-meta">
+      <span>第 1 期 · 2026-07-27</span>
+      <span>2 篇文章</span>
+    </div>
+  </div>
+</header>
+
+<div class="ornament-row" aria-hidden="true">✱ ✱ ✱ ✱</div>
+
+<div class="shell">
+  <div class="shell-inner">
+    <article class="topic">
+      <div class="topic-head"><span class="mono">◆ 洞見型</span></div>
+      <h2>每月處理 7000 億 Token：AT&amp;T 如何用 530 張 GPU 打造電信專屬 AI</h2>
+      <p class="topic-teaser">AT&amp;T 透過 Microsoft Foundry 與 530 張混合 GPU 算力，打造每月處理數千億 Token 的電信專屬 AI 模型。</p>
+      <div class="stats-line">
+        <div class="stat-tile"><span class="stat-value">700B+</span><span class="stat-label">PHI-4 每月處理 TOKEN 數</span></div>
+        <div class="stat-tile"><span class="stat-value">430</span><span class="stat-label">部署之 AMD MI300X GPU 數量</span></div>
+      </div>
+      <div class="topic-body">
+        <div class="topic-section">
+          <span class="run-in">發生了什麼</span>
+          <p>通用大模型往往缺乏電信網路、標準與營運的專業知識。為了打破這個瓶頸，電信巨頭 AT&amp;T 推出新一代 Open Telco（OTel2.0）模型，透過 Microsoft Foundry Managed Compute 平台，靈活調度多款開源模型與硬體架構，支援萬億級 Token 的大規模數據處理。</p>
+          <p>在這次部署中，AT&amp;T 採用了多開源模型策略，包含 Hugging Face 社群中的 Phi-4、OSS-120B 以及 Gemma 4。其中 Phi-4 在數據準備與合成數據生成階段，每月處理超過 7000 億個 Token。底層硬體則動用了約 530 張 GPU，包含 430 張 AMD Instinct MI300X GPU 以及 NVIDIA GPU，成功將模型與硬體的部署時間從數週縮短至數小時。</p>
+        </div>
+        <div class="topic-section">
+          <span class="run-in">為什麼重要</span>
+          <p>這項實踐展示了企業級 AI 發展的關鍵轉折：企業不再需要被單一模型或單一晶片供應商綁架。過去團隊必須自行維護龐大的硬體基礎設施與營運負擔，而現在透過託管計算平台，能像調酒一樣，依據不同任務混搭最適化的模型與算力。</p>
+          <p>例如處理高階推理任務時調用 OSS 120B，進行數據準備時使用 Phi-4，而開發工作流則交給 Gemma 4。配合跨晶片架構的異質算力，企業能在控管成本與維持效能之間取得最佳平衡，讓大規模領域專用 AI 的開發變得極具可行性。</p>
+        </div>
+        <div class="topic-section">
+          <span class="run-in">值得追蹤的後續</span>
+          <p>雖然異質算力與多模型組合帶來了極高的彈性，但不同 GPU 架構之間的軟體優化程度、吞吐量瓶頸以及跨架構調度的維護成本，仍是大規模營運時必須面臨的實務考驗。隨著 AT&amp;T 將 OTel 模型回饋給社群，這套開放架構在實際電信場景中的長期總體持有成本與維護複雜度，將是未來技術評估的核心指標。</p>
+        </div>
+        <div class="delta-insight">
+          <span class="run-in">這對我們意味著什麼</span>
+          <p>可以想像，當我們在思考廠區設備報修或 IT Helpdesk 等內部 AI 應用時，不一定要強制全公司統一採用單一昂貴的大模型。我們可以試著將任務拆解，讓較輕量、成本較低的模型去處理日常假勤查詢或格式化數據整理，而將複雜的推理任務留給高階模型。</p>
+          <p>在硬體與平台規劃上，同樣可以思考如何透過靈活的架構分配算力資源。透過任務分流與適度搭配不同規格的硬體，能夠在滿足各部門回應速度需求的同時，精準控制整體營運成本。</p>
+        </div>
+      </div>
+      <div class="source-row">
+        <a class="btn" href="https://www.microsoft.com/en-us/microsoft-cloud/blog/2026/07/23/ai-appreciation-day-impact-through-action/" target="_blank" rel="noopener noreferrer">MICROSOFT AI BLOG ↗</a>
+        <a class="btn" href="https://azure.microsoft.com/en-us/blog/att-and-microsoft-scale-trillion-token-workloads-with-microsoft-foundry-and-amd/" target="_blank" rel="noopener noreferrer">AZURE BLOG ↗</a>
+        <a class="btn" href="https://aws.amazon.com/blogs/machine-learning/best-practices-for-applying-amazon-bedrock-guardrails-to-code-generation-workflows/" target="_blank" rel="noopener noreferrer">AWS ML BLOG ↗</a>
+      </div>
+    </article>
+
+    <div class="ornament-row" aria-hidden="true">❋ ❋ ❋</div>
+
+    <article class="topic">
+      <div class="topic-head"><span class="mono">◆ 實用型</span></div>
+      <h2>試播兩人沒事、十五人同時開工卻卡死：AI 自動寫程式的防護牆調校課</h2>
+      <p class="topic-teaser">15 位工程師同時使用 Claude Code 卻導致系統卡死，原因出自預設防護牆每 50 字元就檢查一次。</p>
+      <div class="stats-line">
+        <div class="stat-tile"><span class="stat-value">15 人</span><span class="stat-label">同時上線引發 THROTTLINGEXCEPTION 的開發者人數</span></div>
+        <div class="stat-tile"><span class="stat-value">5,000 字元</span><span class="stat-label">工程師平均每個函式產生的程式碼長度</span></div>
+        <div class="stat-tile"><span class="stat-value">50 字元</span><span class="stat-label">預設觸發防護牆評估的串流間隔</span></div>
+      </div>
+      <div class="topic-body">
+        <div class="topic-section">
+          <span class="run-in">痛點</span>
+          <p>一家團隊將 Amazon Bedrock 上的 Claude Code 推廣給 15 位工程師使用。雖然兩人的小規模測試非常順利，但當 15 人同時展開寫程式任務時，系統卻頻繁傳回 ThrottlingException 錯誤，程式碼生成甚至在中途直接卡死。</p>
+        </div>
+        <div class="topic-section">
+          <span class="run-in">具體做法</span>
+          <p>問題的根源在於檢查機制太過頻繁。工程師平均每編寫一個函式就會產生約 5,000 個字元，但在預設的串流設定下，系統每產出 50 個字元就會觸發一次防護牆評估，導致 API 請求量瞬間暴增。</p>
+          <p>導入程式碼輔助工具時，防護牆必須防範提示詞攻擊、遮蔽金鑰與個人資料，並攔截違規內容。要維持系統順暢，關鍵在於重新設定串流評估的字元間隔與吞吐量配置，避免過度頻繁的檢測干擾開發流程。</p>
+        </div>
+        <div class="topic-section">
+          <span class="run-in">成效或注意事項</span>
+          <p>如果沒有針對團隊併發需求進行容量規劃與參數調整，防護牆可能帶來 API 限制、成本上升與延遲增加等問題。透過精準調整串流檢查頻率，能在確保金鑰防護與安全審查的同時，維持多位開發者順暢並行的作業體驗。</p>
+        </div>
+      </div>
+      <div class="source-row">
+        <a class="btn" href="https://aws.amazon.com/blogs/machine-learning/best-practices-for-applying-amazon-bedrock-guardrails-to-code-generation-workflows/" target="_blank" rel="noopener noreferrer">AWS ML BLOG ↗</a>
+      </div>
+    </article>
+  </div>
+</div>
+
+<footer class="foot">
+  <div class="foot-inner">
+    <p>內容由 AI 依公開來源改寫產出，經事實查核與風格審查關卡後發布，非原文轉載。僅供台達內部參考。</p>
+  </div>
+</footer>
+
+</body>
+</html>
