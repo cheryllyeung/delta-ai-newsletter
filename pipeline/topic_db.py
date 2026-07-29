@@ -284,28 +284,45 @@ def list_issues(conn: sqlite3.Connection) -> list[sqlite3.Row]:
     return conn.execute("SELECT * FROM issues ORDER BY issue_date DESC, created_at DESC").fetchall()
 
 
+def _row_to_topic_dict(conn: sqlite3.Connection, row: sqlite3.Row) -> dict:
+    generated = json.loads(row["generated_json"])
+    source_ids = json.loads(row["source_article_ids_json"])
+    return {
+        **generated,
+        # generated_topics.id：導讀頁卡片連到單篇話題頁（/issues/{id}/topics/{此id}）要用的識別碼，
+        # 不是 topics.id（一個話題理論上可能被改寫、重新入選，generated_topics 這筆才是「這期實際發布的這篇」）。
+        "id": row["id"],
+        "content_type": row["content_type"],
+        "confidence": row["confidence"],
+        "needs_review": bool(row["needs_review"]),
+        "module_scores": json.loads(row["module_scores_json"]) if row["module_scores_json"] else {},
+        "sources": get_articles_by_ids(conn, source_ids),
+    }
+
+
 def get_issue_detail(conn: sqlite3.Connection, issue_id: int) -> dict | None:
     issue = conn.execute("SELECT * FROM issues WHERE id = ?", (issue_id,)).fetchone()
     if issue is None:
         return None
     rows = conn.execute(
-        """SELECT gt.*, t.content_type FROM generated_topics gt
+        """SELECT gt.*, t.content_type, t.module_scores_json FROM generated_topics gt
            JOIN topics t ON t.id = gt.topic_id
            WHERE gt.issue_id = ?""",
         (issue_id,),
     ).fetchall()
-
-    topics = []
-    for row in rows:
-        generated = json.loads(row["generated_json"])
-        source_ids = json.loads(row["source_article_ids_json"])
-        topics.append(
-            {
-                **generated,
-                "content_type": row["content_type"],
-                "confidence": row["confidence"],
-                "needs_review": bool(row["needs_review"]),
-                "sources": get_articles_by_ids(conn, source_ids),
-            }
-        )
+    topics = [_row_to_topic_dict(conn, row) for row in rows]
     return {"issue": issue, "topics": topics}
+
+
+def get_generated_topic(conn: sqlite3.Connection, issue_id: int, generated_topic_id: int) -> dict | None:
+    """單篇話題頁（/issues/{issue_id}/topics/{generated_topic_id}）用：
+    多帶 issue_id 條件是為了不讓人猜別期的 generated_topic_id 就能拼出連結看到內容。"""
+    row = conn.execute(
+        """SELECT gt.*, t.content_type, t.module_scores_json FROM generated_topics gt
+           JOIN topics t ON t.id = gt.topic_id
+           WHERE gt.issue_id = ? AND gt.id = ?""",
+        (issue_id, generated_topic_id),
+    ).fetchone()
+    if row is None:
+        return None
+    return _row_to_topic_dict(conn, row)

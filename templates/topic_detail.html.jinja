@@ -1,19 +1,19 @@
 <!--
-/* Hallmark · macrostructure: Index-First · genre: editorial (loud) · theme: Carnival custom drop "Delta Blue" */
-話題式週報：單期導讀頁。跟 topic_detail.html.jinja、topic_issue_list.html.jinja
-共用同一套 Carnival 藍設計系統（字體、色彩、硬邊陰影語彙）。
+/* Hallmark · macrostructure: single-column long-form · genre: editorial (loud) · theme: Carnival custom drop "Delta Blue" */
+話題式週報：單篇話題全文頁（/issues/{issue_id}/topics/{topic_id}）。
+跟 topic_issue.html.jinja（導讀頁）、topic_issue_list.html.jinja 共用同一套
+Carnival 藍設計系統。內容是從原本整期塞成一頁的手風琴版型拆出來的單篇版，
+拆頁理由見 topic_issue.html.jinja 開頭註解。
 
-這是「導讀頁」，只列本期每則話題的標題／副標／一句摘要／跟哪個台達業務模組
-最相關，卡片點進去才是單篇全文（見 topic_detail.html.jinja）。原本整期塞成
-一頁長文、用手風琴展開的版本已拆掉：讀者反映那樣讀起來像部落格文章，
-拆成「導讀頁 + 單篇頁」比較像正式電子報的目錄／內文結構。
+語言切換器只做介面文字：文章本文目前只有繁體中文，切到簡中／英文只換介面
+用詞，本文維持原文並顯示一行提示。
 -->
 <!DOCTYPE html>
 <html lang="zh-Hant" data-lang="zh-Hant">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>{{ issue_title }}</title>
+<title>{{ topic.chosen_headline }}｜{{ issue_title }}</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800&family=Noto+Sans+TC:wght@700;900&family=IBM+Plex+Sans:wght@400;500&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
@@ -30,7 +30,7 @@
     --color-accent-2:    oklch(76% 0.150  75);
     --color-focus:   oklch(58% 0.160 247);
     --font-display: "Big Shoulders Display", "Noto Sans TC", sans-serif;
-    --font-body:    "IBM Plex Sans", ui-sans-serif, "PingFang TC", "Noto Sans TC", sans-serif;
+    --font-body:    "IBM Plex Sans", ui-sans-serif, "PingFang TC", "Noto Sans TC", "Noto Sans SC", sans-serif;
     --font-label:   "JetBrains Mono", ui-monospace, monospace;
     --page-gutter: clamp(1.25rem, 4vw, 3rem);
     --shell: 46rem;
@@ -38,9 +38,10 @@
   * { box-sizing: border-box; }
   html, body { overflow-x: clip; margin: 0; padding: 0; }
   body { background: var(--color-paper); color: var(--color-ink); font-family: var(--font-body); }
-  a { color: inherit; text-decoration: none; }
+  .shell { max-width: var(--shell); margin-inline: auto; padding-inline: var(--page-gutter); }
+  a { color: var(--color-ink); }
   a:focus-visible, button:focus-visible { outline: 3px solid var(--color-focus); outline-offset: 2px; }
-  h1, h2 { font-family: var(--font-display); font-weight: 800; font-variation-settings: "wdth" 110, "wght" 800; letter-spacing: 0.01em; line-height: 0.96; text-transform: uppercase; }
+  h1 { font-family: var(--font-display); font-weight: 800; font-variation-settings: "wdth" 110, "wght" 800; letter-spacing: 0.01em; line-height: 0.96; text-transform: uppercase; }
 
   .lang-switcher { position: absolute; top: 1.1rem; right: var(--page-gutter); z-index: 5; }
   .lang-btn { display: inline-flex; align-items: center; gap: 0.4em; background: var(--color-ink); color: var(--color-accent-ink); border: none; padding: 0.5em 0.9em; font-family: var(--font-label); font-size: 0.72rem; letter-spacing: 0.04em; cursor: pointer; }
@@ -49,41 +50,47 @@
   .lang-option { display: block; width: 100%; text-align: left; background: none; border: none; padding: 0.5em 0.7em; font-family: var(--font-body); font-size: 0.85rem; color: var(--color-ink); cursor: pointer; }
   .lang-option:hover { background: var(--color-paper-2); }
   .lang-option[aria-checked="true"] { font-weight: 700; color: var(--color-accent); }
+  .lang-note { display: none; max-width: var(--shell); margin: 1.5rem auto 0; padding: 0.7em 1em; background: var(--color-paper-2); border: 2px solid var(--color-ink); font-size: 0.85rem; }
+  html[data-lang="zh-Hans"] .lang-note, html[data-lang="en"] .lang-note { display: block; }
 
   .halftone { height: 14px; background-image: radial-gradient(var(--color-ink) 1.5px, transparent 1.5px); background-size: 10px 10px; opacity: 0.5; }
 
-  .masthead { background: var(--color-accent); color: var(--color-accent-ink); padding: 3rem var(--page-gutter) 2.5rem; }
+  .masthead { background: var(--color-accent); color: var(--color-accent-ink); padding: 2.5rem var(--page-gutter) 2.25rem; }
   .masthead-inner { max-width: var(--shell); margin: 0 auto; position: relative; }
+  .back-link { display: inline-flex; align-items: center; gap: 0.4em; font-family: var(--font-label); font-size: 0.75rem; letter-spacing: 0.04em; color: var(--color-accent-ink); opacity: 0.85; margin-bottom: 1rem; }
+  .back-link:hover { opacity: 1; }
   .masthead .eyebrow { font-family: var(--font-label); font-size: 0.75rem; letter-spacing: 0.1em; margin: 0 0 0.6rem; }
-  .masthead h1 { margin: 0 9rem 0 0; font-size: clamp(1.9rem, 3.6vw + 1rem, 3rem); overflow-wrap: anywhere; }
-  .masthead-meta { margin-top: 1rem; font-family: var(--font-label); font-size: 0.8rem; letter-spacing: 0.04em; display: flex; gap: 1.2rem; flex-wrap: wrap; opacity: 0.9; }
-  .masthead p.lede { margin: 1rem 0 0; font-size: 0.9rem; line-height: 1.6; color: color-mix(in oklch, var(--color-accent-ink) 85%, transparent); max-width: 56ch; }
+  .masthead h1 { margin: 0 9rem 0.4rem 0; font-size: clamp(1.7rem, 3.2vw + 1rem, 2.6rem); overflow-wrap: anywhere; }
+  .masthead .subhead { margin: 0 9rem 1rem 0; font-size: 1.05rem; line-height: 1.5; font-weight: 600; color: color-mix(in oklch, var(--color-accent-ink) 90%, transparent); overflow-wrap: anywhere; }
+  .masthead-meta { font-family: var(--font-label); font-size: 0.78rem; letter-spacing: 0.04em; display: flex; gap: 1.1rem; flex-wrap: wrap; opacity: 0.9; }
+
+  .chip-row { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.9rem; }
+  .chip { display: inline-block; font-family: var(--font-label); font-size: 0.68rem; letter-spacing: 0.04em; padding: 0.2em 0.6em; border: 2px solid var(--color-accent-ink); color: var(--color-accent-ink); }
+  .chip--domain { background: var(--color-accent-2); color: var(--color-ink); border-color: var(--color-accent-2); font-weight: 700; }
 
   .ornament-row { text-align: center; color: var(--color-accent-2); letter-spacing: 0.6em; padding: 1.5rem 0; font-size: 0.9rem; }
 
-  .issue-index { max-width: var(--shell); margin: 0 auto; padding: 0 var(--page-gutter) 4rem; display: flex; flex-direction: column; gap: 1.1rem; }
+  .stats-line { display: flex; flex-wrap: wrap; gap: 0.9rem; margin: 1.5rem 0; }
+  .stat-tile { background: var(--color-paper-2); border: 2px solid var(--color-ink); padding: 0.6rem 0.9rem; box-shadow: 4px 4px 0 var(--color-ink); }
+  .stat-value { display: block; font-family: var(--font-display); font-weight: 800; font-size: 1.35rem; font-variant-numeric: tabular-nums; }
+  .stat-label { display: block; margin-top: 0.2rem; font-family: var(--font-label); font-size: 0.62rem; letter-spacing: 0.04em; color: var(--color-muted); }
 
-  .topic-card {
-    display: block; background: var(--color-paper-2); border: 2px solid var(--color-ink);
-    box-shadow: 5px 5px 0 var(--color-ink); padding: 1.4rem 1.6rem;
-    transition: transform 120ms ease-out, box-shadow 120ms ease-out;
-  }
-  .topic-card:hover { transform: translate(-1px, -1px); box-shadow: 6px 6px 0 var(--color-ink); }
-  .topic-card:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 var(--color-ink); }
+  .topic-body { background: var(--color-paper-2); border: 2px solid var(--color-ink); box-shadow: 6px 6px 0 var(--color-ink); padding: 1.6rem 1.9rem; margin: 1.5rem 0; }
+  .topic-section { margin-bottom: 1.1rem; }
+  .topic-section:last-of-type { margin-bottom: 0; }
+  .topic-section .run-in { display: block; font-family: var(--font-label); font-size: 0.7rem; letter-spacing: 0.08em; color: var(--color-accent); margin-bottom: 0.5em; }
+  .topic-section p { margin: 0 0 0.7rem; line-height: 1.7; }
+  .topic-section p:last-child { margin-bottom: 0; }
 
-  .chip-row { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.7rem; }
-  .chip { display: inline-block; font-family: var(--font-label); font-size: 0.68rem; letter-spacing: 0.04em; padding: 0.2em 0.6em; border: 2px solid var(--color-ink); background: var(--color-paper); }
-  .chip--domain { border-color: var(--color-accent); color: var(--color-accent); }
-  .chip--review { background: var(--color-paper); }
+  .delta-insight { margin-top: 1.2rem; padding: 1.1rem 1.3rem; background: var(--color-accent); color: var(--color-accent-ink); }
+  .delta-insight .run-in { color: var(--color-accent-ink); opacity: 0.85; }
+  .delta-insight p { margin: 0 0 0.7rem; line-height: 1.7; }
+  .delta-insight p:last-child { margin-bottom: 0; }
 
-  .topic-card h2 { margin: 0 0 0.3rem; font-size: clamp(1.15rem, 1.6vw + 0.7rem, 1.55rem); overflow-wrap: anywhere; }
-  .topic-card .subhead { margin: 0 0 0.6rem; font-size: 1rem; line-height: 1.5; color: var(--color-accent); font-weight: 600; overflow-wrap: anywhere; }
-  .topic-card .teaser { margin: 0 0 0.8rem; font-size: 0.92rem; line-height: 1.6; color: var(--color-ink-2); max-width: 56ch; }
-  .read-more { font-family: var(--font-label); font-size: 0.75rem; letter-spacing: 0.05em; color: var(--color-ink); }
-  .read-more::after { content: " →"; }
-
-  .empty { max-width: var(--shell); margin: 0 auto; padding: 3rem var(--page-gutter); color: var(--color-muted); }
-  .empty p { margin: 0 0 0.75rem; line-height: 1.6; }
+  .source-row { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 1.5rem 0 3rem; }
+  .btn { display: inline-flex; align-items: center; gap: 0.4em; font-family: var(--font-label); font-size: 0.72rem; letter-spacing: 0.04em; text-decoration: none; color: var(--color-accent-ink); background: var(--color-accent); padding: 0.5em 0.9em; border: 2px solid var(--color-ink); box-shadow: 3px 3px 0 var(--color-ink); transition: transform 120ms ease-out, box-shadow 120ms ease-out; }
+  .btn:hover { transform: translate(-1px, -1px); box-shadow: 4px 4px 0 var(--color-ink); }
+  .btn:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 var(--color-ink); }
 
   .foot { background: var(--color-ink); color: var(--color-accent-ink); padding: 1.5rem var(--page-gutter) 2.5rem; }
   .foot-inner { max-width: var(--shell); margin: 0 auto; font-size: 0.8rem; line-height: 1.7; opacity: 0.85; }
@@ -127,9 +134,10 @@
   .feedback-thanks.is-visible { display: block; }
 
   @media (max-width: 30rem) {
-    .masthead { padding: 2.25rem var(--page-gutter) 2rem; }
+    .masthead { padding: 1.9rem var(--page-gutter) 1.75rem; }
     .lang-switcher { position: static; margin-bottom: 1rem; }
-    .masthead h1 { margin-right: 0; }
+    .masthead h1, .masthead .subhead { margin-right: 0; }
+    .topic-body { padding: 1.2rem 1.3rem; }
     .feedback-fab span { display: none; }
     .feedback-fab { padding: 0.85em; }
     .feedback-overlay { padding: 1rem; }
@@ -153,42 +161,53 @@
         <button class="lang-option" role="menuitemradio" aria-checked="false" data-lang="en">English</button>
       </div>
     </div>
-    <p class="eyebrow">DELTA AI TREND WEEKLY</p>
-    <h1>{{ newsletter_name }}</h1>
-    <div class="masthead-meta">
-      <span>第 {{ issue_id }} 期 · {{ issue_date }}</span>
-      <span>{{ topics | length }} 篇文章</span>
-    </div>
-    <p class="lede" id="lede-text">本期導讀，點進標題看單篇全文。</p>
-  </div>
-</header>
-
-<div class="ornament-row" aria-hidden="true">✱ ✱ ✱ ✱</div>
-
-{% if topics %}
-<nav class="issue-index" aria-label="本期話題列表">
-  {% for topic in topics %}
-  <a class="topic-card" href="/issues/{{ issue_id }}/topics/{{ topic.id }}">
+    <a class="back-link" href="/issues/{{ issue_id }}" data-i18n="backLink">← 回本期導讀</a>
+    <p class="eyebrow">{{ newsletter_name }} · 第 {{ issue_id }} 期</p>
     <div class="chip-row">
-      {% if topic.needs_review %}<span class="chip chip--review">待人工確認</span>{% endif %}
+      {% if topic.needs_review %}<span class="chip">待人工確認・信心度 {{ '%.2f' | format(topic.confidence) }}</span>{% endif %}
       {% if topic.top_module_name %}<span class="chip {{ 'chip--domain' if topic.top_module_is_domain else '' }}">{{ topic.top_module_name }}</span>{% endif %}
       {% if topic.primary_tag %}<span class="chip">{{ topic.primary_tag }}</span>{% endif %}
     </div>
-    <h2>{{ topic.chosen_headline }}</h2>
+    <h1>{{ topic.chosen_headline }}</h1>
     {% if topic.chosen_subhead %}<p class="subhead">{{ topic.chosen_subhead }}</p>{% endif %}
-    {% if topic.card_summary %}<p class="teaser">{{ topic.card_summary.text }}</p>{% endif %}
-    <span class="read-more" data-i18n="readMore">閱讀全文</span>
-  </a>
-  {% endfor %}
-</nav>
-{% else %}
-<div class="empty">
-  <p>這一期還沒有任何話題。</p>
+  </div>
+</header>
+
+<p class="lang-note" id="lang-note"></p>
+
+<div class="ornament-row" aria-hidden="true">✱ ✱ ✱ ✱</div>
+
+<div class="shell">
+  {% if topic.stats %}
+  <div class="stats-line">
+    {% for stat in topic.stats %}
+    <div class="stat-tile"><span class="stat-value">{{ stat.value }}</span><span class="stat-label">{{ stat.label }}</span></div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <div class="topic-body">
+    {% for section in topic.sections %}
+    <div class="topic-section">
+      <span class="run-in">{{ section.heading }}</span>
+      {% for para in section.paragraphs %}<p>{{ para }}</p>{% endfor %}
+    </div>
+    {% endfor %}
+    {% if topic.delta_insight %}
+    <div class="delta-insight">
+      <span class="run-in">{{ topic.delta_insight.heading or '這對我們意味著什麼' }}</span>
+      {% for para in topic.delta_insight.paragraphs %}<p>{{ para }}</p>{% endfor %}
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="source-row">
+    {% for src in topic.sources %}<a class="btn" href="{{ src.url }}" target="_blank" rel="noopener noreferrer">{{ src.source_name | upper }} ↗</a>{% endfor %}
+  </div>
 </div>
-{% endif %}
 
 <footer class="foot">
-  <div class="foot-inner"><p>{{ newsletter_name }}．內容由 AI 依公開來源改寫產出，經事實查核與風格審查關卡後發布，非原文轉載；標示「待人工確認」的話題代表自動審查信心度未達門檻，內容仍待人工複核。僅供台達內部參考。</p></div>
+  <div class="foot-inner"><p>內容由 AI 依公開來源改寫產出，經事實查核與風格審查關卡後發布，非原文轉載。僅供台達內部參考。</p></div>
 </footer>
 
 <button class="feedback-fab" id="feedback-fab" type="button">
@@ -211,9 +230,9 @@
 
 <script>
 const I18N = {
-  "zh-Hant": { lede: "本期導讀，點進標題看單篇全文。", readMore: "閱讀全文", feedbackBtn: "意見回饋", feedbackTitle: "下一期想看什麼？", feedbackDesc: "我們會精選更多不同產業的 AI 案例與議題，也歡迎跟我們分享更多你想看到的內容。", feedbackPlaceholder: "例如：多一點能源產業案例，或想看 OpenAI 最新動態⋯⋯", feedbackSubmit: "送出", feedbackCancel: "取消", feedbackThanks: "收到了，謝謝你的想法！" },
-  "zh-Hans": { lede: "本期导读，点进标题看单篇全文。", readMore: "阅读全文", feedbackBtn: "意见反馈", feedbackTitle: "下一期想看什么？", feedbackDesc: "我们会精选更多不同产业的 AI 案例与议题，也欢迎跟我们分享更多你想看到的内容。", feedbackPlaceholder: "例如：多一点能源产业案例，或想看 OpenAI 最新动态⋯⋯", feedbackSubmit: "送出", feedbackCancel: "取消", feedbackThanks: "收到了，谢谢你的想法！" },
-  "en": { lede: "This issue's index — click a headline to read the full piece.", readMore: "Read full article", feedbackBtn: "Feedback", feedbackTitle: "What do you want to see next issue?", feedbackDesc: "We'll keep curating AI cases and topics across more industries, and we'd love to hear what else you want to see.", feedbackPlaceholder: "e.g. more energy-sector cases, or the latest from OpenAI...", feedbackSubmit: "Send", feedbackCancel: "Cancel", feedbackThanks: "Got it, thanks for the input!" }
+  "zh-Hant": { backLink: "← 回本期導讀", langNote: "", feedbackBtn: "意見回饋", feedbackTitle: "下一期想看什麼？", feedbackDesc: "我們會精選更多不同產業的 AI 案例與議題，也歡迎跟我們分享更多你想看到的內容。", feedbackPlaceholder: "例如：多一點能源產業案例，或想看 OpenAI 最新動態⋯⋯", feedbackSubmit: "送出", feedbackCancel: "取消", feedbackThanks: "收到了，謝謝你的想法！" },
+  "zh-Hans": { backLink: "← 回本期导读", langNote: "文章内文目前仅提供繁体中文版本。", feedbackBtn: "意见反馈", feedbackTitle: "下一期想看什么？", feedbackDesc: "我们会精选更多不同产业的 AI 案例与议题，也欢迎跟我们分享更多你想看到的内容。", feedbackPlaceholder: "例如：多一点能源产业案例，或想看 OpenAI 最新动态⋯⋯", feedbackSubmit: "送出", feedbackCancel: "取消", feedbackThanks: "收到了，谢谢你的想法！" },
+  "en": { backLink: "← Back to this issue", langNote: "Article body copy is currently available in Traditional Chinese only.", feedbackBtn: "Feedback", feedbackTitle: "What do you want to see next issue?", feedbackDesc: "We'll keep curating AI cases and topics across more industries, and we'd love to hear what else you want to see.", feedbackPlaceholder: "e.g. more energy-sector cases, or the latest from OpenAI...", feedbackSubmit: "Send", feedbackCancel: "Cancel", feedbackThanks: "Got it, thanks for the input!" }
 };
 const LANG_LABEL = { "zh-Hant": "繁體中文", "zh-Hans": "简体中文", "en": "English" };
 let currentLang = 'zh-Hant';
@@ -226,8 +245,8 @@ function applyLang(lang) {
   document.querySelectorAll('.lang-option').forEach(opt => opt.setAttribute('aria-checked', opt.dataset.lang === lang));
 
   const t = I18N[lang];
-  document.getElementById('lede-text').textContent = t.lede;
-  document.querySelectorAll('[data-i18n="readMore"]').forEach(el => { el.textContent = t.readMore; });
+  document.getElementById('lang-note').textContent = t.langNote;
+  document.querySelectorAll('[data-i18n="backLink"]').forEach(el => { el.textContent = t.backLink; });
   document.getElementById('feedback-fab-label').textContent = t.feedbackBtn;
   document.getElementById('feedback-title').textContent = t.feedbackTitle;
   document.getElementById('feedback-desc').textContent = t.feedbackDesc;
