@@ -9,7 +9,7 @@ from __future__ import annotations
 import json
 
 from ingestion.base import RawItem
-from pipeline.llm_client import create_chat_completion, get_client, get_model
+from pipeline.llm_client import create_chat_completion, get_client, get_model, reasoning_effort_kwargs
 from pipeline.llm_logging import log_call
 from pipeline.prompt_loader import load_prompt_parts
 
@@ -44,11 +44,11 @@ def tag_article(item: RawItem, client=None) -> dict:
         model=get_model(),
         max_tokens=3000,
         temperature=0.2,
-        reasoning_effort="none",
         messages=[
             {"role": "system", "content": system},
             {"role": "user", "content": user},
         ],
+        **reasoning_effort_kwargs(),
     )
     raw_text = response.choices[0].message.content
     parsed = _parse_json_object(raw_text)

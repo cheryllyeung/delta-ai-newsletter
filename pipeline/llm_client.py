@@ -12,6 +12,10 @@ import re
 import time
 
 import openai
+import requests
+
+# 本機 Ollama 預設監聽的 port，用來判斷目前是不是接本機備援模型。
+_OLLAMA_MARKER = "11434"
 
 # Clawith 的 Qwen 端點實際 model 名稱要跟 Clawith 那邊確認（例如 qwen-plus /
 # qwen-max 這類），先給一個明顯的預留值，避免不小心用錯值卻沒發現。
@@ -27,6 +31,19 @@ def get_client() -> openai.OpenAI:
 
 def get_model() -> str:
     return os.environ.get("NEWSLETTER_MODEL", DEFAULT_MODEL)
+
+
+def reasoning_effort_kwargs() -> dict:
+    """`reasoning_effort` 是 Groq/Qwen 端點認得的參數，用來關掉輸出裡的
+    `<think>` 推理過程（不關的話推理內容會佔掉 max_tokens 額度，甚至讓
+    正式輸出被截斷成空字串）。但 Gemini 的 OpenAI 相容端點不認得這個參數，
+    帶了會直接回 400 invalid argument，所以呼叫端不能寫死帶這個參數，要
+    依目前 LLM_BASE_URL 是不是 Groq 才決定要不要帶，呼叫端用
+    `**reasoning_effort_kwargs()` 展開。"""
+    base_url = os.environ.get("LLM_BASE_URL", "")
+    if "groq.com" in base_url:
+        return {"reasoning_effort": "none"}
+    return {}
 
 
 def get_writing_model() -> str:
@@ -48,6 +65,45 @@ _RETRY_DELAY_PATTERN = re.compile(r"try again in (?:(\d+)m)?(\d+(?:\.\d+)?)s", r
 _WORTH_RETRYING_DELAY = 20.0
 
 
+class _DuckTypedMessage:
+    def __init__(self, content: str):
+        self.content = content
+
+
+class _DuckTypedChoice:
+    def __init__(self, content: str):
+        self.message = _DuckTypedMessage(content)
+
+
+class _DuckTypedChatCompletion:
+    """模仿 openai 的 ChatCompletion 回傳形狀（`.choices[0].message.content`），
+    讓走 Ollama 原生 API 這條路的呼叫端不用另外判斷分支，程式碼可以完全共用。"""
+
+    def __init__(self, content: str):
+        self.choices = [_DuckTypedChoice(content)]
+
+
+def _call_ollama_native(*, model: str, messages: list[dict], max_tokens: int, temperature: float | None):
+    """Ollama 的 OpenAI 相容端點（/v1/chat/completions）不認得 `think` 這個
+    參數，Qwen3 系列預設會先跑一大段推理過程才回答，實測單篇呼叫要 3 分鐘
+    以上。改打 Ollama 原生的 /api/chat，帶 `think: false` 關掉推理，實測同一
+    支呼叫降到 1 秒內，這個差距大到值得為本機備援單獨寫一條路徑。"""
+    base_url = os.environ.get("LLM_BASE_URL", "").rstrip("/")
+    root = base_url[: -len("/v1")] if base_url.endswith("/v1") else base_url
+    options = {"num_predict": max_tokens}
+    if temperature is not None:
+        options["temperature"] = temperature
+    resp = requests.post(
+        f"{root}/api/chat",
+        json={"model": model, "messages": messages, "think": False, "stream": False, "options": options},
+        # 寫作步驟要生成完整文章（上千 token 輸出），本機模型速度遠比雲端
+        # API 慢，180 秒撐不住，實測會被截斷成逾時失敗，拉長到 10 分鐘。
+        timeout=600,
+    )
+    resp.raise_for_status()
+    return _DuckTypedChatCompletion(resp.json()["message"]["content"])
+
+
 def create_chat_completion(client: openai.OpenAI, *, max_retries: int = 5, **kwargs):
     """呼叫 chat.completions.create，撞到免費層速率限制（429）或連線層級錯誤
     （APIConnectionError，例如短暫斷線、對方主動斷開連線）時自動重試，而不是
@@ -56,6 +112,14 @@ def create_chat_completion(client: openai.OpenAI, *, max_retries: int = 5, **kwa
     連線錯誤原本沒被接住：實測 ingest_topics 打分階段一撞到連線錯誤就整批
     放棄、一次重試都沒有，才發現這個洞。
     """
+    if _OLLAMA_MARKER in os.environ.get("LLM_BASE_URL", ""):
+        return _call_ollama_native(
+            model=kwargs["model"],
+            messages=kwargs["messages"],
+            max_tokens=kwargs.get("max_tokens", 2048),
+            temperature=kwargs.get("temperature"),
+        )
+
     for attempt in range(max_retries + 1):
         try:
             return client.chat.completions.create(**kwargs)

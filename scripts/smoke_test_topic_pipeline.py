@@ -52,6 +52,7 @@ from pipeline.topic_db import (
     save_article_tags,
     save_generated_topic,
     save_module_scores,
+    week_start_date,
 )
 from pipeline.topic_selection import select_for_issue
 from review.topic_selfcheck import self_check
@@ -256,7 +257,8 @@ def main() -> None:
     FakeClient = _make_fake_completions(config["modules"])
 
     with patch("openai.OpenAI", FakeClient):
-        to_tag = get_untagged_articles(conn)
+        week_start = week_start_date()
+        to_tag = get_untagged_articles(conn, week_start)
         assert len(to_tag) == len(inserted_ids), "待標籤文章數量跟入池數量對不上"
         for row in to_tag:
             item = _row_to_raw_item(row)
@@ -275,7 +277,7 @@ def main() -> None:
                 industry_tags=parsed["industry_tags"],
                 one_line_summary=parsed["one_line_summary"],
             )
-        assert get_untagged_articles(conn) == [], "還有文章沒標籤完"
+        assert get_untagged_articles(conn, week_start) == [], "還有文章沒標籤完"
         print(f"[smoke_test] {len(to_tag)} 篇文章標籤完成")
 
         to_score = get_unscored_topics(conn)

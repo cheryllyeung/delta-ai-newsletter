@@ -8,6 +8,7 @@
 """
 from __future__ import annotations
 
+import random
 import sys
 from datetime import date
 from pathlib import Path
@@ -18,7 +19,7 @@ from dotenv import load_dotenv
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 load_dotenv()
 
-from generation.topic_generate import generate_topic_article
+from generation.topic_generate import OPENING_TECHNIQUES, generate_topic_article
 from pipeline.retrieval import retrieve_sources_for_topic
 from pipeline.topic_db import (
     create_issue,
@@ -42,15 +43,24 @@ def generate_and_check(conn, selected: list[dict], config: dict) -> list[dict]:
     confidence_threshold = config["quality"]["confidence_threshold"]
     max_retries = config["quality"]["max_regeneration_retries"]
 
+    # 開頭手法洗牌後輪流指派給每個入選話題，同一期裡儘量不重複（見
+    # generation/topic_generate.py 的 OPENING_TECHNIQUES 說明）。
+    shuffled_techniques = OPENING_TECHNIQUES.copy()
+    random.shuffle(shuffled_techniques)
+
     results = []
-    for entry in selected:
+    for i, entry in enumerate(selected):
         topic_row = entry["row"]
         content_type = entry["content_type"]
+        opening_technique = shuffled_techniques[i % len(shuffled_techniques)]
         print(f"[compose_topic_issue] 檢索素材：{topic_row['representative_title'][:50]} ...")
 
         try:
             source_rows = retrieve_sources_for_topic(conn, config, topic_row)
-            article = generate_topic_article(newsletter_name, topic_row["representative_title"], content_type, source_rows)
+            article = generate_topic_article(
+                newsletter_name, topic_row["representative_title"], content_type, source_rows,
+                opening_technique=opening_technique,
+            )
 
             revision_instructions = None
             check_result = None
@@ -67,6 +77,7 @@ def generate_and_check(conn, selected: list[dict], config: dict) -> list[dict]:
                     article = generate_topic_article(
                         newsletter_name, topic_row["representative_title"], content_type, source_rows,
                         revision_instructions,
+                        opening_technique=opening_technique,
                     )
         except Exception as exc:  # noqa: BLE001 -- 單篇失敗不中斷整批，這個話題留在池裡下次重跑會重新入選
             print(f"[compose_topic_issue]   這篇生成失敗，跳過（下次重跑會重新入選）：{exc}")

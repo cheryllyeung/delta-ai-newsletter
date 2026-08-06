@@ -12,7 +12,7 @@ import sqlite3
 import openai
 
 from generation.topic_generate import build_sources_text
-from pipeline.llm_client import create_chat_completion, get_client, get_writing_model
+from pipeline.llm_client import create_chat_completion, get_client, get_writing_model, reasoning_effort_kwargs
 from pipeline.llm_logging import log_call
 from pipeline.prompt_loader import load_prompt_parts
 
@@ -65,11 +65,11 @@ def self_check(
         model=get_writing_model(),
         max_tokens=4000,
         temperature=0,
-        reasoning_effort="none",
         messages=[
             {"role": "system", "content": system},
             {"role": "user", "content": user},
         ],
+        **reasoning_effort_kwargs(),
     )
     raw_text = response.choices[0].message.content
     try:
