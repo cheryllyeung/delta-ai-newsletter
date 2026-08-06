@@ -1,0 +1,27 @@
+services:
+  neo4j:
+    image: neo4j:5-community
+    ports:
+      - "7474:7474"   # Neo4j Browser：視覺化直接用瀏覽器打開
+      - "7687:7687"   # Bolt：pipeline/graph_store.py 的 driver 連線用
+    environment:
+      - NEO4J_AUTH=${NEO4J_USER:-neo4j}/${NEO4J_PASSWORD}
+    volumes:
+      - neo4j_data:/data
+
+  # 給 scripts/smoke_test_graph_extraction.py 用的獨立、可丟棄 instance。
+  # Neo4j Community Edition 一個 instance 只能有一個使用者資料庫（多資料庫
+  # 是 Enterprise 才有），沒辦法像 SQLite/Qdrant 那樣「換個路徑」就隔離
+  # 測試資料，只能整個開一個獨立 container，跑完可以直接 down -v 丟棄。
+  neo4j-test:
+    image: neo4j:5-community
+    profiles: ["test"]
+    ports:
+      - "7475:7474"
+      - "7688:7687"
+    environment:
+      - NEO4J_AUTH=${NEO4J_USER:-neo4j}/${NEO4J_PASSWORD}
+    # 刻意不掛 volume：每次 down 就整個丟掉，不用手動清資料
+
+volumes:
+  neo4j_data:

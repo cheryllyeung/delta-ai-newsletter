@@ -35,6 +35,25 @@ reranker:
   rerank_top_k: 2          # 第二段：reranker 重排取 top-2 作為寫作素材（暫時調小：
                             # Groq 免費層 TPM 上限 8000，5 篇來源全文會爆量，見 .env 註解）
 
+# 知識圖譜：Neo4j 存三元組（實體、關係、文章 provenance），連線用的
+# NEO4J_URI/USER/PASSWORD 是機密，放在 .env，這裡只放非機密的演算法參數。
+graph_store:
+  # 實際門檻常數寫在 pipeline/entity_resolution.py（跟 tag_clustering.py
+  # 同一種模組內常數的寫法，這裡列出來只是方便對照，不是程式碼實際讀取
+  # 的設定來源）。單一門檻切不開「跨語言真同義」跟「字面雷同但不同公司」
+  # 這兩種情況（見該檔案 docstring 的實測數字），改成兩段：分數夠低/夠高
+  # 直接判定，中間的灰色地帶才問 LLM。
+  entity_resolution:
+    model: "paraphrase-multilingual-MiniLM-L12-v2"
+    grey_zone_lower: 0.15  # 低於此值直接判定不同實體，不花 LLM 額度
+    grey_zone_upper: 0.85  # 高於此值直接判定同一實體，不花 LLM 額度
+  # Phase 2（PPR 檢索）用，目前先關閉，等圖密度夠了再打開
+  ppr:
+    enabled: false
+    inject_top_k: 5             # 額外注入候選池的文章數上限
+    min_entities: 500           # 密度門檻，精神對應 0731 PRD「graph 資料達到密度門檻才納入」的判斷
+    min_edges: 1000
+
 # 18 個模組：10 個職能模組 + 8 個領域模組（PRD §2 原文列表）。
 # 每個話題會被 LLM 對這 18 個模組各打 0-10 分並附一句理由。
 modules:

@@ -5,12 +5,14 @@
 上次意外中斷（例如 LLM_API_KEY 沒打通）這次重跑會自動接著做，不用手動
 清理。
 
-分四步，每一步都獨立、任何一步失敗不影響前面已經完成的部分：
+分五步，每一步都獨立、任何一步失敗不影響前面已經完成的部分：
 1. 抓取候選來源，插入文章池（依 url 去重）
 2. 話題聚類：embedding + Qdrant 找最近鄰居，相似度夠高就併入既有話題
    （這一步跑在本機，不需要 LLM_API_KEY）
 3. 標籤抽取：每篇「已聚類但還沒標籤」的文章跑 Prompt（多維關鍵詞、
    content_mode、案例標記）
+3.5. 知識圖譜抽取：每篇「已標籤但還沒建圖」的文章跑三元組抽取 Prompt，
+   經 EntityResolver 解析實體後寫進 Neo4j（NEO4J_URI 沒設就跳過這一步）
 4. 18 模組打分：每個「話題內所有文章都已標籤」的話題跑 Prompt
 
 用法：
@@ -18,6 +20,7 @@
 """
 from __future__ import annotations
 
+import os
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -35,18 +38,38 @@ from ingestion.github_source import fetch_github_items
 from ingestion.hn_source import fetch_hn_items
 from ingestion.reddit_source import fetch_reddit_items
 from ingestion.stackexchange_source import fetch_stackexchange_items
+from pipeline import graph_builder, graph_store
 from pipeline.article_tagging import tag_article
+from pipeline.entity_resolution import EntityResolver
 from pipeline.module_scoring import score_topic
 from pipeline.topic_clustering import cluster_new_articles
 from pipeline.topic_db import (
+    discard_stale_ungraphed_articles,
+    discard_stale_untagged_articles,
     get_articles_for_topic,
     get_connection,
+    get_ungraphed_articles,
     get_untagged_articles,
     get_unscored_topics,
     insert_article_if_new,
+    mark_article_graphed,
     save_article_tags,
     save_module_scores,
+    week_start_date,
 )
+from pipeline.triple_extraction import extract_triples
+
+# item.source（RawItem 的來源平台字串，見 ingestion/base.py）→ 這個平台的
+# 熱門度指標叫什麼名字。只有這幾個訊號層來源真的有「群眾熱度」數字（HN
+# points、Reddit upvotes、GitHub stars、StackExchange score），核心層 RSS
+# 只有靜態的 source_weight、arXiv 的 score 是關鍵字命中分數（相關性，不是
+# 熱度），都不該塞進 engagement_raw，見 pipeline/topic_db.py 的說明。
+_ENGAGEMENT_METRIC_BY_SOURCE = {
+    "hackernews": "hn_points",
+    "reddit": "reddit_score",
+    "github": "github_stars",
+    "stackexchange": "stackexchange_score",
+}
 
 CONFIG_PATH = Path(__file__).resolve().parent.parent / "config" / "topics.yaml"
 
@@ -162,6 +185,10 @@ def main() -> None:
             print(f"[ingest_topics]   抓取失敗，跳過這個來源：{exc}")
             continue
         for item in items:
+            item.extra.setdefault("tier", source.get("tier", "case"))
+            engagement_metric = _ENGAGEMENT_METRIC_BY_SOURCE.get(item.source)
+            if engagement_metric:
+                item.extra.setdefault("engagement_metric", engagement_metric)
             if insert_article_if_new(conn, item) is not None:
                 inserted_count += 1
     print(f"[ingest_topics] 本次新增 {inserted_count} 篇文章進入文章池（尚未聚類）。")
@@ -181,8 +208,13 @@ def main() -> None:
         f"新開話題 {cluster_stats['new_topics']} 個，併入既有話題 {cluster_stats['merged']} 篇。"
     )
 
-    # 步驟三：標籤抽取
-    to_tag = get_untagged_articles(conn)
+    # 步驟三：標籤抽取（只處理本週窗口內的文章，窗口外的舊積壓先標記捨棄，
+    # 避免霸占當天標籤額度，詳見 pipeline/topic_db.py 的說明）
+    week_start = week_start_date()
+    discarded_count = discard_stale_untagged_articles(conn, week_start)
+    if discarded_count:
+        print(f"[ingest_topics] 本週（{week_start}）以前還沒標籤的舊文章，已捨棄 {discarded_count} 篇。")
+    to_tag = get_untagged_articles(conn, week_start)
     print(f"[ingest_topics] 待標籤文章：{len(to_tag)} 篇")
     tagged_count = failed_tag_count = 0
     for row in to_tag:
@@ -209,6 +241,39 @@ def main() -> None:
             failed_tag_count += 1
             print(f"[ingest_topics]   標籤失敗，跳過（下次重跑會自動重試）：{exc}")
     print(f"[ingest_topics] 標籤完成：成功 {tagged_count} 篇，失敗 {failed_tag_count} 篇。")
+
+    # 步驟三之五：知識圖譜抽取（三元組 LLM 呼叫 + 實體解析 + 寫入 Neo4j）。
+    # NEO4J_URI 沒設就跳過整段，不讓其他步驟中斷（跟 REDDIT_* 沒填時的
+    # 降級行為一致）。
+    neo4j_uri = os.environ.get("NEO4J_URI")
+    if not neo4j_uri:
+        print("[ingest_topics] NEO4J_URI 未設定，跳過知識圖譜抽取步驟。")
+    else:
+        discarded_graph_count = discard_stale_ungraphed_articles(conn, week_start)
+        if discarded_graph_count:
+            print(f"[ingest_topics] 本週以前還沒建圖的舊文章，已捨棄 {discarded_graph_count} 篇。")
+        to_graph = get_ungraphed_articles(conn, week_start)
+        print(f"[ingest_topics] 待建圖文章：{len(to_graph)} 篇")
+
+        driver = graph_store.get_driver(
+            neo4j_uri, os.environ.get("NEO4J_USER", "neo4j"), os.environ.get("NEO4J_PASSWORD", "")
+        )
+        graph_store.ensure_constraints(driver)
+        resolver = EntityResolver(graph_store.get_all_canonical_entity_names(driver))
+
+        graphed_count = failed_graph_count = 0
+        for row in to_graph:
+            print(f"[ingest_topics]   建圖中：{row['title'][:60]} ...")
+            try:
+                item = _row_to_raw_item(row)
+                parsed = extract_triples(item)
+                graph_builder.add_article_to_graph(driver, resolver, row, parsed["triples"])
+                mark_article_graphed(conn, row["id"])
+                graphed_count += 1
+            except Exception as exc:  # noqa: BLE001 -- 單篇失敗不中斷整批，下次重跑會重試
+                failed_graph_count += 1
+                print(f"[ingest_topics]   建圖失敗，跳過（下次重跑會自動重試）：{exc}")
+        print(f"[ingest_topics] 建圖完成：成功 {graphed_count} 篇，失敗 {failed_graph_count} 篇。")
 
     # 步驟四：18 模組打分
     to_score = get_unscored_topics(conn)

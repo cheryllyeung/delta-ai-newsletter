@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 _SCHEMA = """
@@ -30,6 +30,11 @@ CREATE TABLE IF NOT EXISTS articles (
     published_at TEXT NOT NULL,
     fetched_at TEXT NOT NULL,
     topic_id INTEGER REFERENCES topics(id),
+    -- 本週（見 week_start_date()）以前還沒標完籤的舊文章會被主動捨棄，標記
+    -- 這個時間戳記，避免殘留文章長期霸占每日標籤額度，也避免卡住
+    -- get_unscored_topics() 的「話題內文章全標完」判斷。獨立欄位，不動
+    -- content_mode 的既有語意（見 get_untagged_articles() 的說明）。
+    discarded_at TEXT,
     -- 階段二：多維關鍵詞標籤與案例標記（由 pipeline/article_tagging.py 填入）
     content_mode TEXT,
     is_case_example INTEGER,
@@ -83,19 +88,57 @@ def get_connection(db_path: str) -> sqlite3.Connection:
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
     conn.executescript(_SCHEMA)
+    try:
+        conn.execute("ALTER TABLE articles ADD COLUMN discarded_at TEXT")
+        conn.commit()
+    except sqlite3.OperationalError:
+        pass  # 舊資料庫檔案已經有這個欄位
+    try:
+        conn.execute("ALTER TABLE articles ADD COLUMN graph_extracted_at TEXT")
+        conn.commit()
+    except sqlite3.OperationalError:
+        pass  # 舊資料庫檔案已經有這個欄位
+    for column_def in ("tier TEXT", "engagement_raw REAL", "engagement_source TEXT"):
+        try:
+            conn.execute(f"ALTER TABLE articles ADD COLUMN {column_def}")
+            conn.commit()
+        except sqlite3.OperationalError:
+            pass  # 舊資料庫檔案已經有這個欄位
     return conn
+
+
+def week_start_date(reference: datetime | None = None) -> str:
+    """回傳「本週一」的日期（ISO date，例如 2026-07-27）。跟 fetched_at
+    這種 ISO datetime 字串直接做字串比較就能得到正確的大小關係。用日曆週
+    （週一重置）而不是 rolling 7 天，理由是週報本來就是一週一期，日曆週的
+    邊界對應的正好是「這期收的是這週的內容」，人工審核時也比較好對照；
+    rolling 窗口在測試階段執行時間不規律時，起點還會跟著飄動。"""
+    ref = reference or datetime.now()
+    monday = ref - timedelta(days=ref.weekday())
+    return monday.strftime("%Y-%m-%d")
 
 
 def insert_article_if_new(conn: sqlite3.Connection, item) -> int | None:
     """把一篇 RawItem 插進 pool，同網址已存在就跳過。回傳新插入的 article id，
     已存在則回傳 None。此時還沒做聚類/打標籤，topic_id 等欄位都是 NULL。
+
+    tier（核心層/訊號層/深度層/垂直/case，見 config/topics.yaml 的來源分級）
+    從 item.extra["tier"] 讀，沒有就當 case（多數來源目前的預設分級）。
+
+    engagement_raw/engagement_source 只有來源本身有真實熱度數字時才寫值
+    （item.extra["engagement_metric"] 由 scripts/ingest_topics.py 依
+    item.source 判斷，只給 hn/reddit/github/stackexchange 這幾個訊號層
+    來源設），其他來源這兩欄位維持 NULL，不是 0——0 跟「這個來源沒有
+    熱度這個概念」是不同意思，不能混用。
     """
+    engagement_source = item.extra.get("engagement_metric")
+    engagement_raw = item.score if engagement_source else None
     try:
         cur = conn.execute(
             """INSERT INTO articles
                (source_id, source_name, source_weight, title, url, content,
-                published_at, fetched_at)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                published_at, fetched_at, tier, engagement_raw, engagement_source)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 item.subdomain_id,
                 item.extra.get("source_name", item.subdomain_id),
@@ -105,12 +148,32 @@ def insert_article_if_new(conn: sqlite3.Connection, item) -> int | None:
                 item.summary,
                 item.published_at.isoformat(),
                 datetime.now().isoformat(),
+                item.extra.get("tier", "case"),
+                engagement_raw,
+                engagement_source,
             ),
         )
         conn.commit()
         return cur.lastrowid
     except sqlite3.IntegrityError:
         return None
+
+
+def backfill_article_tier(conn: sqlite3.Connection, source_name_to_tier: dict[str, str]) -> int:
+    """圖上線之前入池的舊文章沒有 tier（那時這欄位還不存在），用
+    config/topics.yaml 目前的 source name → tier 對照表回填，圖重建時
+    歷史文章才不會缺 tier。只補 tier IS NULL 的列，已經有值的不覆蓋
+    （例如之後改了某個來源的 tier 分級，不會被這支函式意外改回舊值）。
+    回傳這次更新的文章數。"""
+    updated = 0
+    for source_name, tier in source_name_to_tier.items():
+        cur = conn.execute(
+            "UPDATE articles SET tier = ? WHERE source_name = ? AND tier IS NULL",
+            (tier, source_name),
+        )
+        updated += cur.rowcount
+    conn.commit()
+    return updated
 
 
 def get_unclustered_articles(conn: sqlite3.Connection) -> list[sqlite3.Row]:
@@ -134,12 +197,77 @@ def assign_article_to_topic(conn: sqlite3.Connection, article_id: int, topic_id:
     conn.commit()
 
 
-def get_untagged_articles(conn: sqlite3.Connection) -> list[sqlite3.Row]:
-    """回傳已經歸類到某個話題、但還沒跑過階段二標籤抽取的文章
-    （content_mode IS NULL 當作「還沒標籤」的判斷依據）。"""
+def get_untagged_articles(conn: sqlite3.Connection, week_start: str) -> list[sqlite3.Row]:
+    """回傳已經歸類到某個話題、本週（week_start 起，見 week_start_date()）
+    新抓進來、但還沒跑過階段二標籤抽取的文章（content_mode IS NULL 當作
+    「還沒標籤」的判斷依據）。
+
+    只處理本週窗口內的文章，是為了避免舊的積壓文章（例如曾經因為連線層級
+    錯誤卡住、後來才修好重試邏輯的那批）排在佇列前面，把當天的標籤額度佔
+    光，導致當天新抓進來的文章反而標不完。窗口外的文章應該先呼叫
+    discard_stale_untagged_articles() 主動標記捨棄，這裡的 fetched_at
+    篩選只是雙保險，即使忘記呼叫捨棄流程也不會捞到舊文章。
+    """
     return conn.execute(
-        "SELECT * FROM articles WHERE topic_id IS NOT NULL AND content_mode IS NULL"
+        """SELECT * FROM articles
+           WHERE topic_id IS NOT NULL AND content_mode IS NULL
+             AND discarded_at IS NULL AND fetched_at >= ?""",
+        (week_start,),
     ).fetchall()
+
+
+def discard_stale_untagged_articles(conn: sqlite3.Connection, week_start: str) -> int:
+    """把本週（week_start）以前、還沒標籤完的文章標記為捨棄（discarded_at）。
+
+    這些文章通常是之前執行失敗留下的殘留（例如連線層級錯誤、額度用罄時沒
+    處理到），本週已經不會再處理它們，主動標記起來才能：
+    1. 讓 get_untagged_articles() 不用每次都重新掃過這些注定不會處理的舊資料
+    2. 避免它們卡住 get_unscored_topics() 的「話題內文章全標完」判斷，讓
+       所屬話題永遠無法打分
+    只影響 discarded_at 這個獨立欄位，不動 content_mode 的既有語意，
+    不代表這些文章「標籤結果是 skipped」，只是「這批不會再被標了」。
+    回傳這次標記的文章數量。
+    """
+    cur = conn.execute(
+        """UPDATE articles SET discarded_at = ?
+           WHERE content_mode IS NULL AND discarded_at IS NULL AND fetched_at < ?""",
+        (datetime.now().isoformat(), week_start),
+    )
+    conn.commit()
+    return cur.rowcount
+
+
+def get_ungraphed_articles(conn: sqlite3.Connection, week_start: str) -> list[sqlite3.Row]:
+    """回傳已標籤、還沒跑過知識圖譜三元組抽取的文章（graph_extracted_at IS
+    NULL）。只處理本週窗口內的文章，理由跟 get_untagged_articles() 一樣：
+    避免舊積壓文章佔掉當天的抽取額度（這一步也要打 LLM）。"""
+    return conn.execute(
+        """SELECT * FROM articles
+           WHERE content_mode IS NOT NULL AND graph_extracted_at IS NULL
+             AND discarded_at IS NULL AND fetched_at >= ?""",
+        (week_start,),
+    ).fetchall()
+
+
+def discard_stale_ungraphed_articles(conn: sqlite3.Connection, week_start: str) -> int:
+    """跟 discard_stale_untagged_articles() 對稱：本週以前還沒建圖的文章
+    標記捨棄，避免永遠卡在 get_ungraphed_articles() 的佇列裡佔額度。"""
+    cur = conn.execute(
+        """UPDATE articles SET discarded_at = ?
+           WHERE content_mode IS NOT NULL AND graph_extracted_at IS NULL
+             AND discarded_at IS NULL AND fetched_at < ?""",
+        (datetime.now().isoformat(), week_start),
+    )
+    conn.commit()
+    return cur.rowcount
+
+
+def mark_article_graphed(conn: sqlite3.Connection, article_id: int) -> None:
+    conn.execute(
+        "UPDATE articles SET graph_extracted_at = ? WHERE id = ?",
+        (datetime.now().isoformat(), article_id),
+    )
+    conn.commit()
 
 
 def save_article_tags(
@@ -182,14 +310,16 @@ def save_article_tags(
 
 def get_unscored_topics(conn: sqlite3.Connection) -> list[sqlite3.Row]:
     """回傳還沒做過 18 模組打分的話題（module_scores_json IS NULL）。
-    只挑「話題內所有文章都已標籤完」的話題，避免用不完整的資訊打分。
+    只挑「話題內所有文章都已標籤完或已捨棄」的話題，避免用不完整的資訊打
+    分；「已捨棄」的文章也算數，不然被捨棄的殘留文章會讓所屬話題永遠卡在
+    無法打分的狀態（見 discard_stale_untagged_articles()）。
     """
     return conn.execute(
         """SELECT t.* FROM topics t
            WHERE t.module_scores_json IS NULL
              AND NOT EXISTS (
                SELECT 1 FROM articles a
-               WHERE a.topic_id = t.id AND a.content_mode IS NULL
+               WHERE a.topic_id = t.id AND a.content_mode IS NULL AND a.discarded_at IS NULL
              )
              AND EXISTS (SELECT 1 FROM articles a WHERE a.topic_id = t.id)"""
     ).fetchall()
