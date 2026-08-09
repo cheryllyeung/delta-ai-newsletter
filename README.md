@@ -77,8 +77,6 @@ output/drafts/（靜態檔案，等人工審核後發送）
 - `render/` — `build_newsletter.py`：趨勢彙整版 HTML 渲染（Delta Pulse 改用網頁輸出，見 `scripts/serve_pulse.py`）
 - `prompts/` — Delta Pulse 的 4 支 prompt 模板（`scoring.md`／`generate.md`／`intro.md`／`self_check.md`）與共用風格規範（`style_guide.md`），跟程式碼分離
 - `templates/` — `newsletter.html.jinja`（電子報，單欄相容Outlook）、`briefing.html.jinja`（情報看板）、`pulse.html.jinja`＋`pulse_list.html.jinja`（Delta Pulse 網頁：單期詳細頁／期數列表）
-- `distribution/` — 發送與收件名單管理，待實作
-- `analytics/` — 開信率/點擊率追蹤，待實作
 - `data/` — Delta Pulse 的 SQLite 文章池（`pulse.db`），不進版控
 - `config/domains.yaml` — 事業群/領域分類與資料來源設定（趨勢彙整）
 - `config/pulse.yaml` — 選文配額、評分權重、趨勢參數、案例來源清單（Delta Pulse）
@@ -88,7 +86,7 @@ output/drafts/（靜態檔案，等人工審核後發送）
 - `scripts/compose_issue.py` — Delta Pulse：對文章池組成一期
 - `scripts/serve_pulse.py` — Delta Pulse：本機網頁（FastAPI）
 - `scripts/smoke_test_case_pipeline.py` — Delta Pulse 離線邏輯測試（真實RSS + 假LLM回應）
-- `docs/architecture.md` — 更細的規格文件（收錄標準、每個技術決策的完整理由）
+- `docs/0729/repo_architecture_2026-07-29.md` — 更細的規格文件（收錄標準、每個技術決策的完整理由）
 
 ## 怎麼跑起來
 
@@ -111,7 +109,7 @@ python -m scripts.run_pipeline
 - **情報看板（briefing）目前是手動彙整版本**，`scripts/render_this_week_briefing.py` 示範完整資料結構跟排版效果，等 Reddit 憑證跟新聞來源都補齊，就能讓看板也走自動化，取代這支手動腳本
 - **arXiv API 有官方限制**，3 秒才能打一次，抓多個領域時整體會需要一點時間，這是正常現象，已經內建節流處理
 
-這些缺口的優先順序、更完整的技術理由跟收錄標準，寫在 [`docs/architecture.md`](docs/architecture.md)。
+這些缺口的優先順序、更完整的技術理由跟收錄標準，寫在 [`docs/0729/repo_architecture_2026-07-29.md`](docs/0729/repo_architecture_2026-07-29.md)。
 
 ## 第二條 pipeline：Delta Pulse 台達脈動（案例式週報，pool 化架構 v2）
 
