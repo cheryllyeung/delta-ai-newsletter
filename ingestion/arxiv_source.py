@@ -62,25 +62,29 @@ def fetch_arxiv_items(
 
     items: list[RawItem] = []
     for entry in feed.entries:
-        published_at = datetime(*entry.published_parsed[:6], tzinfo=timezone.utc)
-        if published_at < cutoff:
-            continue
+        try:
+            published_at = datetime(*entry.published_parsed[:6], tzinfo=timezone.utc)
+            if published_at < cutoff:
+                continue
 
-        title = entry.title.replace("\n", " ").strip()
-        summary = entry.summary.replace("\n", " ").strip()
-        haystack = f"{title} {summary}".lower()
-        keyword_hits = sum(1 for k in keywords_lower if k in haystack)
+            title = entry.title.replace("\n", " ").strip()
+            summary = entry.summary.replace("\n", " ").strip()
+            haystack = f"{title} {summary}".lower()
+            keyword_hits = sum(1 for k in keywords_lower if k in haystack)
 
-        items.append(
-            RawItem(
-                title=title,
-                url=entry.link,
-                source="arxiv",
-                subdomain_id=subdomain_id,
-                published_at=published_at,
-                summary=summary,
-                score=float(keyword_hits),
-                extra={"arxiv_categories": categories},
+            items.append(
+                RawItem(
+                    title=title,
+                    url=entry.link,
+                    source="arxiv",
+                    subdomain_id=subdomain_id,
+                    published_at=published_at,
+                    summary=summary,
+                    score=float(keyword_hits),
+                    extra={"arxiv_categories": categories},
+                )
             )
-        )
+        except Exception as exc:  # noqa: BLE001 -- 單筆 entry 格式異常不該拖垮整批
+            print(f"[arxiv_source]   entry 解析失敗，跳過：{exc}")
+            continue
     return items

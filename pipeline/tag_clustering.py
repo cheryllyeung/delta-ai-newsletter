@@ -17,7 +17,7 @@ from __future__ import annotations
 from collections import Counter
 
 _MODEL_NAME = "paraphrase-multilingual-MiniLM-L12-v2"
-# 實測（見 docs/architecture.md 4.5節）：真正同義的中文詞組（"AI客服" vs
+# 實測：真正同義的中文詞組（"AI客服" vs
 # "智能客服機器人"）cosine similarity 約 0.6，不相關的詞約 0.25-0.36，
 # 門檻設在中間，沒有假設它會跟英文語料一樣普遍落在 0.75 以上。
 _SIMILARITY_THRESHOLD = 0.5
