@@ -292,7 +292,7 @@ def main() -> None:
         assert len(available) == len(to_score), "打分後可選話題數量對不上，是不是哪裡把話題弄丟了"
 
         selected = select_for_issue(conn, test_config)
-        selection_cfg = test_config["selection"]
+        selection_cfg = test_config["selection"]["weekly"]
         total_min, total_max = selection_cfg["total_topics"]
         assert len(selected) <= total_max
         type_counts = Counter(e["content_type"] for e in selected)

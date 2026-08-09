@@ -4,10 +4,12 @@
 打過18模組分數、還沒被選用過」的話題，不會自己去抓新資料。
 
 用法：
-    python -m scripts.compose_topic_issue
+    python -m scripts.compose_topic_issue                              # weekly，不限日期，issue_date=今天
+    python -m scripts.compose_topic_issue --date 2026-08-01 --cadence daily
 """
 from __future__ import annotations
 
+import argparse
 import random
 import sys
 from datetime import date
@@ -97,11 +99,27 @@ def generate_and_check(conn, selected: list[dict], config: dict) -> list[dict]:
     return results
 
 
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--date", default=date.today().isoformat(),
+        help="這期涵蓋的日期（ISO date）。--cadence daily 時同時當作 issue_date/period_start/period_end；"
+        "--cadence weekly 時只影響 issue_date，不限制候選池日期範圍。預設今天。",
+    )
+    parser.add_argument(
+        "--cadence", default="daily", choices=["daily", "weekly"],
+        help="出刊頻率，決定用 config/topics.yaml 的 selection.daily 還是 selection.weekly 配額。預設 daily。",
+    )
+    return parser.parse_args()
+
+
 def main() -> None:
+    args = parse_args()
     config = load_config()
     conn = get_connection(config["database"]["path"])
 
-    selected = select_for_issue(conn, config)
+    date_range = (args.date, args.date) if args.cadence == "daily" else None
+    selected = select_for_issue(conn, config, cadence=args.cadence, date_range=date_range)
     print(f"[compose_topic_issue] 入選話題：{len(selected)} 個")
     if not selected:
         print("[compose_topic_issue] 話題池裡沒有可用話題（或都已經被選用過），中止。")
@@ -112,7 +130,8 @@ def main() -> None:
         print("[compose_topic_issue] 入選話題全部生成失敗，沒有組成新的一期，中止。")
         return
 
-    issue_id = create_issue(conn, date.today().isoformat())
+    period_start, period_end = date_range if date_range else (None, None)
+    issue_id = create_issue(conn, args.date, period_start=period_start, period_end=period_end, cadence=args.cadence)
     for r in results:
         save_generated_topic(
             conn, issue_id, r["topic_id"], r["article"], r["source_article_ids"],

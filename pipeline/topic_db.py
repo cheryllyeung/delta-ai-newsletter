@@ -64,6 +64,8 @@ CREATE TABLE IF NOT EXISTS issues (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     issue_date TEXT NOT NULL,
     created_at TEXT NOT NULL
+    -- period_start/period_end/cadence：2026-08-09 改成支援日報後補的欄位，
+    -- 見下方 get_connection() 的 ALTER TABLE；舊的 7 期沒有回填，維持 NULL。
 );
 
 CREATE TABLE IF NOT EXISTS generated_topics (
@@ -101,6 +103,12 @@ def get_connection(db_path: str) -> sqlite3.Connection:
     for column_def in ("tier TEXT", "engagement_raw REAL", "engagement_source TEXT"):
         try:
             conn.execute(f"ALTER TABLE articles ADD COLUMN {column_def}")
+            conn.commit()
+        except sqlite3.OperationalError:
+            pass  # 舊資料庫檔案已經有這個欄位
+    for column_def in ("period_start TEXT", "period_end TEXT", "cadence TEXT"):
+        try:
+            conn.execute(f"ALTER TABLE issues ADD COLUMN {column_def}")
             conn.commit()
         except sqlite3.OperationalError:
             pass  # 舊資料庫檔案已經有這個欄位
@@ -308,21 +316,36 @@ def save_article_tags(
     conn.commit()
 
 
-def get_unscored_topics(conn: sqlite3.Connection) -> list[sqlite3.Row]:
+def get_unscored_topics(
+    conn: sqlite3.Connection, date_range: tuple[str, str] | None = None
+) -> list[sqlite3.Row]:
     """回傳還沒做過 18 模組打分的話題（module_scores_json IS NULL）。
     只挑「話題內所有文章都已標籤完或已捨棄」的話題，避免用不完整的資訊打
     分；「已捨棄」的文章也算數，不然被捨棄的殘留文章會讓所屬話題永遠卡在
     無法打分的狀態（見 discard_stale_untagged_articles()）。
+
+    date_range 是 (start, end) 的 ISO date 字串 tuple，有給就只回傳「底下
+    至少有一篇文章 published_at 落在這個範圍（含頭尾）」的話題，供日報回填
+    按天分批打分用（見 scripts/backfill_daily_issues.py）。故意不用
+    topics.first_seen_at（那是系統實際跑聚類/抓取的時間，抓取本身時常有
+    空窗，first_seen_at 對不上文章真正的發表日），要看的是新聞真正發生的
+    那天。不給 date_range 就是原本的全池行為。
     """
-    return conn.execute(
-        """SELECT t.* FROM topics t
+    query = """SELECT t.* FROM topics t
            WHERE t.module_scores_json IS NULL
              AND NOT EXISTS (
                SELECT 1 FROM articles a
                WHERE a.topic_id = t.id AND a.content_mode IS NULL AND a.discarded_at IS NULL
              )
              AND EXISTS (SELECT 1 FROM articles a WHERE a.topic_id = t.id)"""
-    ).fetchall()
+    params: tuple = ()
+    if date_range is not None:
+        query += """ AND EXISTS (
+               SELECT 1 FROM articles a
+               WHERE a.topic_id = t.id AND date(a.published_at) BETWEEN ? AND ?
+             )"""
+        params = date_range
+    return conn.execute(query, params).fetchall()
 
 
 def get_articles_for_topic(conn: sqlite3.Connection, topic_id: int) -> list[sqlite3.Row]:
@@ -341,11 +364,27 @@ def save_module_scores(
     conn.commit()
 
 
-def get_available_topics(conn: sqlite3.Connection) -> list[sqlite3.Row]:
-    """回傳已經打過分、還沒被任何一期選用過的話題。"""
-    return conn.execute(
-        "SELECT * FROM topics WHERE published_issue_id IS NULL AND module_scores_json IS NOT NULL"
-    ).fetchall()
+def get_available_topics(
+    conn: sqlite3.Connection, date_range: tuple[str, str] | None = None
+) -> list[sqlite3.Row]:
+    """回傳已經打過分、還沒被任何一期選用過的話題。
+
+    date_range 是 (start, end) 的 ISO date 字串 tuple，有給就只回傳「底下
+    至少有一篇文章 published_at 落在這個範圍（含頭尾）」的話題，供日報選題
+    把候選池限定在「這一天真正發生的新聞」（見
+    scripts/compose_topic_issue.py 的 --cadence daily；不用
+    topics.first_seen_at 的理由見 get_unscored_topics() 的說明）。不給就是
+    原本的全池行為（weekly 用）。
+    """
+    query = "SELECT * FROM topics WHERE published_issue_id IS NULL AND module_scores_json IS NOT NULL"
+    params: tuple = ()
+    if date_range is not None:
+        query += """ AND EXISTS (
+               SELECT 1 FROM articles a
+               WHERE a.topic_id = topics.id AND date(a.published_at) BETWEEN ? AND ?
+             )"""
+        params = date_range
+    return conn.execute(query, params).fetchall()
 
 
 def get_articles_by_ids(conn: sqlite3.Connection, article_ids: list[int]) -> list[sqlite3.Row]:
@@ -366,10 +405,17 @@ def get_all_scored_articles(conn: sqlite3.Connection) -> list[sqlite3.Row]:
     return conn.execute("SELECT * FROM articles WHERE content_mode IS NOT NULL").fetchall()
 
 
-def create_issue(conn: sqlite3.Connection, issue_date: str) -> int:
+def create_issue(
+    conn: sqlite3.Connection,
+    issue_date: str,
+    period_start: str | None = None,
+    period_end: str | None = None,
+    cadence: str = "weekly",
+) -> int:
     cur = conn.execute(
-        "INSERT INTO issues (issue_date, created_at) VALUES (?, ?)",
-        (issue_date, datetime.now().isoformat()),
+        """INSERT INTO issues (issue_date, created_at, period_start, period_end, cadence)
+           VALUES (?, ?, ?, ?, ?)""",
+        (issue_date, datetime.now().isoformat(), period_start, period_end, cadence),
     )
     conn.commit()
     return cur.lastrowid

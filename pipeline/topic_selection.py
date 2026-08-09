@@ -57,13 +57,21 @@ def _dominant_group(module_scores: dict, group_map: dict[str, str]) -> str:
     return group_map[top_module_id]
 
 
-def _build_scored_candidates(conn: sqlite3.Connection, config: dict) -> list[dict]:
+def _dominant_tier(articles: list[sqlite3.Row]) -> str:
+    """一個話題可能聚類到多篇文章，取出現次數最多的來源 tier 代表這個話題
+    （case/core/vertical/depth/signal，見 config/topics.yaml 的來源分級），
+    供 tier_cap 配額判斷用。"""
+    tiers = [a["tier"] or "case" for a in articles]
+    return Counter(tiers).most_common(1)[0][0]
+
+
+def _build_scored_candidates(conn: sqlite3.Connection, config: dict, date_range: tuple[str, str] | None) -> list[dict]:
     now = datetime.now(timezone.utc)
     half_life = config["hotness"]["half_life_days"]
     group_map = _module_group_map(config["modules"])
 
     scored = []
-    for row in get_available_topics(conn):
+    for row in get_available_topics(conn, date_range=date_range):
         articles = get_articles_for_topic(conn, row["id"])
         module_scores = json.loads(row["module_scores_json"])
         scored.append(
@@ -75,12 +83,18 @@ def _build_scored_candidates(conn: sqlite3.Connection, config: dict) -> list[dic
                 "content_type": row["content_type"],
                 "cross_module_total": cross_module_total(module_scores),
                 "dominant_group": _dominant_group(module_scores, group_map),
+                "dominant_tier": _dominant_tier(articles),
             }
         )
     return scored
 
 
-def select_for_issue(conn: sqlite3.Connection, config: dict) -> list[dict]:
+def select_for_issue(
+    conn: sqlite3.Connection,
+    config: dict,
+    cadence: str = "weekly",
+    date_range: tuple[str, str] | None = None,
+) -> list[dict]:
     """回傳入選話題清單，每個元素是
     {"row", "articles", "hotness", "module_scores", "content_type", "cross_module_total"}
 
@@ -89,22 +103,29 @@ def select_for_issue(conn: sqlite3.Connection, config: dict) -> list[dict]:
     人資⋯泛用職能，任何公司都適用）。domain 只有 8 個、functional 有 10
     個，若不分群直接照模組清單順序輪動，functional 會先把版位挑光，
     整期內容變得像通用生產力工具介紹，跟本業無關。這裡用
-    selection.module_group_quota 讓 domain 保底過半版位。
-    """
-    scored = _build_scored_candidates(conn, config)
+    selection.<cadence>.module_group_quota 讓 domain 保底過半版位。
 
-    selection_cfg = config["selection"]
+    cadence 選 config["selection"] 底下哪一組配額（"weekly" 或 "daily"，
+    見 config/topics.yaml）。date_range 有給時只從「底下至少一篇文章
+    published_at 落在這個範圍」的候選池選題（見 pipeline/topic_db.py 的
+    get_available_topics() 說明），供日報用；weekly 維持不傳、選整池。
+    """
+    scored = _build_scored_candidates(conn, config, date_range)
+
+    selection_cfg = config["selection"][cadence]
     total_min, total_max = selection_cfg["total_topics"]
     content_type_quota: dict[str, list[int]] = selection_cfg["content_type_quota"]
     module_group_quota: dict[str, list[int]] = selection_cfg["module_group_quota"]
     per_module_cap = selection_cfg["per_module_cap"]
     min_module_score = selection_cfg["min_module_score_to_select"]
+    tier_cap: dict[str, int] = selection_cfg.get("tier_cap", {})
     group_module_ids = {group: [m["id"] for m in config["modules"][group]] for group in ("domain", "functional")}
 
     selected: list[dict] = []
     selected_ids: set[int] = set()
     type_counts: Counter[str] = Counter()
     group_counts: Counter[str] = Counter()
+    tier_counts: Counter[str] = Counter()
 
     def quota_max(content_type: str) -> int:
         return content_type_quota.get(content_type, [0, total_max])[1]
@@ -112,11 +133,15 @@ def select_for_issue(conn: sqlite3.Connection, config: dict) -> list[dict]:
     def group_quota_max(group: str) -> int:
         return module_group_quota.get(group, [0, total_max])[1]
 
+    def tier_quota_max(tier: str) -> int:
+        return tier_cap.get(tier, total_max)
+
     def add(entry: dict) -> None:
         selected.append(entry)
         selected_ids.add(entry["row"]["id"])
         type_counts[entry["content_type"]] += 1
         group_counts[entry["dominant_group"]] += 1
+        tier_counts[entry["dominant_tier"]] += 1
 
     # 第一輪：模組輪動，domain 群先挑（保底過半），functional 群後補；
     # 各模組取目前最高分、還沒入選、分數夠格的話題
@@ -139,10 +164,12 @@ def select_for_issue(conn: sqlite3.Connection, config: dict) -> list[dict]:
                     break  # 排序過的候選清單，這個分數以下的更不用看
                 if type_counts[entry["content_type"]] >= quota_max(entry["content_type"]):
                     continue
+                if tier_counts[entry["dominant_tier"]] >= tier_quota_max(entry["dominant_tier"]):
+                    continue
                 add(entry)
                 picked_for_module += 1
 
-    # 第二輪：跨模組總分排序補滿版位，一樣尊重 content_type／module_group 配額上限
+    # 第二輪：跨模組總分排序補滿版位，一樣尊重 content_type／module_group／tier 配額上限
     if len(selected) < total_max:
         remaining = sorted(
             (e for e in scored if e["row"]["id"] not in selected_ids),
@@ -155,6 +182,8 @@ def select_for_issue(conn: sqlite3.Connection, config: dict) -> list[dict]:
             if type_counts[entry["content_type"]] >= quota_max(entry["content_type"]):
                 continue
             if group_counts[entry["dominant_group"]] >= group_quota_max(entry["dominant_group"]):
+                continue
+            if tier_counts[entry["dominant_tier"]] >= tier_quota_max(entry["dominant_tier"]):
                 continue
             add(entry)
 
