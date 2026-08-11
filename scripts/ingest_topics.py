@@ -17,11 +17,15 @@
 
 用法：
     python -m scripts.ingest_topics
+    python -m scripts.ingest_topics --limit 8   # 只跑 8 篇/8 個，小樣本驗品質用
 """
 from __future__ import annotations
 
+import argparse
 import os
 import sys
+import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from pathlib import Path
 
@@ -170,7 +174,105 @@ def _fetch_source_items(source: dict, fetch_cfg: dict) -> list[RawItem]:
     raise ValueError(f"未知的來源類型：{source_type}（來源：{source['name']}）")
 
 
+# 打標籤與打分的預設併發數。
+#
+# 這兩步的耗時幾乎都是在等 gateway 回應（本機 CPU 與網路都閒著），所以開
+# 併發等於把空等的時間拿來排下一個請求，不是叫伺服器做更多事。反過來說，
+# 步驟二的聚類跑的是本機 embedding、CPU 已經吃滿，併發對它無效，所以那一
+# 步刻意不動。
+#
+# 為什麼是 8 不是 16：2026-08-10 實測 8 條每篇 1.51 秒、16 條每篇 0.90 秒，
+# worker 翻倍只換到 1.68 倍加速，已經在逼近 gateway 的共用容量上限；而且
+# 那是短爆發測試，沒有測過連續數百次的持續負載會不會觸發速率限制。這是
+# 全公司共用的資源，從 8 開始比較有分寸，不夠快再往上調。
+_DEFAULT_CONCURRENCY = 8
+
+# 重試間隔（秒）。長度即重試次數，之後仍失敗就讓這一筆失敗——單筆失敗不
+# 影響整批，而且下次重跑會自動重試（沒寫進 DB 的就還在待處理清單裡）。
+_RETRY_BACKOFF_SECONDS = (2.0, 8.0)
+
+
+def _call_with_retry(work, label: str):
+    """在 worker 執行緒裡跑一次 LLM 呼叫，失敗就退避重試。
+
+    退避是為了速率限制：一被限流就立刻重打只會讓情況更糟，等一下再試才有
+    機會過。間隔用遞增而不是固定值，短暫抖動第一次就能過，真的被限流時後
+    面的等待才夠長。
+    """
+    attempts = len(_RETRY_BACKOFF_SECONDS) + 1
+    for attempt in range(attempts):
+        try:
+            return work()
+        except Exception as exc:  # noqa: BLE001 -- 這裡不分辨錯誤類型，見下方說明
+            # 刻意不只重試速率限制錯誤：gateway 包了一層之後回傳的錯誤型別
+            # 還沒有摸清楚，與其猜錯型別讓可重試的錯誤直接失敗，不如全部重
+            # 試兩次。代價是 JSON 解析錯誤這種必然重現的錯誤會多花兩次呼叫，
+            # 但那種錯誤本來就很少，成本可以接受。
+            if attempt == attempts - 1:
+                raise
+            delay = _RETRY_BACKOFF_SECONDS[attempt]
+            print(f"[ingest_topics]   {label} 失敗，{delay:.0f} 秒後重試：{exc}")
+            time.sleep(delay)
+
+
+def _run_llm_concurrently(rows, work, handle, describe, concurrency: int, label: str) -> tuple[int, int]:
+    """把 rows 併發送進 thread pool 做 LLM 呼叫，結果回到主執行緒才寫 DB。
+
+    work(row) 只做 LLM 呼叫、絕對不能碰 conn：sqlite3 的 connection 預設不
+    允許跨執行緒使用，而且併發寫入這裡也沒有好處——瓶頸是等 gateway 回應，
+    不是寫檔。handle(row, result) 由主執行緒逐一呼叫，負責寫入。
+
+    回傳 (成功數, 失敗數)。
+    """
+    if not rows:
+        return 0, 0
+
+    ok = failed = 0
+    total = len(rows)
+    with ThreadPoolExecutor(max_workers=concurrency) as pool:
+        futures = {
+            pool.submit(_call_with_retry, (lambda r=row: work(r)), describe(row)): row
+            for row in rows
+        }
+        for done, future in enumerate(as_completed(futures), start=1):
+            row = futures[future]
+            try:
+                handle(row, future.result())
+                ok += 1
+                status = "完成"
+            except Exception as exc:  # noqa: BLE001 -- 單筆失敗不中斷整批，下次重跑會重試
+                failed += 1
+                status = f"失敗（下次重跑會自動重試）：{exc}"
+            print(f"[ingest_topics]   [{done}/{total}] {label}{status}：{describe(row)}")
+    return ok, failed
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--concurrency",
+        type=int,
+        default=_DEFAULT_CONCURRENCY,
+        help=(
+            f"打標籤與打分同時發出的請求數（預設 {_DEFAULT_CONCURRENCY}）。"
+            "設 1 就是舊的序列行為。聚類那一步跑在本機不受這個參數影響。"
+        ),
+    )
+    parser.add_argument(
+        "--limit",
+        type=int,
+        default=None,
+        help=(
+            "只處理前 N 篇待標籤文章與前 N 個待打分話題（抓取與聚類不受影響，"
+            "那兩步不打 LLM）。換模型或換 endpoint 後先驗品質用，沒帶就是全跑。"
+            "剩下的沒被處理到的下次重跑會自動接著做。"
+        ),
+    )
+    return parser.parse_args()
+
+
 def main() -> None:
+    args = parse_args()
     config = load_config()
     conn = get_connection(config["database"]["path"])
     fetch_cfg = config["fetch"]
@@ -216,30 +318,34 @@ def main() -> None:
         print(f"[ingest_topics] 本週（{week_start}）以前還沒標籤的舊文章，已捨棄 {discarded_count} 篇。")
     to_tag = get_untagged_articles(conn, week_start)
     print(f"[ingest_topics] 待標籤文章：{len(to_tag)} 篇")
-    tagged_count = failed_tag_count = 0
-    for row in to_tag:
-        print(f"[ingest_topics]   標籤中：{row['title'][:60]} ...")
-        try:
-            item = _row_to_raw_item(row)
-            parsed = tag_article(item)
-            save_article_tags(
-                conn,
-                row["id"],
-                content_mode=parsed["content_mode"],
-                is_case_example=parsed["is_case_example"],
-                case_industry=parsed.get("case_industry"),
-                case_department=parsed.get("case_department"),
-                case_outcome=parsed.get("case_outcome"),
-                tech_tags=parsed["tech_tags"],
-                entity_tags=parsed["entity_tags"],
-                scenario_tags=parsed["scenario_tags"],
-                industry_tags=parsed["industry_tags"],
-                one_line_summary=parsed["one_line_summary"],
-            )
-            tagged_count += 1
-        except Exception as exc:  # noqa: BLE001 -- 單篇失敗不中斷整批，下次重跑會重試
-            failed_tag_count += 1
-            print(f"[ingest_topics]   標籤失敗，跳過（下次重跑會自動重試）：{exc}")
+    if args.limit is not None and len(to_tag) > args.limit:
+        print(f"[ingest_topics]   --limit {args.limit}：這次只標前 {args.limit} 篇，其餘留給下次重跑。")
+        to_tag = to_tag[: args.limit]
+
+    def _save_tags(row, parsed) -> None:
+        save_article_tags(
+            conn,
+            row["id"],
+            content_mode=parsed["content_mode"],
+            is_case_example=parsed["is_case_example"],
+            case_industry=parsed.get("case_industry"),
+            case_department=parsed.get("case_department"),
+            case_outcome=parsed.get("case_outcome"),
+            tech_tags=parsed["tech_tags"],
+            entity_tags=parsed["entity_tags"],
+            scenario_tags=parsed["scenario_tags"],
+            industry_tags=parsed["industry_tags"],
+            one_line_summary=parsed["one_line_summary"],
+        )
+
+    tagged_count, failed_tag_count = _run_llm_concurrently(
+        to_tag,
+        work=lambda row: tag_article(_row_to_raw_item(row)),
+        handle=_save_tags,
+        describe=lambda row: row["title"][:60],
+        concurrency=args.concurrency,
+        label="標籤",
+    )
     print(f"[ingest_topics] 標籤完成：成功 {tagged_count} 篇，失敗 {failed_tag_count} 篇。")
 
     # 步驟三之五：知識圖譜抽取（三元組 LLM 呼叫 + 實體解析 + 寫入 Neo4j）。
@@ -278,17 +384,22 @@ def main() -> None:
     # 步驟四：18 模組打分
     to_score = get_unscored_topics(conn)
     print(f"[ingest_topics] 待打分話題：{len(to_score)} 個")
-    scored_count = failed_score_count = 0
-    for topic_row in to_score:
-        print(f"[ingest_topics]   打分中：{topic_row['representative_title'][:60]} ...")
-        try:
-            articles = get_articles_for_topic(conn, topic_row["id"])
-            parsed = score_topic(topic_row, articles, config["modules"])
-            save_module_scores(conn, topic_row["id"], parsed["module_scores"], parsed["content_type"])
-            scored_count += 1
-        except Exception as exc:  # noqa: BLE001
-            failed_score_count += 1
-            print(f"[ingest_topics]   打分失敗，跳過（下次重跑會自動重試）：{exc}")
+    if args.limit is not None and len(to_score) > args.limit:
+        print(f"[ingest_topics]   --limit {args.limit}：這次只打前 {args.limit} 個，其餘留給下次重跑。")
+        to_score = to_score[: args.limit]
+    # 話題底下的文章要在主執行緒先讀好：worker 只做 LLM 呼叫，不碰 conn。
+    articles_by_topic = {row["id"]: get_articles_for_topic(conn, row["id"]) for row in to_score}
+
+    scored_count, failed_score_count = _run_llm_concurrently(
+        to_score,
+        work=lambda row: score_topic(row, articles_by_topic[row["id"]], config["modules"]),
+        handle=lambda row, parsed: save_module_scores(
+            conn, row["id"], parsed["module_scores"], parsed["content_type"]
+        ),
+        describe=lambda row: row["representative_title"][:60],
+        concurrency=args.concurrency,
+        label="打分",
+    )
     print(f"[ingest_topics] 打分完成：成功 {scored_count} 個，失敗 {failed_score_count} 個。")
 
 
