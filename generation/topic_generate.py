@@ -18,6 +18,22 @@ from pipeline.text_normalize import fix_stray_simplified_in
 
 _CONTENT_CHARS_PER_SOURCE = 1500
 
+# JSON 解析失敗時重新生成的次數。
+#
+# 2026-08-11 實測：48 次寫作呼叫有 5 次解析失敗，而且不是隨機的，是兩種
+# 固定的格式手滑：
+#   * 4 次是 headline_candidates 陣列忘記用 ] 收尾就接著寫 chosen_headline，
+#     全部斷在同一個位置（line 6 column 22）
+#   * 1 次是字串值漏掉左引號（"text": n8n 結合...）
+# 同一批呼叫裡 topic_self_check 43 次零失敗，它的 schema 簡單很多，所以問題
+# 出在這支的巢狀結構，不是模型不會輸出 JSON。
+#
+# 一次解析失敗原本會讓整個話題被跳過（compose_topic_issue 接住例外後
+# continue），連帶讓那一期少一篇——8/8 那期只出 1 篇、連配額下限 2 篇都
+# 沒守住，就是這樣來的。temperature 是 0.7，重擲一次得到合法 JSON 的機率
+# 很高，所以重試比放棄划算太多。
+_JSON_RETRIES = 2
+
 _CONTENT_TYPE_NAMES = {
     "insight": "洞見型",
     "practical": "實用型",
@@ -104,25 +120,33 @@ def generate_topic_article(
         opening_technique=opening_technique,
     )
 
-    response = create_chat_completion(
-        client,
-        model=get_writing_model(),
-        max_tokens=2500,
-        temperature=0.7,
-        messages=[
-            {"role": "system", "content": system},
-            {"role": "user", "content": user},
-        ],
-        **reasoning_effort_kwargs(),
-    )
-    raw_text = response.choices[0].message.content
-    try:
-        parsed = _parse_json_object(raw_text)
-    except json.JSONDecodeError:
-        # 解析失敗也要把原始回應存下來，不然沒辦法回頭比對到底是哪裡壞的。
-        log_call("topic_generate", system, user, raw_text, None)
-        raise
-    # 保險絲：LLM 偶爾會在繁體輸出裡夾雜簡體字，這裡逐字元修正掉。
-    parsed = fix_stray_simplified_in(parsed)
-    log_call("topic_generate", system, user, raw_text, parsed)
-    return parsed
+    for attempt in range(_JSON_RETRIES + 1):
+        response = create_chat_completion(
+            client,
+            model=get_writing_model(),
+            max_tokens=2500,
+            temperature=0.7,
+            messages=[
+                {"role": "system", "content": system},
+                {"role": "user", "content": user},
+            ],
+            **reasoning_effort_kwargs(),
+        )
+        raw_text = response.choices[0].message.content
+        try:
+            parsed = _parse_json_object(raw_text)
+        except json.JSONDecodeError as exc:
+            # 解析失敗也要把原始回應存下來，不然沒辦法回頭比對到底是哪裡壞的。
+            # 每一次重擲都各留一筆，之後才能量失敗率有沒有真的下降。
+            log_call("topic_generate", system, user, raw_text, None)
+            if attempt == _JSON_RETRIES:
+                raise
+            print(
+                f"[topic_generate]   JSON 解析失敗（{exc}），重新生成"
+                f"（第 {attempt + 1}/{_JSON_RETRIES} 次）..."
+            )
+            continue
+        # 保險絲：LLM 偶爾會在繁體輸出裡夾雜簡體字，這裡逐字元修正掉。
+        parsed = fix_stray_simplified_in(parsed)
+        log_call("topic_generate", system, user, raw_text, parsed)
+        return parsed

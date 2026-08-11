@@ -104,5 +104,11 @@ card_summary 一律要填：給摘要頁卡片用的兩行文案（60字內）�
 }
 只輸出 JSON，paragraphs 陣列裡每個字串是一段散文（可以只有一句話），
 不要在字串內用 markdown 語法。
+
+輸出格式特別注意（這兩點實測最常出錯）：
+1. headline_candidates 是一個**只有三個字串**的陣列，寫完第三個標題就要用
+   `]` 收尾，然後才接 "chosen_headline"。chosen_headline 是獨立的欄位，
+   不是陣列裡的第四個元素。
+2. 每個字串值的前後都要有雙引號，開頭那個引號很容易漏掉。
 {{revision_note}}
 </user>
