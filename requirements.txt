@@ -12,3 +12,4 @@ sentence-transformers>=3.0.0
 qdrant-client>=1.18.0
 neo4j>=5.24.0
 numpy>=1.26.0
+opencc>=1.1.6
