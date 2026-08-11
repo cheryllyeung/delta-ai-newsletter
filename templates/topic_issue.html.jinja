@@ -54,6 +54,10 @@
 
   .masthead { background: var(--color-accent); color: var(--color-accent-ink); padding: 3rem var(--page-gutter) 2.5rem; }
   .masthead-inner { max-width: var(--shell); margin: 0 auto; position: relative; }
+  /* 跟 topic_detail.html.jinja 的 .back-link 同一組樣式：那頁能回本期導讀，
+     這頁要能回所有期數的列表，否則點進某一期之後就出不去了。 */
+  .back-link { display: inline-flex; align-items: center; gap: 0.4em; font-family: var(--font-label); font-size: 0.75rem; letter-spacing: 0.04em; color: var(--color-accent-ink); opacity: 0.85; margin-bottom: 1rem; }
+  .back-link:hover { opacity: 1; }
   .masthead .eyebrow { font-family: var(--font-label); font-size: 0.75rem; letter-spacing: 0.1em; margin: 0 0 0.6rem; }
   .masthead h1 { margin: 0 9rem 0 0; font-size: clamp(1.9rem, 3.6vw + 1rem, 3rem); overflow-wrap: anywhere; }
   .masthead-meta { margin-top: 1rem; font-family: var(--font-label); font-size: 0.8rem; letter-spacing: 0.04em; display: flex; gap: 1.2rem; flex-wrap: wrap; opacity: 0.9; }
@@ -153,6 +157,7 @@
         <button class="lang-option" role="menuitemradio" aria-checked="false" data-lang="en">English</button>
       </div>
     </div>
+    <a class="back-link" href="/" data-i18n="backLink">← 回所有期數</a>
     <p class="eyebrow">DELTA AI TREND WEEKLY</p>
     <h1>{{ newsletter_name }}</h1>
     <div class="masthead-meta">
@@ -211,9 +216,9 @@
 
 <script>
 const I18N = {
-  "zh-Hant": { lede: "本期導讀，點進標題看單篇全文。", readMore: "閱讀全文", feedbackBtn: "意見回饋", feedbackTitle: "下一期想看什麼？", feedbackDesc: "我們會精選更多不同產業的 AI 案例與議題，也歡迎跟我們分享更多你想看到的內容。", feedbackPlaceholder: "例如：多一點能源產業案例，或想看 OpenAI 最新動態⋯⋯", feedbackSubmit: "送出", feedbackCancel: "取消", feedbackThanks: "收到了，謝謝你的想法！" },
-  "zh-Hans": { lede: "本期导读，点进标题看单篇全文。", readMore: "阅读全文", feedbackBtn: "意见反馈", feedbackTitle: "下一期想看什么？", feedbackDesc: "我们会精选更多不同产业的 AI 案例与议题，也欢迎跟我们分享更多你想看到的内容。", feedbackPlaceholder: "例如：多一点能源产业案例，或想看 OpenAI 最新动态⋯⋯", feedbackSubmit: "送出", feedbackCancel: "取消", feedbackThanks: "收到了，谢谢你的想法！" },
-  "en": { lede: "This issue's index — click a headline to read the full piece.", readMore: "Read full article", feedbackBtn: "Feedback", feedbackTitle: "What do you want to see next issue?", feedbackDesc: "We'll keep curating AI cases and topics across more industries, and we'd love to hear what else you want to see.", feedbackPlaceholder: "e.g. more energy-sector cases, or the latest from OpenAI...", feedbackSubmit: "Send", feedbackCancel: "Cancel", feedbackThanks: "Got it, thanks for the input!" }
+  "zh-Hant": { backLink: "← 回所有期數", lede: "本期導讀，點進標題看單篇全文。", readMore: "閱讀全文", feedbackBtn: "意見回饋", feedbackTitle: "下一期想看什麼？", feedbackDesc: "我們會精選更多不同產業的 AI 案例與議題，也歡迎跟我們分享更多你想看到的內容。", feedbackPlaceholder: "例如：多一點能源產業案例，或想看 OpenAI 最新動態⋯⋯", feedbackSubmit: "送出", feedbackCancel: "取消", feedbackThanks: "收到了，謝謝你的想法！" },
+  "zh-Hans": { backLink: "← 回所有期数", lede: "本期导读，点进标题看单篇全文。", readMore: "阅读全文", feedbackBtn: "意见反馈", feedbackTitle: "下一期想看什么？", feedbackDesc: "我们会精选更多不同产业的 AI 案例与议题，也欢迎跟我们分享更多你想看到的内容。", feedbackPlaceholder: "例如：多一点能源产业案例，或想看 OpenAI 最新动态⋯⋯", feedbackSubmit: "送出", feedbackCancel: "取消", feedbackThanks: "收到了，谢谢你的想法！" },
+  "en": { backLink: "← All issues", lede: "This issue's index — click a headline to read the full piece.", readMore: "Read full article", feedbackBtn: "Feedback", feedbackTitle: "What do you want to see next issue?", feedbackDesc: "We'll keep curating AI cases and topics across more industries, and we'd love to hear what else you want to see.", feedbackPlaceholder: "e.g. more energy-sector cases, or the latest from OpenAI...", feedbackSubmit: "Send", feedbackCancel: "Cancel", feedbackThanks: "Got it, thanks for the input!" }
 };
 const LANG_LABEL = { "zh-Hant": "繁體中文", "zh-Hans": "简体中文", "en": "English" };
 let currentLang = 'zh-Hant';
@@ -227,6 +232,7 @@ function applyLang(lang) {
 
   const t = I18N[lang];
   document.getElementById('lede-text').textContent = t.lede;
+  document.querySelectorAll('[data-i18n="backLink"]').forEach(el => { el.textContent = t.backLink; });
   document.querySelectorAll('[data-i18n="readMore"]').forEach(el => { el.textContent = t.readMore; });
   document.getElementById('feedback-fab-label').textContent = t.feedbackBtn;
   document.getElementById('feedback-title').textContent = t.feedbackTitle;

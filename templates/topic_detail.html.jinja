@@ -87,7 +87,14 @@ Carnival 藍設計系統。內容是從原本整期塞成一頁的手風琴版�
   .delta-insight p { margin: 0 0 0.7rem; line-height: 1.7; }
   .delta-insight p:last-child { margin-bottom: 0; }
 
-  .source-row { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 1.5rem 0 3rem; }
+  /* 來源按鈕原本只顯示平台名稱（例如「GITHUB (TRENDING AI/MCP REPOS)」），
+     但連結指向的是那個平台上被抓到的那一篇文章，點下去會跳到某個具體的
+     repo，跟按鈕上的字對不起來。改成平台名稱當小標、文章標題當主體，
+     讀者點之前就知道會去哪裡。標題比平台名稱長很多，所以改成直排。 */
+  .source-row { display: flex; flex-direction: column; gap: 0.6rem; margin: 1.5rem 0 3rem; align-items: flex-start; }
+  .source-link { flex-direction: column; align-items: flex-start; gap: 0.25em; max-width: 100%; text-align: left; }
+  .source-link__name { font-size: 0.64rem; letter-spacing: 0.08em; opacity: 0.75; }
+  .source-link__title { font-family: var(--font-body); font-size: 0.82rem; letter-spacing: 0; line-height: 1.35; overflow-wrap: anywhere; }
   .btn { display: inline-flex; align-items: center; gap: 0.4em; font-family: var(--font-label); font-size: 0.72rem; letter-spacing: 0.04em; text-decoration: none; color: var(--color-accent-ink); background: var(--color-accent); padding: 0.5em 0.9em; border: 2px solid var(--color-ink); box-shadow: 3px 3px 0 var(--color-ink); transition: transform 120ms ease-out, box-shadow 120ms ease-out; }
   .btn:hover { transform: translate(-1px, -1px); box-shadow: 4px 4px 0 var(--color-ink); }
   .btn:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 var(--color-ink); }
@@ -202,7 +209,7 @@ Carnival 藍設計系統。內容是從原本整期塞成一頁的手風琴版�
   </div>
 
   <div class="source-row">
-    {% for src in topic.sources %}<a class="btn" href="{{ src.url }}" target="_blank" rel="noopener noreferrer">{{ src.source_name | upper }} ↗</a>{% endfor %}
+    {% for src in topic.sources %}<a class="btn source-link" href="{{ src.url }}" target="_blank" rel="noopener noreferrer"><span class="source-link__name">{{ src.source_name | upper }} ↗</span><span class="source-link__title">{{ src.title }}</span></a>{% endfor %}
   </div>
 </div>
 
