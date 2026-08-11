@@ -36,7 +36,13 @@ def fetch_stackexchange_items(
     for tag in tags:
         params = {
             "order": "desc",
-            "sort": "activity",
+            # 一定要用 creation 不能用 activity：下面的 cutoff 比的是
+            # creation_date，sort=activity 排的卻是「最後有人回答/編輯的時間」，
+            # 兩個欄位不一致的話 API 會忠實回傳「幾年前發問、最近有人推文」的
+            # 老問題，再被 cutoff 全部砍光，整個來源穩定回傳 0 筆卻不報錯。
+            # 2026-08-10 實測：sort=activity 時 artificial-intelligence 這個 tag
+            # 回傳 15 筆的最新「建立」時間是 2026-01-04（七個月前），全滅。
+            "sort": "creation",
             "tagged": tag,
             "site": site,
             "pagesize": max_items,
