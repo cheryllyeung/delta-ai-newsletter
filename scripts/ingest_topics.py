@@ -259,6 +259,17 @@ def parse_args() -> argparse.Namespace:
         ),
     )
     parser.add_argument(
+        "--build-graph",
+        action="store_true",
+        help=(
+            "順便建知識圖譜。預設不做，因為建圖每篇要跑三元組抽取加實體比對，"
+            "比其他步驟慢一個量級，積壓幾百篇時會讓整支跑好幾小時，而每日排程"
+            "只需要到打分為止就能出刊。圖譜目前也還沒有消費者（config 裡的 PPR "
+            "檢索是關的）。要補圖用 scripts/backfill_graph_extraction.py 另外跑，"
+            "那支有併發、比較快。"
+        ),
+    )
+    parser.add_argument(
         "--limit",
         type=int,
         default=None,
@@ -348,12 +359,15 @@ def main() -> None:
     )
     print(f"[ingest_topics] 標籤完成：成功 {tagged_count} 篇，失敗 {failed_tag_count} 篇。")
 
-    # 步驟三之五：知識圖譜抽取（三元組 LLM 呼叫 + 實體解析 + 寫入 Neo4j）。
+    # 知識圖譜的連線準備（實際建圖在步驟五，打分之後）。連線先建起來是為了
+    # 讓「Neo4j 連不上」這件事在打分之前就印出來，不要跑完二十分鐘才發現。
     # NEO4J_URI 沒設就跳過整段，不讓其他步驟中斷（跟 REDDIT_* 沒填時的
     # 降級行為一致）。
     neo4j_uri = os.environ.get("NEO4J_URI")
     driver = resolver = None
-    if not neo4j_uri:
+    if not args.build_graph:
+        print("[ingest_topics] 未指定 --build-graph，跳過知識圖譜抽取步驟。")
+    elif not neo4j_uri:
         print("[ingest_topics] NEO4J_URI 未設定，跳過知識圖譜抽取步驟。")
     else:
         # 連線本身也要能降級。原本只處理「NEO4J_URI 沒設」，但「有設卻連不上」
@@ -369,27 +383,6 @@ def main() -> None:
         except Exception as exc:  # noqa: BLE001 -- 連不上就跳過整段，不中斷其他步驟
             print(f"[ingest_topics] Neo4j 連不上，跳過知識圖譜抽取步驟：{exc}")
             driver = None
-
-    if driver is not None:
-        discarded_graph_count = discard_stale_ungraphed_articles(conn, week_start)
-        if discarded_graph_count:
-            print(f"[ingest_topics] 本週以前還沒建圖的舊文章，已捨棄 {discarded_graph_count} 篇。")
-        to_graph = get_ungraphed_articles(conn, week_start)
-        print(f"[ingest_topics] 待建圖文章：{len(to_graph)} 篇")
-
-        graphed_count = failed_graph_count = 0
-        for row in to_graph:
-            print(f"[ingest_topics]   建圖中：{row['title'][:60]} ...")
-            try:
-                item = _row_to_raw_item(row)
-                parsed = extract_triples(item)
-                graph_builder.add_article_to_graph(driver, resolver, row, parsed["triples"])
-                mark_article_graphed(conn, row["id"])
-                graphed_count += 1
-            except Exception as exc:  # noqa: BLE001 -- 單篇失敗不中斷整批，下次重跑會重試
-                failed_graph_count += 1
-                print(f"[ingest_topics]   建圖失敗，跳過（下次重跑會自動重試）：{exc}")
-        print(f"[ingest_topics] 建圖完成：成功 {graphed_count} 篇，失敗 {failed_graph_count} 篇。")
 
     # 步驟四：18 模組打分
     to_score = get_unscored_topics(conn)
@@ -411,6 +404,34 @@ def main() -> None:
         label="打分",
     )
     print(f"[ingest_topics] 打分完成：成功 {scored_count} 個，失敗 {failed_score_count} 個。")
+
+    # 步驟五：知識圖譜抽取。刻意排在打分之後，不是之前。
+    #
+    # 原本排在打分前面（當成步驟三之五），2026-08-13 實測踩到問題：建圖每篇要
+    # 跑三元組抽取加實體比對，慢很多，319 篇積壓時打分完全輪不到，日報就出不
+    # 來。建圖目前還沒有任何消費者（Phase 2 的 PPR 檢索是關閉的），不該擋住
+    # 日報必要的步驟。順序調成打分先做完，建圖當最後的加值，中途被中斷也只是
+    # 少建幾篇的圖，下次重跑會自動接續。
+    if driver is not None:
+        discarded_graph_count = discard_stale_ungraphed_articles(conn, week_start)
+        if discarded_graph_count:
+            print(f"[ingest_topics] 本週以前還沒建圖的舊文章，已捨棄 {discarded_graph_count} 篇。")
+        to_graph = get_ungraphed_articles(conn, week_start)
+        print(f"[ingest_topics] 待建圖文章：{len(to_graph)} 篇")
+
+        graphed_count = failed_graph_count = 0
+        for row in to_graph:
+            print(f"[ingest_topics]   建圖中：{row['title'][:60]} ...")
+            try:
+                item = _row_to_raw_item(row)
+                parsed = extract_triples(item)
+                graph_builder.add_article_to_graph(driver, resolver, row, parsed["triples"])
+                mark_article_graphed(conn, row["id"])
+                graphed_count += 1
+            except Exception as exc:  # noqa: BLE001 -- 單篇失敗不中斷整批，下次重跑會重試
+                failed_graph_count += 1
+                print(f"[ingest_topics]   建圖失敗，跳過（下次重跑會自動重試）：{exc}")
+        print(f"[ingest_topics] 建圖完成：成功 {graphed_count} 篇，失敗 {failed_graph_count} 篇。")
 
 
 if __name__ == "__main__":
