@@ -9,7 +9,7 @@
 拆成「導讀頁 + 單篇頁」比較像正式電子報的目錄／內文結構。
 -->
 <!DOCTYPE html>
-<html lang="zh-Hant" data-lang="zh-Hant">
+<html lang="{{ lang | default('zh-Hant') }}" data-lang="{{ lang | default('zh-Hant') }}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -175,7 +175,8 @@
   {% for topic in topics %}
   <a class="topic-card" href="/issues/{{ issue_id }}/topics/{{ topic.id }}">
     <div class="chip-row">
-      {% if topic.needs_review %}<span class="chip chip--review">待人工確認</span>{% endif %}
+      {# needs_review 只留在資料庫供內部追蹤，不顯示在頁面上：這頁同時是讀者
+         看的版面，掛「待人工確認」的標籤會讓內容看起來像半成品。 #}
       {% if topic.top_module_name %}<span class="chip {{ 'chip--domain' if topic.top_module_is_domain else '' }}">{{ topic.top_module_name }}</span>{% endif %}
       {% if topic.primary_tag %}<span class="chip">{{ topic.primary_tag }}</span>{% endif %}
     </div>
@@ -193,7 +194,7 @@
 {% endif %}
 
 <footer class="foot">
-  <div class="foot-inner"><p>{{ newsletter_name }}．內容由 AI 依公開來源改寫產出，經事實查核與風格審查關卡後發布，非原文轉載；標示「待人工確認」的話題代表自動審查信心度未達門檻，內容仍待人工複核。僅供台達內部參考。</p></div>
+  <div class="foot-inner"><p>{{ newsletter_name }}．僅供台達內部參考。</p></div>
 </footer>
 
 <button class="feedback-fab" id="feedback-fab" type="button">
@@ -242,7 +243,7 @@ function applyLang(lang) {
   document.getElementById('feedback-submit-label').textContent = t.feedbackSubmit;
   document.getElementById('feedback-thanks').textContent = t.feedbackThanks;
 }
-applyLang('zh-Hant');
+applyLang({{ lang | default('zh-Hant') | tojson }});
 
 const langBtn = document.getElementById('lang-btn');
 const langMenu = document.getElementById('lang-menu');
@@ -254,7 +255,11 @@ document.addEventListener('click', (e) => {
   if (!e.target.closest('.lang-switcher')) { langMenu.classList.remove('is-open'); langBtn.setAttribute('aria-expanded', 'false'); }
 });
 langMenu.querySelectorAll('.lang-option').forEach(opt => {
-  opt.addEventListener('click', () => { applyLang(opt.dataset.lang); langMenu.classList.remove('is-open'); });
+  opt.addEventListener('click', () => {
+    const url = new URL(window.location.href);
+    url.searchParams.set('lang', opt.dataset.lang);
+    window.location.href = url.toString();
+  });
 });
 
 /* feedback FAB: client-side only demo, storage is per-browser, not shared across readers */

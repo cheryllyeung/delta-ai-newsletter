@@ -112,6 +112,13 @@ def get_connection(db_path: str) -> sqlite3.Connection:
             conn.commit()
         except sqlite3.OperationalError:
             pass  # 舊資料庫檔案已經有這個欄位
+    # 英文版內文的快取，格式是 {"en": {...翻好的整篇 JSON...}}。簡體版不存，
+    # 因為那是 opencc 的純字串轉換、即時做就好（見 pipeline/translate.py）。
+    try:
+        conn.execute("ALTER TABLE generated_topics ADD COLUMN translations_json TEXT")
+        conn.commit()
+    except sqlite3.OperationalError:
+        pass  # 舊資料庫檔案已經有這個欄位
     return conn
 
 

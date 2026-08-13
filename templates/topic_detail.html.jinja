@@ -5,11 +5,12 @@
 Carnival 藍設計系統。內容是從原本整期塞成一頁的手風琴版型拆出來的單篇版，
 拆頁理由見 topic_issue.html.jinja 開頭註解。
 
-語言切換器只做介面文字：文章本文目前只有繁體中文，切到簡中／英文只換介面
-用詞，本文維持原文並顯示一行提示。
+語言切換器會連內文一起換（2026-08-13 起）：選單帶著 ?lang= 重新載入，簡中
+在伺服器端用 opencc 做詞彙級轉換、英文打 LLM 翻譯後存進資料庫快取，兩件事
+都不適合放在瀏覽器裡做，所以不是純前端切換。
 -->
 <!DOCTYPE html>
-<html lang="zh-Hant" data-lang="zh-Hant">
+<html lang="{{ lang | default('zh-Hant') }}" data-lang="{{ lang | default('zh-Hant') }}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -171,7 +172,7 @@ Carnival 藍設計系統。內容是從原本整期塞成一頁的手風琴版�
     <a class="back-link" href="/issues/{{ issue_id }}" data-i18n="backLink">← 回本期導讀</a>
     <p class="eyebrow">{{ newsletter_name }} · 第 {{ issue_id }} 期</p>
     <div class="chip-row">
-      {% if topic.needs_review %}<span class="chip">待人工確認・信心度 {{ '%.2f' | format(topic.confidence) }}</span>{% endif %}
+      {# 同 topic_issue.html.jinja：needs_review 不顯示在讀者頁面上。 #}
       {% if topic.top_module_name %}<span class="chip {{ 'chip--domain' if topic.top_module_is_domain else '' }}">{{ topic.top_module_name }}</span>{% endif %}
       {% if topic.primary_tag %}<span class="chip">{{ topic.primary_tag }}</span>{% endif %}
     </div>
@@ -214,7 +215,7 @@ Carnival 藍設計系統。內容是從原本整期塞成一頁的手風琴版�
 </div>
 
 <footer class="foot">
-  <div class="foot-inner"><p>內容由 AI 依公開來源改寫產出，經事實查核與風格審查關卡後發布，非原文轉載。僅供台達內部參考。</p></div>
+  <div class="foot-inner"><p>僅供台達內部參考。</p></div>
 </footer>
 
 <button class="feedback-fab" id="feedback-fab" type="button">
@@ -238,8 +239,8 @@ Carnival 藍設計系統。內容是從原本整期塞成一頁的手風琴版�
 <script>
 const I18N = {
   "zh-Hant": { backLink: "← 回本期導讀", langNote: "", feedbackBtn: "意見回饋", feedbackTitle: "下一期想看什麼？", feedbackDesc: "我們會精選更多不同產業的 AI 案例與議題，也歡迎跟我們分享更多你想看到的內容。", feedbackPlaceholder: "例如：多一點能源產業案例，或想看 OpenAI 最新動態⋯⋯", feedbackSubmit: "送出", feedbackCancel: "取消", feedbackThanks: "收到了，謝謝你的想法！" },
-  "zh-Hans": { backLink: "← 回本期导读", langNote: "文章内文目前仅提供繁体中文版本。", feedbackBtn: "意见反馈", feedbackTitle: "下一期想看什么？", feedbackDesc: "我们会精选更多不同产业的 AI 案例与议题，也欢迎跟我们分享更多你想看到的内容。", feedbackPlaceholder: "例如：多一点能源产业案例，或想看 OpenAI 最新动态⋯⋯", feedbackSubmit: "送出", feedbackCancel: "取消", feedbackThanks: "收到了，谢谢你的想法！" },
-  "en": { backLink: "← Back to this issue", langNote: "Article body copy is currently available in Traditional Chinese only.", feedbackBtn: "Feedback", feedbackTitle: "What do you want to see next issue?", feedbackDesc: "We'll keep curating AI cases and topics across more industries, and we'd love to hear what else you want to see.", feedbackPlaceholder: "e.g. more energy-sector cases, or the latest from OpenAI...", feedbackSubmit: "Send", feedbackCancel: "Cancel", feedbackThanks: "Got it, thanks for the input!" }
+  "zh-Hans": { backLink: "← 回本期导读", langNote: "", feedbackBtn: "意见反馈", feedbackTitle: "下一期想看什么？", feedbackDesc: "我们会精选更多不同产业的 AI 案例与议题，也欢迎跟我们分享更多你想看到的内容。", feedbackPlaceholder: "例如：多一点能源产业案例，或想看 OpenAI 最新动态⋯⋯", feedbackSubmit: "送出", feedbackCancel: "取消", feedbackThanks: "收到了，谢谢你的想法！" },
+  "en": { backLink: "← Back to this issue", langNote: "", feedbackBtn: "Feedback", feedbackTitle: "What do you want to see next issue?", feedbackDesc: "We'll keep curating AI cases and topics across more industries, and we'd love to hear what else you want to see.", feedbackPlaceholder: "e.g. more energy-sector cases, or the latest from OpenAI...", feedbackSubmit: "Send", feedbackCancel: "Cancel", feedbackThanks: "Got it, thanks for the input!" }
 };
 const LANG_LABEL = { "zh-Hant": "繁體中文", "zh-Hans": "简体中文", "en": "English" };
 let currentLang = 'zh-Hant';
@@ -262,7 +263,7 @@ function applyLang(lang) {
   document.getElementById('feedback-submit-label').textContent = t.feedbackSubmit;
   document.getElementById('feedback-thanks').textContent = t.feedbackThanks;
 }
-applyLang('zh-Hant');
+applyLang({{ lang | default('zh-Hant') | tojson }});
 
 const langBtn = document.getElementById('lang-btn');
 const langMenu = document.getElementById('lang-menu');
@@ -274,7 +275,13 @@ document.addEventListener('click', (e) => {
   if (!e.target.closest('.lang-switcher')) { langMenu.classList.remove('is-open'); langBtn.setAttribute('aria-expanded', 'false'); }
 });
 langMenu.querySelectorAll('.lang-option').forEach(opt => {
-  opt.addEventListener('click', () => { applyLang(opt.dataset.lang); langMenu.classList.remove('is-open'); });
+  // 切語言要重新跟伺服器要一次：簡體是 opencc 詞彙級轉換、英文要打 LLM 翻譯，
+  // 兩件事都在後端做，前端只負責帶著 ?lang= 重新載入。
+  opt.addEventListener('click', () => {
+    const url = new URL(window.location.href);
+    url.searchParams.set('lang', opt.dataset.lang);
+    window.location.href = url.toString();
+  });
 });
 
 /* feedback FAB: client-side only demo, storage is per-browser, not shared across readers */
