@@ -72,6 +72,35 @@ def translate_to_english(article: dict, client=None) -> dict:
     return parsed
 
 
+def pretranslate_issue(conn: sqlite3.Connection, issue_id: int) -> tuple[int, int]:
+    """出刊後先把整期的英文版翻好存起來，讓讀者點開就是秒開。
+
+    不做的話第一個點英文版的人要等一分鐘（實測 65 秒／篇）。排程在中午跑，
+    多花的兩三分鐘不影響任何人。翻不出來就跳過，之後有人點開時會再試一次，
+    絕對不能讓翻譯失敗影響到已經出好的這一期。
+
+    回傳 (成功數, 失敗數)。
+    """
+    rows = conn.execute(
+        "SELECT id, generated_json FROM generated_topics WHERE issue_id = ?", (issue_id,)
+    ).fetchall()
+    ok = failed = 0
+    for row in rows:
+        article = json.loads(row["generated_json"])
+        before = conn.execute(
+            "SELECT translations_json FROM generated_topics WHERE id = ?", (row["id"],)
+        ).fetchone()["translations_json"]
+        get_article_in(conn, row["id"], article, "en")
+        after = conn.execute(
+            "SELECT translations_json FROM generated_topics WHERE id = ?", (row["id"],)
+        ).fetchone()["translations_json"]
+        if after and after != before:
+            ok += 1
+        else:
+            failed += 1
+    return ok, failed
+
+
 def get_article_in(
     conn: sqlite3.Connection, generated_id: int, article: dict, lang: str
 ) -> dict:

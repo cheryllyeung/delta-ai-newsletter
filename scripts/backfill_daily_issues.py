@@ -35,6 +35,7 @@ from pipeline.topic_db import (
     save_module_scores,
 )
 from pipeline.topic_selection import select_for_issue
+from pipeline.translate import pretranslate_issue
 from scripts.compose_topic_issue import generate_and_check, load_config
 
 DEFAULT_START = "2026-08-01"
@@ -91,6 +92,9 @@ def compose_day(conn, config: dict, day: str) -> dict | None:
             r["confidence"], r["needs_review"],
         )
     mark_topics_published(conn, [r["topic_id"] for r in results], issue_id)
+
+    ok, failed = pretranslate_issue(conn, issue_id)
+    print(f"[backfill_daily_issues]   英文版預先翻譯：成功 {ok} 篇，失敗 {failed} 篇")
 
     return {
         "day": day,

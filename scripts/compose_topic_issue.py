@@ -30,6 +30,7 @@ from pipeline.topic_db import (
     save_generated_topic,
 )
 from pipeline.topic_selection import select_for_issue
+from pipeline.translate import pretranslate_issue
 from review.topic_selfcheck import self_check
 
 CONFIG_PATH = Path(__file__).resolve().parent.parent / "config" / "topics.yaml"
@@ -142,6 +143,9 @@ def main() -> None:
             r["confidence"], r["needs_review"],
         )
     mark_topics_published(conn, [r["topic_id"] for r in results], issue_id)
+
+    ok, failed = pretranslate_issue(conn, issue_id)
+    print(f"[compose_topic_issue] 英文版預先翻譯：成功 {ok} 篇，失敗 {failed} 篇。")
 
     pending = sum(1 for r in results if r["needs_review"])
     print(f"[compose_topic_issue] 第 {issue_id} 期已組成，{pending} 個待人工確認。")
