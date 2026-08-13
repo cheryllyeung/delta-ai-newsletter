@@ -42,8 +42,12 @@ def load_config() -> dict:
 
 def generate_and_check(conn, selected: list[dict], config: dict) -> list[dict]:
     newsletter_name = config["newsletter"]["name"]
-    confidence_threshold = config["quality"]["confidence_threshold"]
-    max_retries = config["quality"]["max_regeneration_retries"]
+    quality_cfg = config["quality"]
+    # 重寫門檻與人工複審門檻是兩個獨立的值，理由見 config/topics.yaml。
+    # 舊設定只有 confidence_threshold 一個值，這裡保留回退相容。
+    regenerate_below = quality_cfg.get("regenerate_below", quality_cfg.get("confidence_threshold", 0.6))
+    needs_review_below = quality_cfg.get("needs_review_below", quality_cfg.get("confidence_threshold", 0.8))
+    max_retries = quality_cfg["max_regeneration_retries"]
 
     # 開頭手法洗牌後輪流指派給每個入選話題，同一期裡儘量不重複（見
     # generation/topic_generate.py 的 OPENING_TECHNIQUES 說明）。
@@ -68,13 +72,13 @@ def generate_and_check(conn, selected: list[dict], config: dict) -> list[dict]:
             check_result = None
             for attempt in range(max_retries + 1):
                 check_result = self_check(article, source_rows)
-                if check_result["confidence"] >= confidence_threshold:
+                if check_result["confidence"] >= regenerate_below:
                     break
                 revision_instructions = check_result.get("revision_instructions", "")
                 if attempt < max_retries:
                     print(
                         f"[compose_topic_issue]   自檢信心度 {check_result['confidence']:.2f} "
-                        f"< {confidence_threshold}，回灌重新生成（第 {attempt + 1} 次重試）"
+                        f"< {regenerate_below}，回灌重新生成（第 {attempt + 1} 次重試）"
                     )
                     article = generate_topic_article(
                         newsletter_name, topic_row["representative_title"], content_type, source_rows,
@@ -85,7 +89,7 @@ def generate_and_check(conn, selected: list[dict], config: dict) -> list[dict]:
             print(f"[compose_topic_issue]   這篇生成失敗，跳過（下次重跑會重新入選）：{exc}")
             continue
 
-        needs_review = check_result["confidence"] < confidence_threshold
+        needs_review = check_result["confidence"] < needs_review_below
         results.append(
             {
                 "topic_id": topic_row["id"],

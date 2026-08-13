@@ -28,6 +28,14 @@ def compute_hotness(article_rows: list[sqlite3.Row], as_of: datetime, half_life_
     """熱門度 = 報導家數（不重複來源數）× 平均來源權重 × 時間衰減。
     時間衰減用半衰期：距離話題最後一次有新文章加入的天數每過一個半衰期，
     熱度打對折。
+
+    這個值原本算完就沒被任何地方用到（2026-08-13 發現），現在當補位輪與保底
+    輪的次要排序鍵——主鍵仍是 cross_module_total，只在總分相同時才看熱度。
+
+    刻意不給它更大的權重：實測 191 個話題裡有 184 個底下只有一篇文章，
+    「報導家數」幾乎恆等於 1，此時熱度退化成「來源權重 × 時間衰減」，鑑別力
+    很低。等聚類真的把同事件的多家報導併起來（來源變多之後才會常發生），
+    這個訊號才會開始有意義，屆時可以再考慮提高它的份量。
     """
     if not article_rows:
         return 0.0
@@ -173,7 +181,7 @@ def select_for_issue(
     if len(selected) < total_max:
         remaining = sorted(
             (e for e in scored if e["row"]["id"] not in selected_ids),
-            key=lambda e: e["cross_module_total"],
+            key=lambda e: (e["cross_module_total"], e["hotness"]),
             reverse=True,
         )
         for entry in remaining:
@@ -191,7 +199,7 @@ def select_for_issue(
     if len(selected) < total_min:
         remaining = sorted(
             (e for e in scored if e["row"]["id"] not in selected_ids),
-            key=lambda e: e["cross_module_total"],
+            key=lambda e: (e["cross_module_total"], e["hotness"]),
             reverse=True,
         )
         for entry in remaining:
