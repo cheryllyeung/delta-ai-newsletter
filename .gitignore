@@ -10,3 +10,7 @@ runs/
 review/pending/
 data/
 *.egg-info/
+
+# 另一個獨立專案（自帶 .git）被 clone 在這個目錄底下，不屬於本專案。
+# 不排除的話 git status 會一直吵，誤 add 進去還會變成壞掉的 submodule。
+open-kritt/

@@ -352,20 +352,30 @@ def main() -> None:
     # NEO4J_URI 沒設就跳過整段，不讓其他步驟中斷（跟 REDDIT_* 沒填時的
     # 降級行為一致）。
     neo4j_uri = os.environ.get("NEO4J_URI")
+    driver = resolver = None
     if not neo4j_uri:
         print("[ingest_topics] NEO4J_URI 未設定，跳過知識圖譜抽取步驟。")
     else:
+        # 連線本身也要能降級。原本只處理「NEO4J_URI 沒設」，但「有設卻連不上」
+        # 會讓 get_driver/ensure_constraints 直接拋例外、整支程式當掉，連後面
+        # 的打分都不會跑到。Neo4j 是手動開的背景行程，重開機就沒了，排程跑
+        # 的時候這等於當天日報整個不會產出——建圖只是加值，不該有這種權力。
+        try:
+            driver = graph_store.get_driver(
+                neo4j_uri, os.environ.get("NEO4J_USER", "neo4j"), os.environ.get("NEO4J_PASSWORD", "")
+            )
+            graph_store.ensure_constraints(driver)
+            resolver = EntityResolver(graph_store.get_all_canonical_entity_names(driver))
+        except Exception as exc:  # noqa: BLE001 -- 連不上就跳過整段，不中斷其他步驟
+            print(f"[ingest_topics] Neo4j 連不上，跳過知識圖譜抽取步驟：{exc}")
+            driver = None
+
+    if driver is not None:
         discarded_graph_count = discard_stale_ungraphed_articles(conn, week_start)
         if discarded_graph_count:
             print(f"[ingest_topics] 本週以前還沒建圖的舊文章，已捨棄 {discarded_graph_count} 篇。")
         to_graph = get_ungraphed_articles(conn, week_start)
         print(f"[ingest_topics] 待建圖文章：{len(to_graph)} 篇")
-
-        driver = graph_store.get_driver(
-            neo4j_uri, os.environ.get("NEO4J_USER", "neo4j"), os.environ.get("NEO4J_PASSWORD", "")
-        )
-        graph_store.ensure_constraints(driver)
-        resolver = EntityResolver(graph_store.get_all_canonical_entity_names(driver))
 
         graphed_count = failed_graph_count = 0
         for row in to_graph:
