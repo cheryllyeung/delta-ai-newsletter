@@ -6,7 +6,10 @@ top-20 最相似的文章，因為即使話題本身只有 1 篇來源文章（�
 pipeline/topic_clustering.py 的說明），這一步仍然可以從全池撈到其他
 主題相關的文章補充脈絡，不會讓寫作素材只剩孤零零一篇。
 
-第二段：reranker 對這 top-20 重排，取 top-5 當作最終寫作素材。
+第二段：reranker 對這 top-20 重排，取分數夠高的前幾篇當最終寫作素材。
+篇數上限是 reranker.rerank_top_k，但**不會湊滿**：低於 min_relevance 的候選
+一律不給寫作看到，寧可只給一篇也不要摻進不相干的素材（見 pipeline/
+reranker.py 的說明）。
 """
 from __future__ import annotations
 
@@ -47,5 +50,10 @@ def retrieve_sources_for_topic(
     ordered_candidates = [rows_by_id[cid] for cid in candidate_ids if cid in rows_by_id]
 
     doc_texts = [f"{row['title']}\n{row['content'][:2000]}" for row in ordered_candidates]
-    top_indices = reranker.rerank(query_text, doc_texts, top_k=reranker_cfg["rerank_top_k"])
+    top_indices = reranker.rerank(
+        query_text,
+        doc_texts,
+        top_k=reranker_cfg["rerank_top_k"],
+        min_score=reranker_cfg.get("min_relevance", 0.0),
+    )
     return [ordered_candidates[i] for i in top_indices]
