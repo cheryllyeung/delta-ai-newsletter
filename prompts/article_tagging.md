@@ -16,6 +16,25 @@
 
 請完成以下標註：
 
+0. is_ai_related：這篇文章的主題跟 AI 有沒有實質關係。
+
+   來源清單裡有 TechCrunch、Hacker News、Slashdot、DIGITIMES 這類綜合性
+   科技媒體，它們本來就會夾帶大量跟 AI 無關的內容（一般財報、消費電子、
+   太空、生技、純政治新聞），這一項就是要把那些挑出來。
+
+   判 true 的條件：AI／機器學習／大型語言模型是這篇的主題或主要推力之一。
+   包含用 AI 做事、AI 產品發布、AI 相關的法規與爭議、支撐 AI 的算力與電力
+   基礎建設。
+
+   判 false 的情況：只在文章某處順帶提到 AI 一次、公司剛好是 AI 業者但這
+   篇講的是別的事（例如單純的營收數字、人事異動、上市計畫）、整篇跟 AI
+   沒有關係。
+
+   拿不定主意時判 false。判錯成 true 的代價是一篇不相干的文章進到候選池
+   最後可能上刊；判錯成 false 只是少一篇候選，池子裡還有很多。
+
+   ai_relevance_reason：一句話說明你為什麼這樣判（30 字內）。
+
 1. content_mode：這篇文章的內容視角。
    - "watch"：AI 談論讀者的領域（法規、趨勢、產業動態），讀者是旁觀者
    - "use"：AI 幫讀者做他的工作（做法、案例、工具評測），讀者可以照著參考
@@ -41,6 +60,8 @@
 
 輸出 JSON schema：
 {
+  "is_ai_related": bool,
+  "ai_relevance_reason": str,
   "content_mode": "watch" | "use" | "mixed",
   "is_case_example": bool,
   "case_industry": str | null,

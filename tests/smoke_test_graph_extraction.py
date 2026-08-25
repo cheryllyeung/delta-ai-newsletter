@@ -1,6 +1,6 @@
 """知識圖譜抽取煙霧測試：驗證真實文章 → mock 三元組 LLM 呼叫 → 真實
 EntityResolver → 真實 Neo4j 寫入，節點/邊確實落地，不判斷抽取內容好壞
-（跟 scripts/smoke_test_topic_pipeline.py 同一種哲學：輸入端用真實抓取，
+（跟 tests/smoke_test_topic_pipeline.py 同一種哲學：輸入端用真實抓取，
 只 mock 會花錢的 LLM 呼叫）。
 
 因為 Article 節點的 id 直接沿用 SQLite 整數 id（見 pipeline/graph_store.py
@@ -11,7 +11,7 @@ neo4j-test（bolt://localhost:7688），絕不連正式開發用的 7687。
 
 用法（先啟動獨立的測試用 Neo4j）：
     docker compose --profile test up -d neo4j-test
-    python -m scripts.smoke_test_graph_extraction
+    python -m tests.smoke_test_graph_extraction
 """
 from __future__ import annotations
 

@@ -1,6 +1,6 @@
 """話題式週報：抓取候選來源、聚類成話題、標籤與打分（第三條 pipeline）。
 
-跟 scripts/ingest_pool.py 是平行模組，同樣可重複執行：同網址已在池裡的
+跟 legacy/scripts/ingest_pool.py 是平行模組，同樣可重複執行：同網址已在池裡的
 文章不會重複插入；聚類、標籤、打分都只處理「還沒做過那一步」的資料，
 上次意外中斷（例如 LLM_API_KEY 沒打通）這次重跑會自動接著做，不用手動
 清理。
@@ -25,6 +25,7 @@ import argparse
 import os
 import sys
 import time
+from collections import Counter
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from pathlib import Path
@@ -35,6 +36,13 @@ from dotenv import load_dotenv
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 load_dotenv()
 
+# Windows 主控台預設 cp950，文章標題帶 \xa0 這類字元時 print 會直接拋
+# UnicodeEncodeError，讓整批 LLM 呼叫在進度列印這種小事上中斷（2026-08-17
+# 重標全池時真的發生過，135/222 處斷掉）。印不出來的字元換成 ? 就好，
+# 不值得為它死。
+if sys.stdout and hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(errors="replace")
+
 from ingestion.arxiv_source import fetch_arxiv_items
 from ingestion.base import RawItem
 from ingestion.case_source import fetch_case_study_items
@@ -42,7 +50,7 @@ from ingestion.github_source import fetch_github_items
 from ingestion.hn_source import fetch_hn_items
 from ingestion.reddit_source import fetch_reddit_items
 from ingestion.stackexchange_source import fetch_stackexchange_items
-from pipeline import graph_builder, graph_store
+from pipeline import gates, graph_builder, graph_store
 from pipeline.article_tagging import tag_article
 from pipeline.entity_resolution import EntityResolver
 from pipeline.module_scoring import score_topic
@@ -57,6 +65,7 @@ from pipeline.topic_db import (
     get_unscored_topics,
     insert_article_if_new,
     mark_article_graphed,
+    save_article_gate,
     save_article_tags,
     save_module_scores,
     week_start_date,
@@ -265,7 +274,7 @@ def parse_args() -> argparse.Namespace:
             "順便建知識圖譜。預設不做，因為建圖每篇要跑三元組抽取加實體比對，"
             "比其他步驟慢一個量級，積壓幾百篇時會讓整支跑好幾小時，而每日排程"
             "只需要到打分為止就能出刊。圖譜目前也還沒有消費者（config 裡的 PPR "
-            "檢索是關的）。要補圖用 scripts/backfill_graph_extraction.py 另外跑，"
+            "檢索是關的）。要補圖用 tools/backfill_graph_extraction.py 另外跑，"
             "那支有併發、比較快。"
         ),
     )
@@ -288,8 +297,15 @@ def main() -> None:
     conn = get_connection(config["database"]["path"])
     fetch_cfg = config["fetch"]
 
-    # 步驟一：抓取
+    # 步驟一：抓取，順便跑 Gate 1a（確定性判定，不花 LLM 額度）
+    #
+    # 判定緊接在入池後面做，是因為後面每一步都比它貴：聚類吃本機 CPU、
+    # 標籤跟打分每篇要打一次 gateway。池裡有 43% 是只有標題的 RSS 殘缺
+    # 內容（DIGITIMES、Hacker News、InsideEVs 三個來源是 100%），先在這裡
+    # 降級成 signal_only，省下來的是每天實際要等的時間。
     inserted_count = 0
+    gate_counts: Counter[str] = Counter()
+    gate_by_source: dict[str, Counter] = {}
     for source in config["sources"]:
         print(f"[ingest_topics] 抓取來源：{source['name']} ...")
         try:
@@ -302,9 +318,30 @@ def main() -> None:
             engagement_metric = _ENGAGEMENT_METRIC_BY_SOURCE.get(item.source)
             if engagement_metric:
                 item.extra.setdefault("engagement_metric", engagement_metric)
-            if insert_article_if_new(conn, item) is not None:
-                inserted_count += 1
+            article_id = insert_article_if_new(conn, item)
+            if article_id is None:
+                continue
+            inserted_count += 1
+            gate = gates.check_article_intake(
+                content=item.summary, published_at=item.published_at, config=config
+            )
+            save_article_gate(conn, article_id, gate)
+            gate_counts[gate.status] += 1
+            gate_by_source.setdefault(source["name"], Counter())[gate.status] += 1
     print(f"[ingest_topics] 本次新增 {inserted_count} 篇文章進入文章池（尚未聚類）。")
+    if inserted_count:
+        print(
+            f"[ingest_topics]   收錄判定：可寫作 {gate_counts['included']} 篇，"
+            f"只當熱度訊號 {gate_counts['signal_only']} 篇，排除 {gate_counts['excluded']} 篇。"
+        )
+        for source_name, counts in sorted(gate_by_source.items(), key=lambda kv: -sum(kv[1].values())):
+            if counts["included"] == 0 and sum(counts.values()) > 0:
+                # 一個來源整批都不能當寫作素材，值得每次都講一次：多半代表
+                # 那個來源的 RSS 只給標題（付費牆或設計如此），不是程式壞了。
+                print(
+                    f"[ingest_topics]     注意：{source_name} 這次 {sum(counts.values())} 篇"
+                    f"全部沒有可用內文，只能當熱度訊號。"
+                )
 
     # 步驟二：話題聚類（本機 embedding + Qdrant，不需要 LLM_API_KEY）
     print("[ingest_topics] 話題聚類中（本機 embedding，第一次執行會下載模型權重）...")
@@ -315,10 +352,12 @@ def main() -> None:
         qdrant_path=vector_cfg["path"],
         collection=vector_cfg["collection"],
         similarity_threshold=embed_cfg["cluster_similarity_threshold"],
+        title_only_threshold=embed_cfg.get("cluster_similarity_threshold_title_only"),
     )
     print(
         f"[ingest_topics] 聚類完成：處理 {cluster_stats['processed']} 篇，"
-        f"新開話題 {cluster_stats['new_topics']} 個，併入既有話題 {cluster_stats['merged']} 篇。"
+        f"新開話題 {cluster_stats['new_topics']} 個，併入既有話題 {cluster_stats['merged']} 篇，"
+        f"話題間合併 {cluster_stats['topics_merged']} 次。"
     )
 
     # 步驟三：標籤抽取（只處理本週窗口內的文章，窗口外的舊積壓先標記捨棄，
@@ -334,6 +373,12 @@ def main() -> None:
         to_tag = to_tag[: args.limit]
 
     def _save_tags(row, parsed) -> None:
+        # Gate 1b：標籤跑完才判斷得出來的部分（目前只有「跟 AI 有沒有關係」）。
+        # 標籤照樣存下來，不因為判定不過就不存：那些標籤是回頭檢討這條門檻
+        # 準不準的依據，丟掉就沒得對照了。
+        gate = gates.check_article_tagged(parsed, config)
+        if not gate.passed:
+            save_article_gate(conn, row["id"], gate)
         save_article_tags(
             conn,
             row["id"],

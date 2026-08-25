@@ -1,0 +1,95 @@
+{#
+  Neo4j Browser 的自訂指南（guide）。Neo4j 連上之後會自動打開這一頁，
+  裡面 class="runnable" 的程式碼區塊在 Browser 裡是點一下就執行的按鈕，
+  不用手動打 Cypher。
+
+  設定在 conf/neo4j.conf 的 browser.post_connect_cmd，由 scripts/serve_topics.py
+  的 /neo4j-guide 路由提供。Neo4j 預設不信任外部網址，所以還要把這個主機
+  加進 browser.remote_content_hostname_whitelist。
+#}
+<article class="guide">
+  <carousel class="deck container-fluid">
+
+    <slide class="row-fluid">
+      <div class="col-sm-12">
+        <h3>台達 AI 電子報：知識圖譜</h3>
+        <p class="lead">下面每個查詢都可以直接點，不用打字。</p>
+        <p>目前圖裡的內容是從已抓取的文章抽出來的實體與關係。實體只有五類：
+          組織、產品、技術、人物、地區。</p>
+        <p>先看整體規模：</p>
+        <pre class="pre-scrollable code runnable">
+MATCH (n)
+RETURN labels(n)[0] AS 類型, count(*) AS 數量
+ORDER BY 數量 DESC</pre>
+      </div>
+    </slide>
+
+    <slide class="row-fluid">
+      <div class="col-sm-12">
+        <h3>核心結構</h3>
+        <p>整張圖有 66% 的實體只出現過一次，全畫出來會看不懂。
+          這個查詢只留連結數三條以上的實體，看得出重心在哪。</p>
+        <pre class="pre-scrollable code runnable">
+MATCH (a:Entity)-[r:RELATED]->(b:Entity)
+WITH a, b, r, COUNT{(a)--()} AS da, COUNT{(b)--()} AS db
+WHERE da >= 3 AND db >= 3
+RETURN a, r, b
+LIMIT 200</pre>
+      </div>
+    </slide>
+
+    <slide class="row-fluid">
+      <div class="col-sm-12">
+        <h3>誰是重心</h3>
+        <p>連結最多的實體，通常是這批文章裡反覆出現的公司或平台。</p>
+        <pre class="pre-scrollable code runnable">
+MATCH (e:Entity)-[r]-()
+RETURN e.canonical_name AS 實體, e.entity_type AS 類型, count(r) AS 連結數
+ORDER BY 連結數 DESC
+LIMIT 25</pre>
+      </div>
+    </slide>
+
+    <slide class="row-fluid">
+      <div class="col-sm-12">
+        <h3>查某個實體的周邊</h3>
+        <p>看某家公司連到哪些技術、產品、其他公司。想換對象就改第一行的名字。</p>
+        <pre class="pre-scrollable code runnable">
+MATCH p = (e:Entity {canonical_name: 'Google Cloud'})-[*1..2]-()
+RETURN p
+LIMIT 100</pre>
+        <p>不確定名字怎麼寫的話，先用關鍵字找：</p>
+        <pre class="pre-scrollable code runnable">
+MATCH (e:Entity)
+WHERE toLower(e.canonical_name) CONTAINS 'nvidia'
+RETURN e.canonical_name, e.entity_type, e.aliases</pre>
+      </div>
+    </slide>
+
+    <slide class="row-fluid">
+      <div class="col-sm-12">
+        <h3>這條關係是哪篇文章講的</h3>
+        <p>每條關係都記著來源文章的 id，可以回頭查證，不是憑空生出來的。</p>
+        <pre class="pre-scrollable code runnable">
+MATCH (a:Entity)-[r:RELATED]->(b:Entity)
+MATCH (art:Article {id: r.article_id})
+RETURN a.canonical_name AS 主體, r.relation AS 關係, b.canonical_name AS 客體,
+       art.title AS 出處文章
+LIMIT 30</pre>
+      </div>
+    </slide>
+
+    <slide class="row-fluid">
+      <div class="col-sm-12">
+        <h3>台達本業相關</h3>
+        <p>找跟能源、電力、半導體、製造有關的實體。</p>
+        <pre class="pre-scrollable code runnable">
+MATCH (e:Entity)-[r:RELATED]-(other:Entity)
+WHERE toLower(e.canonical_name) =~ '.*(energy|power|grid|semiconductor|battery|solar|delta).*'
+RETURN e, r, other
+LIMIT 150</pre>
+      </div>
+    </slide>
+
+  </carousel>
+</article>

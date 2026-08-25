@@ -42,6 +42,18 @@ def upsert_article(
     )
 
 
+def set_topic_for_articles(
+    client: QdrantClient, collection: str, article_ids: list[int], topic_id: int
+) -> None:
+    """話題合併後，把被搬動文章的 payload.topic_id 同步成新話題。不同步的話，
+    之後的新文章搜到這些向量會拿到已刪除的舊 topic_id，往一個不存在的話題裡塞。"""
+    if not article_ids:
+        return
+    client.set_payload(
+        collection_name=collection, payload={"topic_id": topic_id}, points=article_ids
+    )
+
+
 def search_similar(
     client: QdrantClient,
     collection: str,

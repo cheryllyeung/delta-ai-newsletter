@@ -6,11 +6,25 @@ __pycache__/
 .venv/
 venv/
 output/drafts/
+exports/
 runs/
 review/pending/
 data/
 *.egg-info/
 
+# 產出物，不進版控：來源是同目錄的 .md，用 python -m tools.export_pdf 重產就好。
+# 一份報告改幾版就會多幾個 PDF，版控裡塞了二十幾個之後，docs/ 看起來像檔案櫃
+# 而不是文件。
+docs/**/*.pdf
+
+# 知識圖譜的靜態頁，用 python -m tools.export_graph_html 從 Neo4j 重產。
+docs/knowledge_graph.html
+
+# 簡報也是產出物，用 python -m tools.make_presentation 重產。
+*.pptx
+
 # 另一個獨立專案（自帶 .git）被 clone 在這個目錄底下，不屬於本專案。
 # 不排除的話 git status 會一直吵，誤 add 進去還會變成壞掉的 submodule。
+# 建議直接搬到這個資料夾外面，留在這裡只會讓人以為它是專案的一部分。
 open-kritt/
+runs_*.log

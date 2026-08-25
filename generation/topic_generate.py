@@ -1,6 +1,6 @@
-"""階段四：把入選話題（含 reranker 檢索出的 top-5 素材）生成成文章 JSON。
+"""階段四：把入選話題連同它自己的來源文章生成成文章 JSON。
 
-跟 generation/case_generate.py 是平行模組（那支服務 Delta Pulse 案例式
+跟 legacy/generation/case_generate.py 是平行模組（那支服務 Delta Pulse 案例式
 週報），JSON 解析容錯寫法沿用同一套慣例。
 """
 from __future__ import annotations
@@ -93,11 +93,15 @@ def generate_topic_article(
     client: openai.OpenAI | None = None,
     opening_technique: str | None = None,
 ) -> dict:
-    """依入選話題與 reranker 檢索出的來源文章清單生成文章。
+    """依入選話題與它的來源文章清單生成文章。
 
-    source_rows 是 pipeline.topic_db 的 articles 列，經
-    pipeline.retrieval.retrieve_sources_for_topic() 撈出的 top-5，順序即為
-    reranker 排序（相關度由高到低）。
+    source_rows 是 pipeline.topic_db 的 articles 列，由
+    pipeline.retrieval.retrieve_sources_for_topic() 提供，內容是這個話題自己
+    聚類到、而且通過 Gate 1（有實質內文）的文章。
+
+    第一篇是主軸事件，prompt 會要求整篇圍繞它寫、主標必須是這件事。順序有
+    意義，不要在呼叫端重排（見 pipeline/retrieval.py 說明為什麼素材不再從
+    全池撈）。
     """
     client = client or get_client()
     opening_technique = opening_technique or random.choice(OPENING_TECHNIQUES)

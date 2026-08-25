@@ -11,8 +11,8 @@
 不判斷內容品質。
 
 用法：
-    python -m scripts.test_clawith_staged
-    python -m scripts.test_clawith_staged --compare-groq   # 額外跑一次 Groq 對照（會耗用 Groq 額度，Jeff 建議 4，optional）
+    python -m tests.test_clawith_staged
+    python -m tests.test_clawith_staged --compare-groq   # 額外跑一次 Groq 對照（會耗用 Groq 額度，Jeff 建議 4，optional）
 """
 from __future__ import annotations
 

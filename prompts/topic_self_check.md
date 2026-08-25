@@ -43,6 +43,18 @@
 4. tone_check：0-5 分，這篇讀起來像真人寫的嗎？模板腔、
    重複句式、每段等長這類 AI 痕跡要扣分。
 
+5. coherence_check：這篇是不是在講同一件事。讀者反映過「標題跟內容對不上，
+   像硬把幾個來源湊成一篇」，這一項就是在抓那個問題。三個子項各自判斷：
+   - headline_matches_body：chosen_headline 講的事，是不是文章主體真正在
+     談的那件事。標題講 A、內文大半在談 B，就算 A 跟 B 都出現在文章裡，
+     也是 false。
+   - single_subject：整篇是不是圍繞一個主軸事件。如果讀起來是兩三件各自
+     獨立的事被並列在一起、只靠一句過渡話串接，是 false。
+   - unrelated_sources：來源全文裡有沒有跟主軸事件無關、卻被寫進文章的
+     素材。列出那些來源的標題關鍵詞（沒有就空陣列）。
+   這一項判 false 不要客氣。這三個子項是硬性條件，不是扣分項，判 false
+   的文章會直接被退回重寫，不會因為其他項目分數高就放行。
+
 輸出時每個欄位只寫檢查結論，不要寫檢查過程。不要出現「等等」「我再看
 一次」「檢查發現」這類邊想邊寫的字句，也不要在字串裡重複貼一大段原文
 再自我推翻，直接給結論就好。每個 "evidence" 或 "location" 欄位限一句話
@@ -57,6 +69,12 @@
   "style_violations": [{"rule": str, "location": str}],
   "sensitivity_flags": [str],
   "tone_score": float,
+  "coherence_check": {
+    "headline_matches_body": bool,
+    "single_subject": bool,
+    "unrelated_sources": [str],
+    "note": str
+  },
   "revision_instructions": str
 }
 </user>

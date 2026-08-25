@@ -11,7 +11,7 @@ class RawItem:
     title: str
     url: str
     source: str  # e.g. "arxiv" / "reddit"
-    subdomain_id: str  # config/domains.yaml 中的 subdomain id，或 "general"
+    subdomain_id: str  # legacy/config/domains.yaml 中的 subdomain id，或 "general"
     published_at: datetime
     summary: str = ""  # arXiv abstract / reddit selftext 或 top comment 摘要
     score: float = 0.0  # 熱門程度分數（reddit upvotes、或 arxiv 新鮮度權重），用於排序

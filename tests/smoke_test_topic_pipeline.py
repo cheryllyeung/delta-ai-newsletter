@@ -2,7 +2,7 @@
 18模組選題配額、reranker真實檢索、自檢重試迴圈、發布後不重選、網頁能讀出
 資料，這些邏輯沒有壞掉。
 
-跟 scripts/smoke_test_case_pipeline.py 同樣的手法：輸入端一律用真實 RSS
+跟 tests/smoke_test_case_pipeline.py 同樣的手法：輸入端一律用真實 RSS
 抓取，只 mock 會花錢的 LLM 呼叫（標籤抽取、18模組打分、寫作、自檢）。
 不一樣的地方：embedding（Qwen3-Embedding-0.6B）、Qdrant 聚類、reranker
 （bge-reranker-v2-m3）這三塊完全不 mock，因為它們跑在本機、不花錢、不需要
@@ -14,7 +14,7 @@ data/topics.db、data/qdrant。第一次執行需要下載 embedding/reranker �
 權重（合計約 2-3GB），之後有快取就快了。
 
 用法：
-    python -m scripts.smoke_test_topic_pipeline
+    python -m tests.smoke_test_topic_pipeline
 """
 from __future__ import annotations
 
@@ -36,6 +36,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 load_dotenv()
 
 from generation.topic_generate import generate_topic_article
+from pipeline import gates
 from pipeline.article_tagging import tag_article
 from pipeline.module_scoring import score_topic
 from pipeline.retrieval import retrieve_sources_for_topic
@@ -49,6 +50,7 @@ from pipeline.topic_db import (
     get_unscored_topics,
     insert_article_if_new,
     mark_topics_published,
+    save_article_gate,
     save_article_tags,
     save_generated_topic,
     save_module_scores,
@@ -56,7 +58,7 @@ from pipeline.topic_db import (
 )
 from pipeline.topic_selection import select_for_issue
 from review.topic_selfcheck import self_check
-from ingestion.case_source import fetch_case_study_items
+from scripts.ingest_topics import _fetch_source_items
 from ingestion.base import RawItem
 from datetime import datetime
 
@@ -219,21 +221,39 @@ def main() -> None:
     conn = get_connection(str(TEST_DB_PATH))
 
     print("[smoke_test] 抓取真實候選文章（連網，不用API key）...")
+    # 直接用正式流程的來源分派函式，不要在這裡自己寫一份。
+    # 這支以前寫死「每個來源都是 RSS、都有 url 欄位」，config 後來加了
+    # arXiv／HN／Reddit／GitHub／StackExchange 之後就一路 KeyError: 'url'，
+    # 但沒人發現，因為測試沒有跑在任何自動流程裡。
     candidates = []
     for source in config["sources"]:
-        candidates += fetch_case_study_items(
-            source_id=source["id"],
-            source_name=source["name"],
-            url=source["url"],
-            weight=source["weight"],
-            days_back=config["fetch"]["days_back"],
-            max_items=config["fetch"]["max_items_per_source"],
-        )
+        try:
+            candidates += _fetch_source_items(source, config["fetch"])
+        except Exception as exc:  # noqa: BLE001 -- 跟正式流程一樣，單一來源失敗不中斷
+            print(f"[smoke_test]   來源 {source['name']} 抓取失敗，跳過：{exc}")
     assert candidates, "沒有抓到任何真實候選文章，無法繼續煙霧測試"
     print(f"[smoke_test] 真實候選文章：{len(candidates)} 篇")
 
-    inserted_ids = [aid for item in candidates if (aid := insert_article_if_new(conn, item)) is not None]
+    inserted_ids = []
+    gate_counts = Counter()
+    for item in candidates:
+        item.extra.setdefault("tier", "case")
+        article_id = insert_article_if_new(conn, item)
+        if article_id is None:
+            continue
+        inserted_ids.append(article_id)
+        # Gate 1a：跟正式流程一樣，入池當下就判定
+        result = gates.check_article_intake(
+            content=item.summary, published_at=item.published_at, config=test_config
+        )
+        save_article_gate(conn, article_id, result)
+        gate_counts[result.status] += 1
     print(f"[smoke_test] 入池（去重後）：{len(inserted_ids)} 篇")
+    print(
+        f"[smoke_test] 收錄判定：可寫作 {gate_counts['included']} 篇、"
+        f"只當熱度訊號 {gate_counts['signal_only']} 篇、排除 {gate_counts['excluded']} 篇"
+    )
+    assert gate_counts["included"], "所有文章都沒通過收錄判定，門檻是不是設太嚴"
 
     reinsert_ids = [insert_article_if_new(conn, item) for item in candidates]
     assert all(aid is None for aid in reinsert_ids), "同網址文章重複入池，去重邏輯壞了"
@@ -291,14 +311,25 @@ def main() -> None:
         available = get_available_topics(conn)
         assert len(available) == len(to_score), "打分後可選話題數量對不上，是不是哪裡把話題弄丟了"
 
-        selected = select_for_issue(conn, test_config)
+        selected, rejections = select_for_issue(conn, test_config)
         selection_cfg = test_config["selection"]["weekly"]
         total_min, total_max = selection_cfg["total_topics"]
         assert len(selected) <= total_max
         type_counts = Counter(e["content_type"] for e in selected)
         for ctype, (_qmin, qmax) in selection_cfg["content_type_quota"].items():
             assert type_counts[ctype] <= qmax, f"{ctype} 選超過配額上限"
-        print(f"[smoke_test] 選題驗證通過，入選 {len(selected)} 個話題，型態分布：{dict(type_counts)}")
+        # 選題帳：入選加落選要等於候選總數，不能有話題「不見了」。這正是加
+        # selection_trace 要防的事（見 pipeline/topic_selection.py）。
+        assert len(selected) + len(rejections) == len(available), (
+            f"候選 {len(available)} 個，帳只記到 {len(selected) + len(rejections)} 個，有話題沒被記帳"
+        )
+        for r in rejections:
+            assert r["reason"], "落選一定要有理由碼"
+            assert r["decision"] == "rejected"
+        print(
+            f"[smoke_test] 選題驗證通過，入選 {len(selected)} 個話題，"
+            f"落選 {len(rejections)} 個都有理由碼，型態分布：{dict(type_counts)}"
+        )
 
         newsletter_name = test_config["newsletter"]["name"]
         results = []
@@ -306,12 +337,18 @@ def main() -> None:
             topic_row = entry["row"]
             content_type = entry["content_type"]
 
-            source_rows = retrieve_sources_for_topic(conn, test_config, topic_row)
-            assert source_rows, "reranker 檢索沒有回傳任何來源，寫作素材會是空的"
-            assert len(source_rows) <= test_config["reranker"]["rerank_top_k"]
+            source_rows, source_detail = retrieve_sources_for_topic(conn, test_config, topic_row)
+            assert source_rows, "沒有回傳任何來源，寫作素材會是空的"
+            assert len(source_rows) <= test_config["sources_for_writing"]["max_sources"]
+            # 素材必須屬於這個話題本身。全池補充預設關閉，開著的話這條會擋下
+            # 「話題講 A、素材講 B」那種組合（見 pipeline/retrieval.py 的說明）。
+            if not test_config["sources_for_writing"]["supplement"]["enabled"]:
+                own_ids = {row["id"] for row in get_articles_for_topic(conn, topic_row["id"])}
+                stray = [r["id"] for r in source_rows if r["id"] not in own_ids]
+                assert not stray, f"素材裡混進了不屬於這個話題的文章：{stray}"
             print(
                 f"[smoke_test]   話題「{topic_row['representative_title'][:30]}」"
-                f"真實檢索到 {len(source_rows)} 篇素材"
+                f"取得 {len(source_rows)} 篇素材（{source_detail}）"
             )
 
             article = generate_topic_article(newsletter_name, topic_row["representative_title"], content_type, source_rows)

@@ -6,7 +6,7 @@
 pipeline/topic_db.py::backfill_article_tier() 的說明）。
 
 用法：
-    python -m tools.backfill_article_tier
+    python -m scripts.backfill_article_tier
 """
 from __future__ import annotations
 
@@ -37,3 +37,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+

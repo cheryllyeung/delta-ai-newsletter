@@ -2,7 +2,7 @@
 「Delta Electronics」）合併到同一個 canonical 名稱，避免 Neo4j 累積重複
 Entity 節點。
 
-跟 pipeline/tag_clustering.py 是同一套「依相似度貪婪指派到最像的既有
+跟 legacy/pipeline/tag_clustering.py 是同一套「依相似度貪婪指派到最像的既有
 canonical」演算法，但改成串流式：既有 canonical（從 Neo4j 讀回來）先當
 種子，本次 run 新出現的實體字串逐一比對、合併或新增，不會重新洗牌既有
 canonical 名稱。tag_clustering.py 的 compute_tag_clusters() 每次都是從零

@@ -10,8 +10,8 @@ ingest_topics.py 接手（那支只處理本週新進的文章，避免舊積壓
 併發條數用環境變數 BACKFILL_CONCURRENCY 調整，預設 8。
 
 用法：
-    python -m scripts.backfill_graph_extraction
-    BACKFILL_CONCURRENCY=16 python -m scripts.backfill_graph_extraction
+    python -m tools.backfill_graph_extraction
+    BACKFILL_CONCURRENCY=16 python -m tools.backfill_graph_extraction
 """
 from __future__ import annotations
 

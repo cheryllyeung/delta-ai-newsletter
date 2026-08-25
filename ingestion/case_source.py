@@ -48,7 +48,7 @@ def fetch_case_study_items(
     RawItem.summary 放全文（HTML 已轉純文字，未截斷），截斷交給後面組
     prompt 時再做，避免這一層就把可能有用的事實砍掉。
     RawItem.extra 帶 source_name/source_weight，供評分/生成階段組 prompt 用。
-    RawItem.score 直接用來源權重，方便沿用 pipeline/dedupe.py 既有的
+    RawItem.score 直接用來源權重，方便沿用 legacy/pipeline/dedupe.py 既有的
     「同網址留分數較高那筆」邏輯。
 
     先用 requests 帶 timeout 抓內容，再交給 feedparser 解析字串，不能直接把

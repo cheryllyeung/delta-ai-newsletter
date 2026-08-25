@@ -158,7 +158,7 @@
       </div>
     </div>
     <a class="back-link" href="/" data-i18n="backLink">← 回所有期數</a>
-    <p class="eyebrow">DELTA AI TREND WEEKLY</p>
+    <p class="eyebrow">DELTA AI TREND DAILY</p>
     <h1>{{ newsletter_name }}</h1>
     <div class="masthead-meta">
       <span>第 {{ issue_id }} 期 · {{ issue_date }}</span>
@@ -194,7 +194,9 @@
 {% endif %}
 
 <footer class="foot">
-  <div class="foot-inner"><p>{{ newsletter_name }}．僅供台達內部參考。</p></div>
+  <div class="foot-inner">
+    <p>{{ newsletter_name }}．僅供台達內部參考。</p>
+  </div>
 </footer>
 
 <button class="feedback-fab" id="feedback-fab" type="button">

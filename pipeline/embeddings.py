@@ -1,6 +1,6 @@
 """話題式週報用的全文 embedding：Qwen3-Embedding-0.6B。
 
-跟 pipeline/tag_clustering.py 的本機 embedding 用途不同：那裡是拿來合併
+跟 legacy/pipeline/tag_clustering.py 的本機 embedding 用途不同：那裡是拿來合併
 「同義詞標籤」這種短詞組，這裡是拿來把整篇文章嵌入向量，供
 pipeline/vector_store.py 存進 Qdrant 做話題聚類與檢索用（PRD §6 選型理由：
 中文語料深度佳、0.6B 在 CPU 可跑、免費開源）。

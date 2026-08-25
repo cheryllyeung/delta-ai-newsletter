@@ -1,7 +1,7 @@
 """實體解析煙霧測試：驗證灰色地帶的候選挑選邏輯，以及門檻常數所依據的
 cosine 數字有沒有位移。
 
-跟 scripts/smoke_test_graph_extraction.py 同一種哲學（真實輸入、只 mock 會
+跟 tests/smoke_test_graph_extraction.py 同一種哲學（真實輸入、只 mock 會
 花錢的 LLM 呼叫），但刻意連 Neo4j 都不碰：EntityResolver 的建構子收的是
 list[str]，Neo4j 只在上游供名單、下游寫節點，解析邏輯本身跟圖資料庫無關。
 所以這支不需要 .env、不需要 docker、不需要網路，隨時可以跑。
@@ -13,7 +13,7 @@ list[str]，Neo4j 只在上游供名單、下游寫節點，解析邏輯本身�
 LLM 本身答得對不對，靠 runs/entity_match_check/ 的留痕事後稽核。
 
 用法：
-    python -m scripts.smoke_test_entity_resolution
+    python -m tests.smoke_test_entity_resolution
 """
 from __future__ import annotations
 

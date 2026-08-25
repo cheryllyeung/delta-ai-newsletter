@@ -75,11 +75,16 @@ def rerank(query: str, documents: list[str], top_k: int, min_score: float = 0.0)
 
     分數是 sigmoid 機率（0~1），實測分布是雙峰的：真正相關的落在 0.8~1.0，
     其餘直接掉到 0.16 以下，中間幾乎是空的，所以門檻很好訂。
+
+    全部低於 min_score 時回傳空清單。這裡原本有一條保底「至少留最相關的
+    那一篇，不要讓寫作完全沒有素材」，2026-08-14 拿掉了：那條保底是舊架構
+    的產物，當時素材完全靠全池檢索，撈不到就真的沒東西可寫。現在素材主體
+    是話題自己的文章（見 pipeline/retrieval.py），這支只負責排序跟補充，
+    保底留著只會讓補充素材的門檻形同虛設——不管分數多低都一定會塞一篇進來，
+    那正是「標題跟內容對不上」的成因。
     """
     if not documents:
         return []
     scores = _scores(query, documents)
     ranked = sorted(range(len(documents)), key=lambda i: scores[i], reverse=True)
-    kept = [i for i in ranked[:top_k] if scores[i] >= min_score]
-    # 保底：全部都低於門檻時至少留最相關的那一篇，不要讓寫作完全沒有素材。
-    return kept or ranked[:1]
+    return [i for i in ranked[:top_k] if scores[i] >= min_score]
