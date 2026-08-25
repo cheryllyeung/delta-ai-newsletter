@@ -47,10 +47,15 @@ def _parse_json_object(raw_text: str) -> dict:
 
 
 def build_modules_list_text(modules_config: dict) -> str:
+    """desc 一定要帶進 prompt：只給四個字的模組名，模型會按字面理解成
+    「這個領域的新聞」而不是「台達這個事業」，實測名人用 AI 做音樂拿過
+    消費性產品 6 分（2026-08-25，見 config/topics.yaml 的 modules 註解）。"""
     lines = []
     for group in ("functional", "domain"):
         for module in modules_config[group]:
-            lines.append(f"- {module['id']}: {module['name']}")
+            desc = module.get("desc", "")
+            suffix = f"｜{desc}" if desc else ""
+            lines.append(f"- {module['id']}: {module['name']}{suffix}")
     return "\n".join(lines)
 
 

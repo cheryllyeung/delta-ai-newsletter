@@ -1,14 +1,15 @@
-# 話題式週報設定（第三條 pipeline，依 docs/0724_v3_PRD.md 架構建置）
+# 話題式週報設定（現役的唯一一條 pipeline，依 docs/prd/0731_PRD_v0.5.md 架構建置）
 #
-# 跟 config/domains.yaml（趨勢彙整）、config/pulse.yaml（Delta Pulse 案例式週報）
-# 是三條獨立產品線，互不影響，只共用 ingestion/base.py 的 RawItem 格式跟
-# pipeline/llm_client.py 等底層元件。
+# 早期還有另外兩條產品線（趨勢彙整、Delta Pulse 案例式週報），2026-08-13 起
+# 凍結搬進 legacy/，設定分別在 legacy/config/domains.yaml 與
+# legacy/config/pulse.yaml，不再維護也不再執行，見 legacy/README.md。
 #
 # 這份設定對應 PRD 的 topic-centric 模型：文章先聚類成「話題」，話題被 18 個
-# 模組打分，用組合最佳化選題，寫作時用 embedding+reranker 兩段式檢索素材。
+# 模組打分，用組合最佳化選題，寫作素材是話題自己的來源文章。
+# 每一道收錄判定的門檻集中在下面的 gates 區塊，判定邏輯在 pipeline/gates.py。
 
 newsletter:
-  name: "Delta AI 趨勢週報"
+  name: "Delta AI 趨勢日報"
   issue_day: thursday
 
 database:
@@ -28,19 +29,52 @@ embedding:
   # 目前的來源全部是企業案例（各公司各自的案例，本來就很少是同一事件被
   # 多家媒體報導），預期聚類結果會接近 1 話題 = 1 文章，這是資料特性不是bug。
   cluster_similarity_threshold: 0.72
+  # 2026-08-14 加：比對的兩篇裡任一邊只有標題（signal_only）時改用這個較嚴
+  # 的門檻。理由：只有標題的短文本 embedding 會塌在一起，實測門檻降到 0.68
+  # 就會出現 11 篇互不相關的假合併團塊（8 個 GitHub repo + ChatGPT 新聞 +
+  # Ford 新聞）。0.80 是保守起跳值，還沒有評測依據，見 docs/DECISIONS.md。
+  cluster_similarity_threshold_title_only: 0.80
 
-reranker:
+# 寫作素材怎麼決定。
+#
+# 2026-08-14 大改，起因是同仁反映「標題跟內容對不上，像硬把幾個來源湊成
+# 一篇」。回頭量了已經產出的 26 篇文章、63 篇素材，只有 29 篇（46%）真的
+# 屬於它自己的話題，其餘都是從全池檢索補進來的。最離譜的幾組：
+#
+# | 話題 | 被補進來的素材 |
+# |---|---|
+# | 公用事業帳單系統阻礙費率創新 | Qwen 3.8-Max 跑分 |
+# | McLaren P1 換三倍電池 | 鈉電池、Cambricon 晶片、Moore Threads 上市 |
+# | Duke Energy 增資 100 億 | 一個叫 aigclink/geolook 的 GitHub repo |
+#
+# 第七篇那個組合最後真的寫成了一篇談 AI 跑分的文章，標題跟話題完全無關。
+# 模型沒有做錯事：素材給了它五篇不相干的東西，又要求它寫成一篇，它只能
+# 找共同點硬接，接出來就是同仁看到的那種文章。
+#
+# 舊做法的用意是「話題只有一篇文章時補脈絡」，但 reranker 判斷的是主題
+# 層級相關（都在講 AI、都在講電力），不是同一件事，補進來的必然是別的
+# 事件。所以改成：素材主體一律是話題自己的文章，全池補充預設關掉。
+sources_for_writing:
   model: "BAAI/bge-reranker-v2-m3"
-  retrieval_top_k: 20     # 第一段：embedding 從全池撈 top-20
-  # 第二段：reranker 重排。原本調成 2 是因為當時接 Groq 免費層、TPM 上限
-  # 8000 塞不下 5 篇全文；現在走公司 gateway 沒有這個限制，2026-08-13 調回 5。
-  rerank_top_k: 5
-  # 相關度下限。只取前 top_k 名會「湊滿名額」，話題底下只有一篇真正相關的
-  # 文章時第二個名額還是會被填上——2026-08-11 就出現過一篇講 Docker
-  # Sandboxes 的文章被塞進不相干的 GitHub repo 當素材，還真的引用了那個
-  # repo 的 star 數。實測 reranker 分數是雙峰的（真相關 0.8~1.0，其餘掉到
-  # 0.16 以下），0.3 落在中間的空隙裡，兩邊都留了很大餘裕。
-  min_relevance: 0.3
+  # 話題自己的文章超過這個數量時，用 reranker 排序取前幾篇，避免塞爆
+  # context。一般情況遠不會用到，目前 191 個話題有 184 個底下只有一篇。
+  max_sources: 5
+  # 全池補充。預設關閉，理由見上面那張表。
+  #
+  # 不是直接把程式碼刪掉，是因為等聚類真的開始合併同事件的多家報導之後，
+  # 「補脈絡」這件事本身仍然有價值，屆時可以重新評估後打開。要打開之前
+  # 請先用 docs/DECISIONS.md 記的方式量一次補進來的素材有多少比例真的
+  # 同事件，不要只看 reranker 分數好看就開。
+  supplement:
+    enabled: false
+    # 只有話題自己的實質文章少於這個數量時才考慮補充
+    only_when_own_sources_below: 2
+    max_supplements: 1
+    retrieval_top_k: 20
+    # 補充素材的門檻，刻意比舊的 0.3 高很多。舊值放行了上面表格裡那些
+    # 組合，代表 0.3 對「同事件」這個要求來說完全不夠。0.75 是保守起跳
+    # 值，不是評測結果，打開這個功能之前要先驗。
+    min_relevance: 0.75
 
 # 知識圖譜：Neo4j 存三元組（實體、關係、文章 provenance），連線用的
 # NEO4J_URI/USER/PASSWORD 是機密，放在 .env，這裡只放非機密的演算法參數。
@@ -63,45 +97,69 @@ graph_store:
 
 # 18 個模組：10 個職能模組 + 8 個領域模組（PRD §2 原文列表）。
 # 每個話題會被 LLM 對這 18 個模組各打 0-10 分並附一句理由。
+#
+# desc 是打分 prompt 實際會看到的模組說明（2026-08-25 加）。在這之前
+# prompt 只拿到四個字的模組名，模型只能按字面理解：「消費性產品」被當成
+# 「消費性電子新聞」，Dr. Dre 用 AI 做歌拿了 6 分、Meta 智慧眼鏡拿了 9 分，
+# 全部從 domain 名額上刊。desc 要寫的是「台達在這塊的事業是什麼、讀者是
+# 誰」，讓分數量的是對事業有沒有用，不是主題沾不沾邊。
 modules:
   functional:
     - id: legal_compliance
       name: 法務合規
+      desc: 台達法務與法遵人員。AI 相關法規（AI Act、資料保護）、合約與智財、生成內容的授權風險
     - id: finance_audit
       name: 財會稽核
+      desc: 財務、會計與稽核。AI 在財報、費用審核、風險偵測的應用，AI 投資的財務影響
     - id: hr
       name: 人資
+      desc: 招募、訓練、績效。AI 在人才流程的應用與勞動法規影響
     - id: marketing_brand
       name: 行銷品牌
+      desc: B2B 行銷與品牌。AI 生成內容、市場分析工具，工業品牌的數位溝通
     - id: it_security
       name: 資訊資安
+      desc: 企業 IT 與資安。AI 帶來的攻擊面、內部 AI 工具的治理、資料外洩風險
     - id: ops_logistics
       name: 營運物流
+      desc: 供應鏈、採購、倉儲物流。AI 在需求預測、供應鏈風險、物流優化的應用
     - id: strategy_investment
       name: 策略投資
+      desc: 集團策略與投資。AI 產業的併購、供應鏈變動、競爭格局，對台達本業的機會與威脅
     - id: rd_engineering
       name: 研發工程
+      desc: 台達的硬體與韌體研發工程師。AI 輔助設計（EDA、模擬、程式開發）、工程工作流程的 AI 工具
     - id: knowledge_management
       name: 知識管理
+      desc: 內部知識庫與文件管理。RAG、企業搜尋、技術文件的 AI 應用
     - id: ehs
       name: EHS
+      desc: 環境、職業安全與衛生。AI 在工安監測、危害預防、法規遵循的應用
   domain:
     - id: energy_power
       name: 能源電力
+      desc: 台達的電源供應器、資料中心電源與散熱、UPS、儲能系統、太陽能變流器、微電網事業。讀者做電力電子產品與能源基礎設施方案。資料中心用電、電網、儲能相關的 AI 議題是核心
     - id: building_automation
       name: 樓宇自動化
+      desc: 台達的樓宇管理系統、空調與 HVAC 控制、廠辦節能事業。智慧建築、樓控系統的 AI 應用是核心
     - id: ev_automotive
       name: 電動車車用
+      desc: 台達的電動車動力系統（車載充電器、DC-DC、馬達驅動）、充電樁與車用電子事業。電動車產業動態、充電基礎設施、車用 AI 是核心
     - id: network_infra
       name: 網通基礎設施
+      desc: 台達的網通設備、資料中心基礎設施、電信電源事業。AI 算力建設帶動的基礎設施需求是核心
     - id: manufacturing
       name: 製造廠務
+      desc: 台達自己的工廠與工業自動化事業。智慧製造、產線自動化、機器視覺檢測、預測性維護、廠務系統的 AI 應用是核心
     - id: consumer_products
       name: 消費性產品
+      desc: 台達的零組件與元件事業（散熱風扇、電源元件、顯示與投影）。量的是對台達產品線的影響，一般消費性電子新聞、名人科技動態跟這個模組無關
     - id: software_platform
       name: 軟體平台
+      desc: 台達自己開發與銷售的工業軟體、物聯網平台、能源管理軟體。量的是對台達軟體產品策略的影響，一般開發者工具或 AI 服務的例行更新不屬於這裡
     - id: sustainability
       name: 永續節能
+      desc: 台達的碳管理、ESG、能源效率解決方案事業。AI 資料中心的能耗與減碳、碳盤查工具是核心
 
 content_types:
   - id: insight
@@ -112,6 +170,42 @@ content_types:
     name: 警示型
   - id: flash
     name: 快訊型
+
+# 收錄判定的門檻。判斷邏輯在 pipeline/gates.py，每個數值怎麼定的寫在
+# docs/DECISIONS.md，這裡只放值跟一句話理由。
+gates:
+  article:
+    # 內文短於這個字數的文章只能當「熱度訊號」，不進標籤、不進打分、不當
+    # 寫作素材（gate_status='signal_only'）。
+    #
+    # 2026-08-14 量過池裡 345 篇的內文長度，分布是雙峰的：
+    #     0-200 字   149 篇（43%）    200-500 字  21 篇     500 字以上 175 篇
+    # 低的那一峰幾乎全是只有標題的 RSS 殘缺內容，依來源看：
+    #     DIGITIMES 47/47、Hacker News 30/30、InsideEVs 22/22 全部殘缺，
+    #     GitHub 16/18、TechCrunch 23/30、Utility Dive 11/20
+    # 最短的六篇只有 11 個字元，就是一行標題。這種東西進到寫作素材裡，
+    # 模型除了瞎掰沒有別的選擇，實際上也真的發生了（見 sources_for_writing
+    # 的說明）。200 落在兩峰中間的空隙，兩邊都留了餘裕。
+    #
+    # 標成 signal_only 不是丟掉：這些文章仍然入池、仍然聚類，仍然算進
+    # 「幾家在報導同一件事」的熱度訊號，只是不當寫作素材。Hacker News 跟
+    # GitHub 這類來源本來的價值就是訊號而不是內文。
+    min_content_chars: 200
+    # 超過這個天數的文章直接排除。跟 fetch.days_back 一致，來源自己回傳
+    # 更舊的東西時擋在這裡。
+    max_age_days: 30
+    # 標籤階段判定跟 AI 無關就排除。TechCrunch、Hacker News、Slashdot、
+    # DIGITIMES 這類綜合性來源本來就會夾帶非 AI 內容，在這條加進來以前
+    # 完全沒有人管，全部照收進候選池。
+    require_ai_related: true
+  topic:
+    # 允許單一來源成為一個話題。目前 191 個話題有 184 個底下只有一篇
+    # 文章，要求至少兩篇會讓候選池少掉 96%，那不是嚴謹是自廢武功。
+    # 改成如實揭露：單一來源的話題會在選題帳跟文章頁標記出來。
+    allow_single_source: true
+    # 話題底下至少要有幾篇「內文夠長」的文章才能出刊。低於這個數字代表
+    # 這個話題只有熱度訊號、沒有可寫的內容。
+    min_substantive_articles: 1
 
 # 依出刊頻率（weekly／daily）各自一組配額，compose_topic_issue.py 依
 # --cadence 參數選一組。weekly 沿用原本數值不變；daily 是 2026-08-09
@@ -153,8 +247,25 @@ selection:
     min_module_score_to_select: 4.0
     tier_cap:
       case: 3
+    # 週度潛力分的三個訊號權重（2026-08-25 加，見 pipeline/topic_selection.py
+    # 的 annotate_weekly_potential()）。合成前各訊號先換成名次分位，所以權重
+    # 是「訊號之間的相對重要性」不受量綱影響。數字是拍的起始值，沒有評測
+    # 依據；模組分佔一半的理由是它畢竟是唯一經過 18 個角度判斷的品質訊號，
+    # 另外兩個只是熱度側寫。
+    potential_weights:
+      module_score: 0.5
+      entity_heat: 0.25
+      qualified_days: 0.25
   daily:
-    total_topics: [2, 5]
+    # 2026-08-25 從 [2, 5] 改成 [5, 5]：使用者要求每天固定 5 則。上限靠
+    # min_module_score_to_select 擋品質，候選真的不夠格時還是會少於 5，
+    # 不硬湊。
+    total_topics: [5, 5]
+    # 2026-08-14 加：日報候選池往回多看幾天，不是只看當天。舊行為下昨天
+    # 因版位滿落選的話題今天不會再進候選，等於永久淘汰（實測 91.7% 的已
+    # 打分話題就這樣消失）。續留窗口內每天重新參選，靠時間衰減自然降權，
+    # 過了窗口自然過期。3 天是政策決定（見 PRD §11.4），不是實測值。
+    carry_over_days: 3
     content_type_quota:
       insight: [0, 1]
       practical: [0, 2]
@@ -197,10 +308,10 @@ quality:
 
 fetch:
   days_back: 30
-  # 比照 config/pulse.yaml 對同一批來源已驗證過的規模。
+  # 比照 legacy/config/pulse.yaml 對同一批來源已驗證過的規模。
   max_items_per_source: 15
 
-# 來源清單：先沿用 config/pulse.yaml 裡已實測過的 5 個企業案例來源。
+# 來源清單：先沿用 legacy/config/pulse.yaml 裡已實測過的 5 個企業案例來源。
 # tier 欄位為 PRD 的三層來源分級（核心層/訊號層/深度層）+ 專門來源類型
 # 預留擴充點，目前全部標成 case（企業案例來源），之後要接核心層一般新聞
 # 來源或垂直產業來源，補進來源清單並標對 tier 即可，不用改程式碼。
