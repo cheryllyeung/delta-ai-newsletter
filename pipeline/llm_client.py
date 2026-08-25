@@ -54,6 +54,14 @@ def get_writing_model() -> str:
     return os.environ.get("NEWSLETTER_WRITING_MODEL") or get_model()
 
 
+def get_review_model() -> str:
+    """自檢（review/topic_selfcheck.py）步驟用的模型。DECISIONS.md 記過的洞：
+    自檢原本沿用跟寫作同一顆模型，雖是獨立呼叫（不帶生成階段的對話歷史），
+    但終究是同一個模型查自己的作業。允許用 NEWSLETTER_REVIEW_MODEL 指定另一顆
+    模型當審查員，沒設就退回 get_writing_model()，行為跟改動前一致。"""
+    return os.environ.get("NEWSLETTER_REVIEW_MODEL") or get_writing_model()
+
+
 # Groq 429 訊息格式是「Please try again in 6m26.208s」或「in 13.4s」，
 # 分鐘是選填的；舊版正規表示式沒接分鐘，永遠對不上，只能退回指數退避。
 _RETRY_DELAY_PATTERN = re.compile(r"try again in (?:(\d+)m)?(\d+(?:\.\d+)?)s", re.IGNORECASE)
