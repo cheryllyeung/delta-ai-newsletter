@@ -90,6 +90,12 @@ def pretranslate_issue(conn: sqlite3.Connection, issue_id: int) -> tuple[int, in
         before = conn.execute(
             "SELECT translations_json FROM generated_topics WHERE id = ?", (row["id"],)
         ).fetchone()["translations_json"]
+        if before and "en" in json.loads(before):
+            # 週報重用日報文章時翻譯快取跟著帶過來（見 topic_db.py 的
+            # get_latest_generated_for_topics()），已經有英文版就不用再翻，
+            # 也不要把它算成失敗。
+            ok += 1
+            continue
         get_article_in(conn, row["id"], article, "en")
         after = conn.execute(
             "SELECT translations_json FROM generated_topics WHERE id = ?", (row["id"],)

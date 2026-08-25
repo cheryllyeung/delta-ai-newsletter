@@ -8,8 +8,8 @@
 讓候選池跟預期不一致。
 
 用法：
-    python -m scripts.backfill_daily_issues
-    python -m scripts.backfill_daily_issues --start 2026-08-01 --end 2026-08-09
+    python -m tools.backfill_daily_issues
+    python -m tools.backfill_daily_issues --start 2026-08-01 --end 2026-08-09
 """
 from __future__ import annotations
 
@@ -31,12 +31,18 @@ from pipeline.topic_db import (
     get_connection,
     get_unscored_topics,
     mark_topics_published,
+    record_selection_trace,
     save_generated_topic,
     save_module_scores,
 )
 from pipeline.topic_selection import select_for_issue
 from pipeline.translate import pretranslate_issue
-from scripts.compose_topic_issue import generate_and_check, load_config
+from scripts.compose_topic_issue import (
+    _selected_trace_entries,
+    generate_and_check,
+    load_config,
+    split_reusable,
+)
 
 DEFAULT_START = "2026-08-01"
 DEFAULT_END = "2026-08-09"
@@ -76,13 +82,34 @@ def score_day(conn, config: dict, day: str) -> tuple[int, int]:
 
 
 def compose_day(conn, config: dict, day: str) -> dict | None:
-    date_range = (day, day)
-    selected = select_for_issue(conn, config, cadence="daily", date_range=date_range)
-    if not selected:
+    # 冪等防護：這一天已經有日報就跳過，重跑重疊範圍不會出重複的期。
+    existing = conn.execute(
+        "SELECT id FROM issues WHERE issue_date = ? AND cadence = 'daily'", (day,)
+    ).fetchone()
+    if existing:
+        print(f"[backfill_daily_issues]   {day} 已經有第 {existing['id']} 期，跳過。")
         return {"day": day, "topics": 0, "needs_review": 0, "avg_confidence": None}
 
-    results = generate_and_check(conn, selected, config)
+    date_range = (day, day)
+    # 選題跟生成都會吐落選紀錄，回填出來的期數一樣要有選題帳，不然補回來的
+    # 期數在網頁上會缺這一頁，跟正常出刊的期數不一致（見 pipeline/gates.py）。
+    selected, rejections = select_for_issue(conn, config, cadence="daily", date_range=date_range)
+    if not selected:
+        record_selection_trace(conn, issue_date=day, cadence="daily", entries=rejections)
+        return {"day": day, "topics": 0, "needs_review": 0, "avg_confidence": None}
+
+    # 生成過的話題直接重用文章（重建歷史期數時大部分素材已經寫過了），
+    # 只對沒生成過的打 LLM。
+    reused, to_generate = split_reusable(conn, selected)
+    if reused:
+        print(f"[backfill_daily_issues]   {day}：{len(reused)} 篇重用現成文章，{len(to_generate)} 篇新生成")
+    results, gen_rejections = generate_and_check(conn, to_generate, config)
+    results = reused + results
+    order = {e["row"]["id"]: i for i, e in enumerate(selected)}
+    results.sort(key=lambda r: order[r["topic_id"]])
+    rejections.extend(gen_rejections)
     if not results:
+        record_selection_trace(conn, issue_date=day, cadence="daily", entries=rejections)
         return {"day": day, "topics": 0, "needs_review": 0, "avg_confidence": None}
 
     issue_id = create_issue(conn, day, period_start=day, period_end=day, cadence="daily")
@@ -90,8 +117,16 @@ def compose_day(conn, config: dict, day: str) -> dict | None:
         save_generated_topic(
             conn, issue_id, r["topic_id"], r["article"], r["source_article_ids"],
             r["confidence"], r["needs_review"],
+            translations_json=r.get("translations_json"),
         )
     mark_topics_published(conn, [r["topic_id"] for r in results], issue_id)
+    record_selection_trace(
+        conn,
+        issue_date=day,
+        cadence="daily",
+        entries=_selected_trace_entries(results) + rejections,
+        issue_id=issue_id,
+    )
 
     ok, failed = pretranslate_issue(conn, issue_id)
     print(f"[backfill_daily_issues]   英文版預先翻譯：成功 {ok} 篇，失敗 {failed} 篇")

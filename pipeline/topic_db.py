@@ -1,8 +1,8 @@
 """話題式週報（第三條 pipeline）的長期資料庫：SQLite schema 與 CRUD。
 
-跟 pipeline/pool_db.py（Delta Pulse）是平行但獨立的模組，不共用資料庫檔案，
+跟 legacy/pipeline/pool_db.py（Delta Pulse）是平行但獨立的模組，不共用資料庫檔案，
 因為資料模型不同：Delta Pulse 是「一篇文章＝一則案例」，這裡是「多篇文章
-聚類成一個話題，話題才是選題/寫作的單位」（依 docs/0724_v3_PRD.md 架構）。
+聚類成一個話題，話題才是選題/寫作的單位」（依 docs/prd/0731_PRD_v0.5.md 架構）。
 
 跟 pool_db.py 一樣刻意不用 ORM、不做硬淘汰：文章入池只做一次（依 url 去重），
 之後留著；話題被選用過就標記 published_issue_id，不會被下一期重選。
@@ -45,9 +45,19 @@ CREATE TABLE IF NOT EXISTS articles (
     entity_tags_json TEXT,
     scenario_tags_json TEXT,
     industry_tags_json TEXT,
-    one_line_summary TEXT
+    one_line_summary TEXT,
+    -- 收錄判定（pipeline/gates.py）。included／signal_only／excluded 三種狀態，
+    -- 被擋掉的文章一樣留在表裡，只是不進標籤、打分、寫作素材，理由碼跟觸發
+    -- 它的數值（gate_detail_json，例如「內文 187 字、門檻 200」）都留著，
+    -- 網頁上要交代「為什麼這篇沒收」時直接讀這幾欄。
+    gate_status TEXT,
+    gate_reason TEXT,
+    gate_detail_json TEXT,
+    gate_checked_at TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_articles_topic ON articles(topic_id);
+-- gate_status 的索引不能放這裡：_SCHEMA 在 ALTER TABLE 之前執行，舊資料庫
+-- 這時候還沒有那個欄位，CREATE INDEX 會直接炸掉。放在下面的補欄位段落之後。
 
 CREATE TABLE IF NOT EXISTS topics (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -57,7 +67,11 @@ CREATE TABLE IF NOT EXISTS topics (
     -- 階段三：18 模組打分（{module_id: {"score": float, "reason": str}}）+ 內容型態
     module_scores_json TEXT,
     content_type TEXT,
-    published_issue_id INTEGER REFERENCES issues(id)
+    published_issue_id INTEGER REFERENCES issues(id),
+    -- 週報的出刊標記跟日報分開記：週報是「整週最好的回顧」，上過日報的
+    -- 話題本來就該是週報的主要候選，不能共用 published_issue_id（共用的話
+    -- 話題一上日報就永久退出週報候選池，週報只剩整週的剩菜）。2026-08-25 加。
+    weekly_issue_id INTEGER REFERENCES issues(id)
 );
 
 CREATE TABLE IF NOT EXISTS issues (
@@ -81,6 +95,32 @@ CREATE TABLE IF NOT EXISTS generated_topics (
     needs_review INTEGER NOT NULL,
     created_at TEXT NOT NULL
 );
+
+-- 選題帳：每一期每一個候選話題的去向，入選跟落選都記一筆。
+--
+-- 沒有這張表以前，「為什麼這篇沒上」唯一能給的答案是「版位滿了」，因為
+-- 選題邏輯跑完就只剩下入選清單，落選的連同理由一起消失在函式裡。這張表
+-- 把每一次判定的結果留下來，網頁上的選題帳（/issues/<id>/trace）直接讀它。
+--
+-- reason 是 pipeline/gates.py 的理由碼，decision='selected' 時為 NULL。
+-- detail_json 放觸發判定的實際數值（哪個模組、幾分、當時配額用掉幾個），
+-- 因為理由碼只說「分數不夠」，說不出「差多少」。
+CREATE TABLE IF NOT EXISTS selection_trace (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    -- issue_id 可以是 NULL：選題跑完但整期生成全失敗時沒有 issue，
+    -- 那次的判定紀錄還是要留著，不然就查不到「那天到底發生什麼事」。
+    issue_id INTEGER REFERENCES issues(id),
+    issue_date TEXT NOT NULL,
+    cadence TEXT NOT NULL,
+    topic_id INTEGER NOT NULL REFERENCES topics(id),
+    decision TEXT NOT NULL,
+    reason TEXT,
+    stage TEXT NOT NULL,
+    detail_json TEXT,
+    created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_trace_issue ON selection_trace(issue_id);
+CREATE INDEX IF NOT EXISTS idx_trace_date ON selection_trace(issue_date);
 """
 
 
@@ -100,7 +140,18 @@ def get_connection(db_path: str) -> sqlite3.Connection:
         conn.commit()
     except sqlite3.OperationalError:
         pass  # 舊資料庫檔案已經有這個欄位
-    for column_def in ("tier TEXT", "engagement_raw REAL", "engagement_source TEXT"):
+    for column_def in (
+        "tier TEXT",
+        "engagement_raw REAL",
+        "engagement_source TEXT",
+        # 收錄判定，2026-08-14 加。舊資料維持 NULL，讀的時候一律當 included
+        # （見 pipeline/gates.py 的 _status_of()），不追溯處罰已經在池裡的
+        # 東西。要讓舊資料補跑一次判定用 tools/backfill_article_gates.py。
+        "gate_status TEXT",
+        "gate_reason TEXT",
+        "gate_detail_json TEXT",
+        "gate_checked_at TEXT",
+    ):
         try:
             conn.execute(f"ALTER TABLE articles ADD COLUMN {column_def}")
             conn.commit()
@@ -119,6 +170,15 @@ def get_connection(db_path: str) -> sqlite3.Connection:
         conn.commit()
     except sqlite3.OperationalError:
         pass  # 舊資料庫檔案已經有這個欄位
+    # 週報出刊標記，理由見 _SCHEMA 裡 topics 表的註解。
+    try:
+        conn.execute("ALTER TABLE topics ADD COLUMN weekly_issue_id INTEGER REFERENCES issues(id)")
+        conn.commit()
+    except sqlite3.OperationalError:
+        pass  # 舊資料庫檔案已經有這個欄位
+    # 補完欄位才建 gate_status 的索引（理由見 _SCHEMA 裡的註解）
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_articles_gate ON articles(gate_status)")
+    conn.commit()
     return conn
 
 
@@ -212,6 +272,54 @@ def assign_article_to_topic(conn: sqlite3.Connection, article_id: int, topic_id:
     conn.commit()
 
 
+def merge_topics(conn: sqlite3.Connection, winner_id: int, loser_id: int) -> list[int]:
+    """把 loser 話題整個併進 winner：文章改掛 winner、時間範圍取聯集、
+    loser 刪除。回傳被搬動的文章 id 清單（呼叫端要拿去同步 Qdrant payload）。
+
+    2026-08-14 加。在這之前話題跟話題永遠不會合併：每篇新文章只跟最像的
+    「那一篇」比，併入那篇所屬的話題。結果是同一件事的兩篇報導如果先後
+    各自開了話題，之後就算再像也各走各的（實測有兩個話題都在講同一款模型、
+    跨話題相似度 0.738 超過門檻，仍然是兩個話題）。
+
+    兩個守則：
+
+    1. **已出刊的話題不合併**（不論當 winner 還是 loser）。出刊記錄
+       （generated_topics、selection_trace）指著 topic_id，合併會讓歷史
+       記錄指到一個內容已經變了的話題。呼叫端要先檢查 published_issue_id。
+    2. **合併後 winner 的打分歸零**（module_scores_json 設回 NULL）。話題的
+       文章集合變了，舊分數是對舊集合打的。歸零之後 ingest 流程的打分步驟
+       （排在聚類後面）同一輪就會用完整的文章集合重打，代價是每次合併多
+       一次打分呼叫，換來的是分數永遠對得上內容。
+    """
+    moved = [
+        row["id"]
+        for row in conn.execute("SELECT id FROM articles WHERE topic_id = ?", (loser_id,))
+    ]
+    conn.execute("UPDATE articles SET topic_id = ? WHERE topic_id = ?", (winner_id, loser_id))
+    conn.execute(
+        """UPDATE topics SET
+             first_seen_at = MIN(first_seen_at, (SELECT first_seen_at FROM topics WHERE id = ?)),
+             last_seen_at  = MAX(last_seen_at,  (SELECT last_seen_at  FROM topics WHERE id = ?)),
+             module_scores_json = NULL
+           WHERE id = ?""",
+        (loser_id, loser_id, winner_id),
+    )
+    conn.execute("DELETE FROM topics WHERE id = ?", (loser_id,))
+    conn.commit()
+    return moved
+
+
+def get_topic_published_map(conn: sqlite3.Connection, topic_ids: list[int]) -> dict[int, bool]:
+    """回傳 {topic_id: 是否已出刊}。聚類的合併判斷用：已出刊的話題不參與合併。"""
+    if not topic_ids:
+        return {}
+    placeholders = ",".join("?" * len(topic_ids))
+    rows = conn.execute(
+        f"SELECT id, published_issue_id FROM topics WHERE id IN ({placeholders})", topic_ids
+    ).fetchall()
+    return {row["id"]: row["published_issue_id"] is not None for row in rows}
+
+
 def get_untagged_articles(conn: sqlite3.Connection, week_start: str) -> list[sqlite3.Row]:
     """回傳已經歸類到某個話題、本週（week_start 起，見 week_start_date()）
     新抓進來、但還沒跑過階段二標籤抽取的文章（content_mode IS NULL 當作
@@ -222,11 +330,17 @@ def get_untagged_articles(conn: sqlite3.Connection, week_start: str) -> list[sql
     光，導致當天新抓進來的文章反而標不完。窗口外的文章應該先呼叫
     discard_stale_untagged_articles() 主動標記捨棄，這裡的 fetched_at
     篩選只是雙保險，即使忘記呼叫捨棄流程也不會捞到舊文章。
+
+    沒通過 Gate 1a 的文章（只有標題的 signal_only、超出窗口的 excluded）
+    不在這裡回傳：標籤每篇要打一次 gateway，池裡有 43% 是只有標題的殘缺
+    內容，先擋掉省下來的是每天實際要等的時間。gate_status IS NULL 是
+    2026-08-14 以前入池的舊資料，當作 included 照舊處理。
     """
     return conn.execute(
         """SELECT * FROM articles
            WHERE topic_id IS NOT NULL AND content_mode IS NULL
-             AND discarded_at IS NULL AND fetched_at >= ?""",
+             AND discarded_at IS NULL AND fetched_at >= ?
+             AND COALESCE(gate_status, 'included') = 'included'""",
         (week_start,),
     ).fetchall()
 
@@ -255,11 +369,15 @@ def discard_stale_untagged_articles(conn: sqlite3.Connection, week_start: str) -
 def get_ungraphed_articles(conn: sqlite3.Connection, week_start: str) -> list[sqlite3.Row]:
     """回傳已標籤、還沒跑過知識圖譜三元組抽取的文章（graph_extracted_at IS
     NULL）。只處理本週窗口內的文章，理由跟 get_untagged_articles() 一樣：
-    避免舊積壓文章佔掉當天的抽取額度（這一步也要打 LLM）。"""
+    避免舊積壓文章佔掉當天的抽取額度（這一步也要打 LLM）。
+
+    沒通過 Gate 1 的文章不建圖：一行標題抽不出有意義的三元組，抽出來的
+    只會是實體之間的假關係，反而汙染圖。"""
     return conn.execute(
         """SELECT * FROM articles
            WHERE content_mode IS NOT NULL AND graph_extracted_at IS NULL
-             AND discarded_at IS NULL AND fetched_at >= ?""",
+             AND discarded_at IS NULL AND fetched_at >= ?
+             AND COALESCE(gate_status, 'included') = 'included'""",
         (week_start,),
     ).fetchall()
 
@@ -323,6 +441,116 @@ def save_article_tags(
     conn.commit()
 
 
+def save_article_gate(conn: sqlite3.Connection, article_id: int, result) -> None:
+    """把一次 Gate 1 判定的結果寫回文章列（result 是 pipeline.gates.GateResult）。
+
+    每次都覆寫，不做「已經判過就跳過」：門檻值改了之後補跑判定要能反映新的
+    設定，而 gate_checked_at 會記下這次是什麼時候判的，回頭對照得出來哪些
+    是舊門檻下的結果。
+    """
+    conn.execute(
+        """UPDATE articles SET gate_status = ?, gate_reason = ?,
+             gate_detail_json = ?, gate_checked_at = ? WHERE id = ?""",
+        (
+            result.status,
+            result.reason,
+            json.dumps(result.detail, ensure_ascii=False) if result.detail else None,
+            datetime.now().isoformat(),
+            article_id,
+        ),
+    )
+    conn.commit()
+
+
+def get_ungated_articles(conn: sqlite3.Connection) -> list[sqlite3.Row]:
+    """回傳還沒跑過 Gate 1a 的文章（gate_status IS NULL）。
+
+    正常流程下每篇文章入池當下就會判定，這支是給補跑用的：2026-08-14 以前
+    入池的文章沒有這個欄位，門檻值調整後也需要整批重判（見
+    tools/backfill_article_gates.py）。
+    """
+    return conn.execute("SELECT * FROM articles WHERE gate_status IS NULL").fetchall()
+
+
+def get_gate_summary(conn: sqlite3.Connection) -> list[sqlite3.Row]:
+    """依來源統計 Gate 1 的判定結果，供選題帳跟報告用。
+
+    這張表是「這個來源到底有沒有在貢獻可用內容」最直接的證據：某個來源
+    100% 都是 signal_only，代表它給的一直只有標題，該考慮換抓法還是拿掉。
+    """
+    return conn.execute(
+        """SELECT source_name,
+                  COUNT(*) AS total,
+                  SUM(CASE WHEN COALESCE(gate_status,'included')='included' THEN 1 ELSE 0 END) AS included,
+                  SUM(CASE WHEN gate_status='signal_only' THEN 1 ELSE 0 END) AS signal_only,
+                  SUM(CASE WHEN gate_status='excluded' THEN 1 ELSE 0 END) AS excluded
+           FROM articles GROUP BY source_name ORDER BY total DESC"""
+    ).fetchall()
+
+
+def record_selection_trace(
+    conn: sqlite3.Connection,
+    *,
+    issue_date: str,
+    cadence: str,
+    entries: list[dict],
+    issue_id: int | None = None,
+) -> None:
+    """一次寫入這一期所有候選話題的去向。
+
+    entries 的每個元素是 {"topic_id", "decision", "reason", "stage", "detail"}，
+    decision 是 "selected" 或 "rejected"，stage 是判定發生在哪一步
+    （"selection" 或 "generation"），detail 是可 JSON 序列化的 dict。
+
+    選題跟生成是兩次呼叫（選完才知道生成會不會失敗），所以這支設計成可以
+    對同一期呼叫多次累加，不是一次寫完就鎖住。
+    """
+    now = datetime.now().isoformat()
+    conn.executemany(
+        """INSERT INTO selection_trace
+             (issue_id, issue_date, cadence, topic_id, decision, reason, stage, detail_json, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+        [
+            (
+                issue_id,
+                issue_date,
+                cadence,
+                e["topic_id"],
+                e["decision"],
+                e.get("reason"),
+                e.get("stage", "selection"),
+                json.dumps(e.get("detail") or {}, ensure_ascii=False),
+                now,
+            )
+            for e in entries
+        ],
+    )
+    conn.commit()
+
+
+def attach_trace_to_issue(conn: sqlite3.Connection, issue_date: str, cadence: str, issue_id: int) -> None:
+    """選題階段寫 trace 的時候還沒有 issue_id（那一期要等生成成功才建立），
+    出刊成功後回頭把同一天同一個 cadence 的 trace 補上 issue_id，網頁才能
+    從某一期連到它的選題帳。"""
+    conn.execute(
+        """UPDATE selection_trace SET issue_id = ?
+           WHERE issue_id IS NULL AND issue_date = ? AND cadence = ?""",
+        (issue_id, issue_date, cadence),
+    )
+    conn.commit()
+
+
+def get_selection_trace(conn: sqlite3.Connection, issue_id: int) -> list[sqlite3.Row]:
+    """回傳某一期的選題帳，入選的排前面，其餘依理由碼分組。"""
+    return conn.execute(
+        """SELECT st.*, t.representative_title, t.content_type
+           FROM selection_trace st JOIN topics t ON t.id = st.topic_id
+           WHERE st.issue_id = ?
+           ORDER BY CASE st.decision WHEN 'selected' THEN 0 ELSE 1 END, st.reason, st.id""",
+        (issue_id,),
+    ).fetchall()
+
+
 def get_unscored_topics(
     conn: sqlite3.Connection, date_range: tuple[str, str] | None = None
 ) -> list[sqlite3.Row]:
@@ -333,18 +561,27 @@ def get_unscored_topics(
 
     date_range 是 (start, end) 的 ISO date 字串 tuple，有給就只回傳「底下
     至少有一篇文章 published_at 落在這個範圍（含頭尾）」的話題，供日報回填
-    按天分批打分用（見 scripts/backfill_daily_issues.py）。故意不用
+    按天分批打分用（見 tools/backfill_daily_issues.py）。故意不用
     topics.first_seen_at（那是系統實際跑聚類/抓取的時間，抓取本身時常有
     空窗，first_seen_at 對不上文章真正的發表日），要看的是新聞真正發生的
     那天。不給 date_range 就是原本的全池行為。
     """
+    # 「話題內文章全標完」只看 gate_status='included' 的文章：signal_only
+    # 跟 excluded 的本來就不會去標，把它們算進未標籤清單會讓所屬話題永遠
+    # 卡在無法打分（跟 discarded_at 要排除掉是同一個道理）。
+    # 最後一個 EXISTS 也要跟著只看 included，否則底下全是殘缺標題的話題
+    # 會通過打分，打完分再被 Gate 2 擋掉，白花一次 gateway 呼叫。
     query = """SELECT t.* FROM topics t
            WHERE t.module_scores_json IS NULL
              AND NOT EXISTS (
                SELECT 1 FROM articles a
                WHERE a.topic_id = t.id AND a.content_mode IS NULL AND a.discarded_at IS NULL
+                 AND COALESCE(a.gate_status, 'included') = 'included'
              )
-             AND EXISTS (SELECT 1 FROM articles a WHERE a.topic_id = t.id)"""
+             AND EXISTS (
+               SELECT 1 FROM articles a
+               WHERE a.topic_id = t.id AND COALESCE(a.gate_status, 'included') = 'included'
+             )"""
     params: tuple = ()
     if date_range is not None:
         query += """ AND EXISTS (
@@ -372,18 +609,24 @@ def save_module_scores(
 
 
 def get_available_topics(
-    conn: sqlite3.Connection, date_range: tuple[str, str] | None = None
+    conn: sqlite3.Connection,
+    date_range: tuple[str, str] | None = None,
+    cadence: str = "daily",
 ) -> list[sqlite3.Row]:
-    """回傳已經打過分、還沒被任何一期選用過的話題。
+    """回傳已經打過分、還沒被「這個出刊頻率」選用過的話題。
 
     date_range 是 (start, end) 的 ISO date 字串 tuple，有給就只回傳「底下
     至少有一篇文章 published_at 落在這個範圍（含頭尾）」的話題，供日報選題
     把候選池限定在「這一天真正發生的新聞」（見
     scripts/compose_topic_issue.py 的 --cadence daily；不用
-    topics.first_seen_at 的理由見 get_unscored_topics() 的說明）。不給就是
-    原本的全池行為（weekly 用）。
+    topics.first_seen_at 的理由見 get_unscored_topics() 的說明）。
+
+    cadence="weekly" 時改看 weekly_issue_id 而不是 published_issue_id：
+    週報是「整週最好的回顧」，上過日報的話題本來就該進週報候選池，只排除
+    已經上過週報的（欄位設計理由見 _SCHEMA 裡 topics 表的註解，2026-08-25）。
     """
-    query = "SELECT * FROM topics WHERE published_issue_id IS NULL AND module_scores_json IS NOT NULL"
+    exclusion_column = "weekly_issue_id" if cadence == "weekly" else "published_issue_id"
+    query = f"SELECT * FROM topics WHERE {exclusion_column} IS NULL AND module_scores_json IS NOT NULL"
     params: tuple = ()
     if date_range is not None:
         query += """ AND EXISTS (
@@ -428,9 +671,14 @@ def create_issue(
     return cur.lastrowid
 
 
-def mark_topics_published(conn: sqlite3.Connection, topic_ids: list[int], issue_id: int) -> None:
+def mark_topics_published(
+    conn: sqlite3.Connection, topic_ids: list[int], issue_id: int, cadence: str = "daily"
+) -> None:
+    """cadence="weekly" 時寫 weekly_issue_id，日報跟週報的出刊標記互不影響
+    （理由見 _SCHEMA 裡 topics 表的註解）。"""
+    column = "weekly_issue_id" if cadence == "weekly" else "published_issue_id"
     conn.executemany(
-        "UPDATE topics SET published_issue_id = ? WHERE id = ?",
+        f"UPDATE topics SET {column} = ? WHERE id = ?",
         [(issue_id, tid) for tid in topic_ids],
     )
     conn.commit()
@@ -444,12 +692,16 @@ def save_generated_topic(
     source_article_ids: list[int],
     confidence: float,
     needs_review: bool,
+    translations_json: str | None = None,
 ) -> None:
+    """translations_json 給週報重用日報文章時把翻譯快取一起帶過來用（見
+    get_latest_generated_for_topics()），正常生成流程不帶、留給
+    pipeline/translate.py 的 pretranslate_issue() 補。"""
     conn.execute(
         """INSERT INTO generated_topics
            (issue_id, topic_id, generated_json, source_article_ids_json,
-            confidence, needs_review, created_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?)""",
+            confidence, needs_review, created_at, translations_json)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
         (
             issue_id,
             topic_id,
@@ -458,9 +710,32 @@ def save_generated_topic(
             confidence,
             int(needs_review),
             datetime.now().isoformat(),
+            translations_json,
         ),
     )
     conn.commit()
+
+
+def get_latest_generated_for_topics(
+    conn: sqlite3.Connection, topic_ids: list[int]
+) -> dict[int, sqlite3.Row]:
+    """回傳 {topic_id: 該話題最近一次生成的 generated_topics 列}。
+
+    週報選到已經上過日報的話題時，文章（含自檢信心度與翻譯快取）直接重用
+    日報那份，不重寫也不重新自檢：同一個話題重寫一次是重花一次 LLM 又拿到
+    一篇沒被看過的新文章，重用才符合「週報是整週最好的回顧」。2026-08-25 加。
+    """
+    if not topic_ids:
+        return {}
+    placeholders = ",".join("?" * len(topic_ids))
+    rows = conn.execute(
+        f"""SELECT * FROM generated_topics
+            WHERE topic_id IN ({placeholders})
+            ORDER BY created_at""",
+        topic_ids,
+    ).fetchall()
+    # 同一話題有多筆時保留 created_at 最新的（依序覆蓋）。
+    return {row["topic_id"]: row for row in rows}
 
 
 def list_issues(conn: sqlite3.Connection) -> list[sqlite3.Row]:

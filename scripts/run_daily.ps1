@@ -1,10 +1,11 @@
-# 每日自動出刊：抓取 → 分析 → 產出前一天的日報。
+﻿# 每日自動出刊：抓取 → 分析 → 產出前一天的日報。
 #
 # 為什麼是「前一天」：排程在清晨跑，當天的文章才剛開始出現，用完整的前一天
 # 資料選題才合理。要補特定日期就自己帶 -IssueDate。
 #
-# 這支刻意不去啟動 Neo4j。建圖只是加值，連不上時 ingest_topics 會自己跳過，
-# 不影響日報產出（2026-08-13 修的）。
+# 2026-08-25 起建圖解凍：先確保 Neo4j 活著（scripts/start_neo4j.ps1），
+# ingest 帶 --build-graph。Neo4j 起不來時 ingest_topics 會自己跳過建圖，
+# 不影響日報產出（2026-08-13 修的），所以這裡不因它失敗而中止。
 #
 # 註冊排程（不需要管理員權限，工作只在自己帳號下跑）：
 #   $t = New-ScheduledTaskTrigger -Daily -At 7:00am
@@ -35,9 +36,13 @@ function Write-Log([string]$msg) {
 
 Write-Log "=== 開始，出刊日期 $IssueDate ==="
 
-# 步驟一：抓取與分析。失敗不要接著跑出刊，那樣只會產出半成品的一期。
+# 步驟零：確保 Neo4j 活著（起不來只會讓建圖被跳過，不擋出刊）。
+& powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot "start_neo4j.ps1") 2>&1 |
+    ForEach-Object { Add-Content -Path $log -Value $_ -Encoding utf8 }
+
+# 步驟一：抓取與分析（含建圖）。失敗不要接著跑出刊，那樣只會產出半成品的一期。
 Write-Log "--- ingest_topics ---"
-& python -X utf8 -u -m scripts.ingest_topics --concurrency $Concurrency 2>&1 |
+& python -X utf8 -u -m scripts.ingest_topics --concurrency $Concurrency --build-graph 2>&1 |
     ForEach-Object { Add-Content -Path $log -Value $_ -Encoding utf8 }
 $ingestCode = $LASTEXITCODE
 Write-Log "ingest_topics 結束，exit code $ingestCode"

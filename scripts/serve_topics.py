@@ -1,7 +1,7 @@
 """話題式週報：本機網頁（PoC 階段，不處理部署/登入/權限）。
 
 讀 SQLite 話題池產生的 issues / generated_topics，列出期數、看單期詳細內容。
-跟 scripts/serve_pulse.py 是平行模組，同樣的設計。
+跟 legacy/scripts/serve_pulse.py 是平行模組，同樣的設計。
 
 用法：
     python -m scripts.serve_topics
@@ -14,6 +14,7 @@ from pathlib import Path
 
 import yaml
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from starlette.requests import Request
@@ -27,7 +28,12 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from pipeline.topic_db import get_connection, get_generated_topic, get_issue_detail, list_issues
+from pipeline.topic_db import (
+    get_connection,
+    get_generated_topic,
+    get_issue_detail,
+    list_issues,
+)
 from pipeline.translate import SUPPORTED as SUPPORTED_LANGS
 from pipeline.translate import get_article_in
 
@@ -60,6 +66,19 @@ def _attach_top_module(topic: dict) -> dict:
 app = FastAPI(title=_config["newsletter"]["name"])
 templates = Jinja2Templates(directory=str(TEMPLATE_DIR))
 
+# Neo4j Browser（跑在 7474）要來抓 /neo4j-guide，那是跨來源請求，沒有 CORS
+# 標頭的話瀏覽器會擋掉，Browser 只會顯示「No guide by that name」，看不出真正
+# 的原因。只開放 Neo4j Browser 這個來源，不是全開。
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:7474", "http://127.0.0.1:7474",
+        "https://localhost:7474", "https://127.0.0.1:7474",
+    ],
+    allow_methods=["GET"],
+    allow_headers=["*"],
+)
+
 
 def _get_conn():
     return get_connection(_config["database"]["path"])
@@ -83,6 +102,58 @@ def _localise(conn, topic: dict, lang: str) -> dict:
     return {**topic, **translated}
 
 
+@app.get("/neo4j-guide", response_class=HTMLResponse)
+def neo4j_guide(request: Request):
+    """給 Neo4j Browser 用的自訂指南。連上 Neo4j 之後會自動打開這一頁，
+    裡面的 Cypher 區塊在 Browser 裡是點一下就執行，不用手動打字。
+    設定在 neo4j.conf 的 browser.post_connect_cmd。"""
+    return templates.TemplateResponse(request, "neo4j_guide.html.jinja", {})
+
+
+def _build_calendar_months(conn, issues) -> list[dict]:
+    """把期數組成月曆格子（新月份在前；一週從週日起算，跟週報的週定義一致）。
+
+    每格帶當天的期數 chip（日報顯示篇數、週報標出來），沒有刊的日子留白，
+    如實呈現「那天池裡沒東西」而不是把格子藏起來。
+    """
+    import calendar as calendar_mod
+    from datetime import date as date_cls
+
+    counts = dict(
+        conn.execute("SELECT issue_id, COUNT(*) FROM generated_topics GROUP BY issue_id").fetchall()
+    )
+    by_day: dict[str, list[dict]] = {}
+    month_keys: set[tuple[int, int]] = set()
+    for issue in issues:
+        d = date_cls.fromisoformat(issue["issue_date"])
+        by_day.setdefault(issue["issue_date"], []).append(
+            {"id": issue["id"], "cadence": issue["cadence"], "count": counts.get(issue["id"], 0)}
+        )
+        month_keys.add((d.year, d.month))
+
+    grid = calendar_mod.Calendar(firstweekday=6)  # 週日起算
+    today_iso = date_cls.today().isoformat()
+    months = []
+    for year, month in sorted(month_keys, reverse=True):
+        weeks = []
+        for week in grid.monthdatescalendar(year, month):
+            weeks.append(
+                [
+                    {
+                        "day": d.day,
+                        "in_month": d.month == month,
+                        "is_today": d.isoformat() == today_iso,
+                        # 格子屬於哪個月用日期判斷，chip 只放在所屬月份的格子，
+                        # 避免月頭月尾的跨月格子讓同一期出現兩次。
+                        "issues": by_day.get(d.isoformat(), []) if d.month == month else [],
+                    }
+                    for d in week
+                ]
+            )
+        months.append({"label": f"{year} 年 {month} 月", "weeks": weeks})
+    return months
+
+
 @app.get("/", response_class=HTMLResponse)
 def issue_list(request: Request, lang: str | None = None):
     conn = _get_conn()
@@ -93,6 +164,7 @@ def issue_list(request: Request, lang: str | None = None):
         {
             "newsletter_name": _config["newsletter"]["name"],
             "issues": issues,
+            "months": _build_calendar_months(conn, issues),
             "lang": _normalise_lang(lang),
         },
     )
@@ -150,6 +222,25 @@ def issue_topic_detail(request: Request, issue_id: int, topic_id: int, lang: str
 
 
 if __name__ == "__main__":
+    import argparse
+
     import uvicorn
 
-    uvicorn.run(app, host="127.0.0.1", port=8001)
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--host", default="127.0.0.1",
+        help=(
+            "監聽位址。預設 127.0.0.1（只有這台看得到）。要讓同事從公司網路連進來"
+            "就用 0.0.0.0，但要注意這樣是完全沒有登入保護的，任何連得到這台的人"
+            "都看得到全部內容，只適合內網分享。"
+        ),
+    )
+    parser.add_argument("--port", type=int, default=8001)
+    args = parser.parse_args()
+
+    if args.host == "0.0.0.0":  # noqa: S104 -- 內網分享是刻意的
+        import socket
+
+        ip = socket.gethostbyname(socket.gethostname())
+        print(f"[serve_topics] 同事可以連：http://{ip}:{args.port}")
+    uvicorn.run(app, host=args.host, port=args.port)

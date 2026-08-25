@@ -59,6 +59,36 @@
   .issue-card-row { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
   .issue-card-title { font-family: var(--font-display); font-weight: 800; font-size: clamp(1.1rem, 1.6vw + 0.7rem, 1.5rem); text-transform: uppercase; }
   .issue-card-date { font-family: var(--font-label); font-size: 0.8rem; color: var(--color-muted); white-space: nowrap; }
+  .issue-card-cadence { font-family: var(--font-label); font-size: 0.7rem; border: 1px solid var(--color-ink); padding: 0.1em 0.5em; white-space: nowrap; }
+  .issue-card-cadence.weekly { background: var(--color-ink); color: var(--color-paper); }
+
+  /* 月曆：一週從週日起算（跟週報的週定義一致）。日曆是首頁主視覺，
+     底下保留原本的期數列表當備援。 */
+  .cal-wrap { max-width: 52rem; margin: 0 auto; padding: 0 var(--page-gutter) 2.5rem; }
+  .cal-month { margin-bottom: 2.5rem; }
+  .cal-title { font-family: var(--font-display); font-weight: 800; text-transform: uppercase; font-size: clamp(1.4rem, 2.4vw + 0.8rem, 2rem); margin: 0 0 0.9rem; }
+  .cal-board { border: 2px solid var(--color-ink); box-shadow: 5px 5px 0 var(--color-ink); background: var(--color-paper-2); overflow-x: auto; }
+  .cal-head, .cal-week { display: grid; grid-template-columns: repeat(7, minmax(4.2rem, 1fr)); }
+  .cal-head { background: var(--color-ink); color: var(--color-accent-ink); }
+  .cal-head span { font-family: var(--font-label); font-size: 0.72rem; letter-spacing: 0.08em; text-align: center; padding: 0.45em 0; }
+  .cal-head span:first-child { color: var(--color-accent-2); }
+  .cal-cell { min-height: 5.2rem; border-top: 1px solid var(--color-paper-3); border-left: 1px solid var(--color-paper-3); padding: 0.35rem 0.4rem; display: flex; flex-direction: column; gap: 0.3rem; }
+  .cal-week .cal-cell:first-child { border-left: none; }
+  .cal-cell.out { background: color-mix(in oklch, var(--color-paper-3) 55%, var(--color-paper-2)); }
+  .cal-cell.out .cal-day { opacity: 0.35; }
+  .cal-cell.today { outline: 3px solid var(--color-accent); outline-offset: -3px; }
+  .cal-day { font-family: var(--font-label); font-size: 0.78rem; color: var(--color-muted); }
+  .cal-chip { display: block; font-family: var(--font-label); font-size: 0.68rem; line-height: 1.35; border: 1.5px solid var(--color-ink); background: var(--color-paper); padding: 0.18em 0.4em; box-shadow: 2px 2px 0 var(--color-ink); transition: transform 100ms ease-out, box-shadow 100ms ease-out; }
+  .cal-chip:hover { transform: translate(-1px, -1px); box-shadow: 3px 3px 0 var(--color-ink); background: var(--color-accent); color: var(--color-accent-ink); }
+  .cal-chip:active { transform: translate(1px, 1px); box-shadow: 1px 1px 0 var(--color-ink); }
+  .cal-chip.weekly { background: var(--color-ink); color: var(--color-paper); }
+  .cal-chip.weekly:hover { background: var(--color-accent); }
+  .cal-legend { display: flex; gap: 1.2rem; margin-top: 0.7rem; font-family: var(--font-label); font-size: 0.72rem; color: var(--color-muted); }
+  .cal-legend .cal-chip { display: inline-block; box-shadow: none; cursor: default; }
+  .cal-legend .cal-chip:hover { transform: none; background: var(--color-paper); color: inherit; }
+  .cal-legend .cal-chip.weekly:hover { background: var(--color-ink); color: var(--color-paper); }
+
+  .list-heading { max-width: var(--shell); margin: 0 auto; padding: 0 var(--page-gutter) 0.9rem; font-family: var(--font-label); font-size: 0.78rem; letter-spacing: 0.1em; color: var(--color-muted); }
 
   .empty { max-width: var(--shell); margin: 0 auto; padding: 3rem var(--page-gutter); color: var(--color-muted); }
   .empty p { margin: 0 0 0.75rem; line-height: 1.6; }
@@ -74,20 +104,62 @@
 
 <header class="masthead">
   <div class="masthead-inner">
-    <p class="eyebrow">DELTA AI TREND WEEKLY</p>
+    <p class="eyebrow">DELTA AI TREND DAILY</p>
     <h1>{{ newsletter_name }}</h1>
-    <p>每週三準時出版，用一杯咖啡的時間，帶你發掘本週最值得一看的 AI 動態。</p>
+    <p>每天更新，用一杯咖啡的時間，帶你發掘最值得一看的 AI 動態。</p>
   </div>
 </header>
 
 <div class="ornament-row" aria-hidden="true">✱ ✱ ✱ ✱</div>
 
+{% if months %}
+<section class="cal-wrap" aria-label="出刊日曆">
+  {% for month in months %}
+  <div class="cal-month">
+    <h2 class="cal-title">{{ month.label }}</h2>
+    <div class="cal-board">
+      <div class="cal-head">
+        <span>日</span><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span>
+      </div>
+      {% for week in month.weeks %}
+      <div class="cal-week">
+        {% for cell in week %}
+        <div class="cal-cell{% if not cell.in_month %} out{% endif %}{% if cell.is_today %} today{% endif %}">
+          <span class="cal-day">{{ cell.day }}</span>
+          {% for issue in cell.issues %}
+          <a class="cal-chip{% if issue.cadence == 'weekly' %} weekly{% endif %}" href="/issues/{{ issue.id }}">
+            {%- if issue.cadence == 'weekly' -%}週報 {{ issue.count }} 則
+            {%- else -%}{{ issue.count }} 則{%- endif -%}
+          </a>
+          {% endfor %}
+        </div>
+        {% endfor %}
+      </div>
+      {% endfor %}
+    </div>
+    <div class="cal-legend">
+      <span><span class="cal-chip">N 則</span> 日報（點進去看當天）</span>
+      <span><span class="cal-chip weekly">週報</span> 每週一出，涵蓋上週日到週六</span>
+    </div>
+  </div>
+  {% endfor %}
+</section>
+{% endif %}
+
 {% if issues %}
+<p class="list-heading">全部期數</p>
 <nav class="issue-index" aria-label="期數列表">
   {% for issue in issues %}
   <a class="issue-card" href="/issues/{{ issue.id }}">
     <div class="issue-card-row">
       <span class="issue-card-title">第 {{ issue.id }} 期</span>
+      {# 週報跟日報混在同一個列表，不標出來分不出誰是誰。舊的 7 期 cadence
+         是 NULL（日報化之前的週報時代），不標。#}
+      {% if issue.cadence == 'weekly' %}
+      <span class="issue-card-cadence weekly">週報{% if issue.period_start %} {{ issue.period_start }} ~ {{ issue.period_end }}{% endif %}</span>
+      {% elif issue.cadence == 'daily' %}
+      <span class="issue-card-cadence">日報</span>
+      {% endif %}
       <span class="issue-card-date">{{ issue.issue_date }}</span>
     </div>
   </a>
