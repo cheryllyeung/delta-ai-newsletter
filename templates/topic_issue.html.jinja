@@ -139,6 +139,8 @@
     .feedback-overlay { padding: 1rem; }
   }
 
+  .other-news-heading { max-width: var(--shell); margin: 2rem auto 0.2rem; padding: 0 var(--page-gutter); font-family: var(--font-label); font-size: 0.78rem; letter-spacing: 0.1em; color: var(--color-muted); }
+
   /* 週報主題大標題：每期從當週內容提煉（pipeline/delta_column.py）。 */
   .weekly-headline { margin: 1rem 0 0; font-family: var(--font-display); font-weight: 800; font-size: clamp(1.3rem, 2.2vw + 0.8rem, 1.9rem); line-height: 1.25; color: var(--color-accent-2); }
 
@@ -180,7 +182,7 @@
     <h1>{{ newsletter_name }}</h1>
     <div class="masthead-meta">
       <span>第 {{ issue_id }} 期 · {{ issue_date }}</span>
-      <span>{{ topics | length }} 篇文章</span>
+      <span>{{ total_articles if total_articles is defined else topics | length }} 篇文章</span>
     </div>
     {% if weekly_headline %}<p class="weekly-headline">{{ weekly_headline }}</p>{% endif %}
     <p class="lede" id="lede-text">本期導讀，點進標題看單篇全文。</p>
@@ -214,6 +216,7 @@
 {% endif %}
 
 {% if topics %}
+{% if delta_column %}<p class="other-news-heading">本週其他要聞</p>{% endif %}
 <nav class="issue-index" aria-label="本期話題列表">
   {% for topic in topics %}
   <a class="topic-card" href="/issues/{{ issue_id }}/topics/{{ topic.id }}">
@@ -230,7 +233,8 @@
   </a>
   {% endfor %}
 </nav>
-{% else %}
+{% elif not delta_column %}
+{# 週報的 10 篇可能全數都在專欄出現過，列表空著是正常的，不要顯示「還沒有話題」。 #}
 <div class="empty">
   <p>這一期還沒有任何話題。</p>
 </div>

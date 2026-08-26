@@ -751,6 +751,9 @@ def _row_to_topic_dict(conn: sqlite3.Connection, row: sqlite3.Row) -> dict:
         # generated_topics.id：導讀頁卡片連到單篇話題頁（/issues/{id}/topics/{此id}）要用的識別碼，
         # 不是 topics.id（一個話題理論上可能被改寫、重新入選，generated_topics 這筆才是「這期實際發布的這篇」）。
         "id": row["id"],
+        # topics.id：週報導讀頁用來跟台達專欄比對「這篇是不是已經在專欄
+        # 出現過」（scripts/serve_topics.py 的 issue_overview）。
+        "topic_id": row["topic_id"],
         "content_type": row["content_type"],
         "confidence": row["confidence"],
         "needs_review": bool(row["needs_review"]),

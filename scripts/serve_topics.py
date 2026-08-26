@@ -196,6 +196,7 @@ def issue_overview(request: Request, issue_id: int, lang: str | None = None):
     lang = _normalise_lang(lang)
     issue = detail["issue"]
     topics = [_localise(conn, _attach_top_module(t), lang) for t in detail["topics"]]
+    column_topic_count = 0
     # 台達專欄（cells）＋週報主題大標題（headline），週報限定
     # （pipeline/delta_column.py）。舊期數或日報沒有這個欄位，模板拿到
     # None 就不渲染。
@@ -208,6 +209,12 @@ def issue_overview(request: Request, issue_id: int, lang: str | None = None):
             weekly_headline = parsed.get("headline") if isinstance(parsed, dict) else None
     except (KeyError, IndexError):
         pass
+    if delta_column:
+        # 專欄已經介紹過的話題，下面的文章列表不再重列（2026-08-26 使用者
+        # 反映重複）。專欄格子的連結本來就指向全文，資訊沒有少。
+        column_topic_ids = {c.get("topic_id") for c in delta_column}
+        column_topic_count = sum(1 for t in topics if t.get("topic_id") in column_topic_ids)
+        topics = [t for t in topics if t.get("topic_id") not in column_topic_ids]
     return templates.TemplateResponse(
         request,
         "topic_issue.html.jinja",
@@ -218,6 +225,7 @@ def issue_overview(request: Request, issue_id: int, lang: str | None = None):
             "issue_date": issue["issue_date"],
             "issue_cadence": issue["cadence"],
             "topics": topics,
+            "total_articles": column_topic_count + len(topics),
             "delta_column": delta_column,
             "weekly_headline": weekly_headline,
             "content_type_names": _CONTENT_TYPE_NAMES,
