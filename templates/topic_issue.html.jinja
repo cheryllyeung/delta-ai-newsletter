@@ -138,6 +138,24 @@
     .feedback-fab { padding: 0.85em; }
     .feedback-overlay { padding: 1rem; }
   }
+
+  /* 週報主題大標題：每期從當週內容提煉（pipeline/delta_column.py）。 */
+  .weekly-headline { margin: 1rem 0 0; font-family: var(--font-display); font-weight: 800; font-size: clamp(1.3rem, 2.2vw + 0.8rem, 1.9rem); line-height: 1.25; color: var(--color-accent-2); }
+
+  /* 台達專欄：黑底區塊跟正刊卡片區隔，格子用 Carnival 的硬邊語彙。 */
+  .delta-column { background: var(--color-ink); color: var(--color-accent-ink); padding: 2rem var(--page-gutter) 2.5rem; }
+  .delta-column-inner { max-width: 52rem; margin: 0 auto; }
+  .delta-column-title { font-family: var(--font-display); font-weight: 800; text-transform: uppercase; font-size: clamp(1.4rem, 2.4vw + 0.8rem, 2rem); margin: 0; color: var(--color-accent-2); }
+  .delta-column-sub { font-family: var(--font-label); font-size: 0.78rem; margin: 0.4rem 0 1.2rem; opacity: 0.75; }
+  .delta-column-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr)); gap: 0.9rem; }
+  .delta-cell { border: 1.5px solid color-mix(in oklch, var(--color-accent-ink) 40%, transparent); padding: 0.8rem 0.9rem; display: flex; flex-direction: column; gap: 0.45rem; }
+  .delta-cell.is-empty { opacity: 0.45; }
+  .delta-cell-group { font-family: var(--font-label); font-size: 0.72rem; letter-spacing: 0.06em; color: var(--color-accent-2); display: flex; gap: 0.6em; align-items: baseline; }
+  .delta-cell-minor { font-style: normal; font-size: 0.65rem; border: 1px solid currentColor; padding: 0 0.4em; opacity: 0.8; }
+  .delta-cell-headline { font-family: var(--font-body); font-weight: 700; font-size: 0.92rem; line-height: 1.45; color: var(--color-accent-ink); }
+  a.delta-cell-headline:hover { color: var(--color-accent-2); text-decoration: underline; }
+  .delta-cell-comment { margin: 0; font-size: 0.82rem; line-height: 1.65; opacity: 0.88; }
+  .delta-cell-none { margin: 0; font-size: 0.82rem; font-family: var(--font-label); }
 </style>
 </head>
 <body>
@@ -164,11 +182,36 @@
       <span>第 {{ issue_id }} 期 · {{ issue_date }}</span>
       <span>{{ topics | length }} 篇文章</span>
     </div>
+    {% if weekly_headline %}<p class="weekly-headline">{{ weekly_headline }}</p>{% endif %}
     <p class="lede" id="lede-text">本期導讀，點進標題看單篇全文。</p>
   </div>
 </header>
 
 <div class="ornament-row" aria-hidden="true">✱ ✱ ✱ ✱</div>
+
+{% if delta_column %}
+{# 台達專欄：週報限定的固定欄目，九個事業領域各一格回顧當週最相關的一件事
+   （pipeline/delta_column.py）。empty 格照樣顯示，版面每週一致、內容如實。 #}
+<section class="delta-column" aria-label="台達專欄">
+  <div class="delta-column-inner">
+    <h2 class="delta-column-title">台達專欄</h2>
+    <p class="delta-column-sub">每週回顧：各事業領域當週最值得看的一件事</p>
+    <div class="delta-column-grid">
+      {% for cell in delta_column %}
+      <div class="delta-cell">
+        <span class="delta-cell-group">{{ cell.module_name }}{% if cell.state == 'minor' %}<em class="delta-cell-minor">次要動態</em>{% endif %}</span>
+        {% if cell.generated_id and cell.generated_issue_id %}
+        <a class="delta-cell-headline" href="/issues/{{ cell.generated_issue_id }}/topics/{{ cell.generated_id }}">{{ cell.topic_title }}</a>
+        {% else %}
+        <span class="delta-cell-headline">{{ cell.topic_title }}</span>
+        {% endif %}
+        {% if cell.comment %}<p class="delta-cell-comment">{{ cell.comment }}</p>{% endif %}
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endif %}
 
 {% if topics %}
 <nav class="issue-index" aria-label="本期話題列表">

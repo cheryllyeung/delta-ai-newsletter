@@ -9,6 +9,7 @@
 """
 from __future__ import annotations
 
+import json
 import sys
 from pathlib import Path
 
@@ -102,6 +103,19 @@ def _localise(conn, topic: dict, lang: str) -> dict:
     return {**topic, **translated}
 
 
+@app.get("/graph", response_class=HTMLResponse)
+def knowledge_graph():
+    """知識圖譜的互動頁（tools/export_graph_html.py 產出的靜態檔）。
+    檔案是匯出當下的快照，要更新就重跑那支工具。"""
+    path = Path(__file__).resolve().parent.parent / "docs" / "knowledge_graph.html"
+    if not path.exists():
+        raise HTTPException(
+            status_code=404,
+            detail="還沒匯出過，先跑 python -m tools.export_graph_html",
+        )
+    return HTMLResponse(path.read_text(encoding="utf-8"))
+
+
 @app.get("/neo4j-guide", response_class=HTMLResponse)
 def neo4j_guide(request: Request):
     """給 Neo4j Browser 用的自訂指南。連上 Neo4j 之後會自動打開這一頁，
@@ -182,6 +196,18 @@ def issue_overview(request: Request, issue_id: int, lang: str | None = None):
     lang = _normalise_lang(lang)
     issue = detail["issue"]
     topics = [_localise(conn, _attach_top_module(t), lang) for t in detail["topics"]]
+    # 台達專欄（cells）＋週報主題大標題（headline），週報限定
+    # （pipeline/delta_column.py）。舊期數或日報沒有這個欄位，模板拿到
+    # None 就不渲染。
+    delta_column = None
+    weekly_headline = None
+    try:
+        if issue["column_json"]:
+            parsed = json.loads(issue["column_json"])
+            delta_column = parsed.get("cells") if isinstance(parsed, dict) else parsed
+            weekly_headline = parsed.get("headline") if isinstance(parsed, dict) else None
+    except (KeyError, IndexError):
+        pass
     return templates.TemplateResponse(
         request,
         "topic_issue.html.jinja",
@@ -190,7 +216,10 @@ def issue_overview(request: Request, issue_id: int, lang: str | None = None):
             "newsletter_name": _config["newsletter"]["name"],
             "issue_id": issue["id"],
             "issue_date": issue["issue_date"],
+            "issue_cadence": issue["cadence"],
             "topics": topics,
+            "delta_column": delta_column,
+            "weekly_headline": weekly_headline,
             "content_type_names": _CONTENT_TYPE_NAMES,
             "lang": lang,
         },
