@@ -209,6 +209,50 @@ def split_reusable(conn, selected: list[dict]) -> tuple[list[dict], list[dict]]:
     return reused, to_generate
 
 
+def select_and_generate(conn, config: dict, cadence: str, date_range) -> tuple[list[dict], list[dict]]:
+    """選題＋生成＋生成失敗時補選，直到湊滿 total_topics 下限或候選用盡。
+
+    2026-08-26 加：使用者要求日報固定 5 則、週報固定 10 則。在這之前選了
+    5 篇但其中一篇生成失敗，那天就默默變 4 篇，沒有任何補位。現在生成完
+    數量不足就回頭再選（排除已試過的話題），最多補兩輪。正常出刊跟補刊
+    （tools/backfill_daily_issues.py）都走這一條，不要各自維護兩份。
+    """
+    total_min = config["selection"][cadence]["total_topics"][0]
+    results: list[dict] = []
+    rejections: list[dict] = []
+    tried: set[int] = set()
+    display_order: dict[int, int] = {}
+    for round_no in range(3):
+        selected, rejs = select_for_issue(
+            conn, config, cadence=cadence, date_range=date_range,
+            exclude_topic_ids=tried or None,
+        )
+        if round_no == 0:
+            # 只有第一輪的落選帳是完整的；補位輪的「落選」多半是第一輪
+            # 已經記過的同一批，重複記會讓帳目灌水。
+            rejections.extend(rejs)
+        else:
+            selected = selected[: total_min - len(results)]
+            if selected:
+                print(f"[compose_topic_issue] 生成失敗補位：第 {round_no + 1} 輪補選 {len(selected)} 個")
+        if not selected:
+            break
+        for entry in selected:
+            display_order.setdefault(entry["row"]["id"], len(display_order))
+        tried.update(entry["row"]["id"] for entry in selected)
+
+        reused, to_generate = split_reusable(conn, selected)
+        if reused:
+            print(f"[compose_topic_issue] {len(reused)} 篇重用現成文章，{len(to_generate)} 篇要新生成")
+        gen_results, gen_rejs = generate_and_check(conn, to_generate, config)
+        results.extend(reused + gen_results)
+        rejections.extend(gen_rejs)
+        if len(results) >= total_min:
+            break
+    results.sort(key=lambda r: display_order[r["topic_id"]])
+    return results, rejections
+
+
 def _selected_trace_entries(results: list[dict]) -> list[dict]:
     """入選的也要記帳，而且要記「它是怎麼被選上的」。
 
@@ -303,37 +347,15 @@ def main() -> None:
         week_start = d - timedelta(days=days_since_sunday + 7)
         date_range = (week_start.isoformat(), (week_start + timedelta(days=6)).isoformat())
         print(f"[compose_topic_issue] 週報窗口：{date_range[0]} ~ {date_range[1]}")
-    selected, rejections = select_for_issue(conn, config, cadence=args.cadence, date_range=date_range)
-    print(f"[compose_topic_issue] 入選話題：{len(selected)} 個，落選 {len(rejections)} 個")
-    if not selected:
-        # 沒選出東西也要留帳：這一天到底是「沒有候選」還是「候選都不夠格」，
-        # 是兩件完全不同的事，事後只看「今天沒出刊」分不出來。
-        record_selection_trace(
-            conn, issue_date=args.date, cadence=args.cadence, entries=rejections
-        )
-        print("[compose_topic_issue] 話題池裡沒有可用話題（或都已經被選用過），中止。")
-        _print_ledger(0, [], rejections)
-        return
-
-    if args.cadence == "weekly":
-        reused, to_generate = split_reusable(conn, selected)
-        if reused:
-            print(f"[compose_topic_issue] {len(reused)} 篇重用日報已生成的文章，{len(to_generate)} 篇要新生成")
-        results, gen_rejections = generate_and_check(conn, to_generate, config)
-        results = reused + results
-        # 合併後還原選題時排好的版面順序（週度潛力分高的在前）。
-        order = {e["row"]["id"]: i for i, e in enumerate(selected)}
-        results.sort(key=lambda r: order[r["topic_id"]])
-    else:
-        results, gen_rejections = generate_and_check(conn, selected, config)
-    rejections.extend(gen_rejections)
+    results, rejections = select_and_generate(conn, config, args.cadence, date_range)
+    print(f"[compose_topic_issue] 成功產出：{len(results)} 篇，落選 {len(rejections)} 個")
 
     if not results:
         record_selection_trace(
             conn, issue_date=args.date, cadence=args.cadence, entries=rejections
         )
-        print("[compose_topic_issue] 入選話題全部生成失敗，沒有組成新的一期，中止。")
-        _print_ledger(len(selected), [], rejections)
+        print("[compose_topic_issue] 沒有可用話題或全部生成失敗，沒有組成新的一期，中止。")
+        _print_ledger(0, [], rejections)
         return
 
     period_start, period_end = date_range if date_range else (None, None)
@@ -355,12 +377,30 @@ def main() -> None:
     )
     attach_trace_to_issue(conn, args.date, args.cadence, issue_id)
 
+    if args.cadence == "weekly":
+        # 台達專欄＋週報主題大標題（見 pipeline/delta_column.py）。生成失敗
+        # 不擋出刊，專欄缺著、標題退回預設刊名而已。
+        from pipeline.delta_column import build_delta_column, write_weekly_headline
+        from pipeline.llm_client import get_client
+
+        try:
+            cells = build_delta_column(conn, config, date_range)
+            headline = write_weekly_headline(get_client(), cells, date_range)
+            conn.execute(
+                "UPDATE issues SET column_json = ? WHERE id = ?",
+                (json.dumps({"headline": headline, "cells": cells}, ensure_ascii=False), issue_id),
+            )
+            conn.commit()
+            print(f"[compose_topic_issue] 台達專欄：{len(cells)} 格；大標題：{headline}")
+        except Exception as exc:  # noqa: BLE001
+            print(f"[compose_topic_issue] 台達專欄生成失敗，這期先沒有專欄：{exc}")
+
     ok, failed = pretranslate_issue(conn, issue_id)
     print(f"[compose_topic_issue] 英文版預先翻譯：成功 {ok} 篇，失敗 {failed} 篇。")
 
     pending = sum(1 for r in results if r["needs_review"])
     print(f"[compose_topic_issue] 第 {issue_id} 期已組成，{pending} 個待人工確認。")
-    _print_ledger(len(selected), results, rejections)
+    _print_ledger(len(results), results, rejections)
     print("[compose_topic_issue] 用 python -m scripts.serve_topics 啟動網頁查看。")
 
 

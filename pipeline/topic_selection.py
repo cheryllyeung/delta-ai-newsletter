@@ -107,6 +107,7 @@ def _build_scored_candidates(
     config: dict,
     date_range: tuple[str, str] | None,
     cadence: str = "daily",
+    exclude_topic_ids: set[int] | None = None,
 ) -> tuple[list[dict], list[dict]]:
     """回傳 (通過 Gate 2 的候選, 被 Gate 2 擋掉的紀錄)。
 
@@ -121,6 +122,8 @@ def _build_scored_candidates(
     scored: list[dict] = []
     gate_rejected: list[dict] = []
     for row in get_available_topics(conn, date_range=date_range, cadence=cadence):
+        if exclude_topic_ids and row["id"] in exclude_topic_ids:
+            continue
         articles = get_articles_for_topic(conn, row["id"])
         module_scores = json.loads(row["module_scores_json"]) if row["module_scores_json"] else None
 
@@ -327,6 +330,7 @@ def select_for_issue(
     config: dict,
     cadence: str = "weekly",
     date_range: tuple[str, str] | None = None,
+    exclude_topic_ids: set[int] | None = None,
 ) -> tuple[list[dict], list[dict]]:
     """回傳 (入選話題清單, 落選紀錄)。
 
@@ -355,7 +359,9 @@ def select_for_issue(
     weekly_potential（見 annotate_weekly_potential()），date_range 傳整週
     的範圍。
     """
-    scored, rejections = _build_scored_candidates(conn, config, date_range, cadence=cadence)
+    scored, rejections = _build_scored_candidates(
+        conn, config, date_range, cadence=cadence, exclude_topic_ids=exclude_topic_ids
+    )
     if cadence == "weekly":
         annotate_weekly_potential(conn, scored, config, date_range)
 
@@ -500,6 +506,30 @@ def select_for_issue(
                     "module_id": top_module_id,
                     "score": round(top_score, 2),
                     "note": "放寬配額上限以達到 total_topics 下限",
+                },
+            )
+
+    # 第四輪（湊滿版位，2026-08-26 加）：使用者要求每天固定 5 則、每週固定
+    # 10 則。前三輪都尊重最低分門檻，走到這裡還不滿代表窗口內夠格的真的
+    # 不夠，寧可湊滿也不開天窗——但只在這裡放寬門檻，而且帳上標明是湊的，
+    # 之後檢討「湊的那幾則品質如何」有數字可查。
+    if len(selected) < total_min:
+        remaining = sorted(
+            (e for e in scored if e["row"]["id"] not in selected_ids),
+            key=rank_key,
+            reverse=True,
+        )
+        for entry in remaining:
+            if len(selected) >= total_min:
+                break
+            top_module_id, top_score = _top_module(entry["module_scores"])
+            add(
+                entry,
+                {
+                    "round": "below_threshold_fill",
+                    "module_id": top_module_id,
+                    "score": round(top_score, 2),
+                    "note": "湊滿版位：低於最低分門檻，是同窗口內剩下最好的",
                 },
             )
 

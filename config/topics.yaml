@@ -229,21 +229,22 @@ gates:
 # 超過上限直接跳過候選，只在保底輪（真的湊不滿下限）才不設限。
 selection:
   weekly:
-    total_topics: [5, 8]
-    # content_type 配額，某類別缺貨就從別類遞補，不硬湊（比照 pool_selection.py 的 area_quota 寫法）。
+    # 2026-08-26 從 [5, 8] 改成固定 10：使用者要求週報固定 10 則。
+    total_topics: [10, 10]
+    # content_type 配額，某類別缺貨就從別類遞補（配額上限加總要 >= 10）。
     content_type_quota:
-      insight: [1, 2]
-      practical: [2, 3]
-      warning: [0, 1]
-      flash: [1, 2]
+      insight: [2, 3]
+      practical: [3, 4]
+      warning: [0, 2]
+      flash: [2, 3]
     # domain（能源電力／樓宇自動化／電動車／網通／製造廠務／消費性產品／
     # 軟體平台／永續節能，台達本業）8 個模組，functional（法務、財會、
     # 人資⋯泛用職能，任何公司都適用）10 個模組。不分群直接輪動的話，
     # functional 模組數量多會先把版位挑光，內容變得像通用生產力工具介紹、
     # 跟本業無關，所以讓 domain 保底過半版位。
     module_group_quota:
-      domain: [4, 6]
-      functional: [1, 3]
+      domain: [5, 7]
+      functional: [2, 4]
     # 每個模組最多輪動入選幾個話題（避免單一模組的高分話題把版位吃光）。
     per_module_cap: 1
     # 模組輪動這一輪，該模組排名最高的話題分數低於這個值就跳過，不硬湊
@@ -259,7 +260,7 @@ selection:
     # 的候選。舊值 4.0 在新分布下只擋 4%，形同虛設。
     min_module_score_to_select: 6.0
     tier_cap:
-      case: 3
+      case: 4
     # 週度潛力分的三個訊號權重（2026-08-25 加，見 pipeline/topic_selection.py
     # 的 annotate_weekly_potential()）。合成前各訊號先換成名次分位，所以權重
     # 是「訊號之間的相對重要性」不受量綱影響。數字是拍的起始值，沒有評測
@@ -278,10 +279,14 @@ selection:
     # 因版位滿落選的話題今天不會再進候選，等於永久淘汰（實測 91.7% 的已
     # 打分話題就這樣消失）。續留窗口內每天重新參選，靠時間衰減自然降權，
     # 過了窗口自然過期。3 天是政策決定（見 PRD §11.4），不是實測值。
-    carry_over_days: 3
+    # 2026-08-26 從 3 放寬到 7：使用者要求每天固定 5 則，稀疏的日子先用
+    # 窗口內夠格但還沒上刊的話題補滿，比降低門檻硬湊好。
+    carry_over_days: 7
     content_type_quota:
-      insight: [0, 1]
-      practical: [0, 2]
+      insight: [0, 2]
+      practical: [0, 3]
+      warning: [0, 2]
+      flash: [0, 2]
       warning: [0, 1]
       flash: [0, 1]
     module_group_quota:
@@ -299,7 +304,7 @@ selection:
     # 的候選。舊值 4.0 在新分布下只擋 4%，形同虛設。
     min_module_score_to_select: 6.0
     tier_cap:
-      case: 1
+      case: 2
 
 # 熱門度評分 = 報導家數 × 來源權重 × 時間衰減。
 # time_decay 用半衰期參數化：half_life_days 天後熱度打對折。

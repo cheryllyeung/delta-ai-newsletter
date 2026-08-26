@@ -35,13 +35,11 @@ from pipeline.topic_db import (
     save_generated_topic,
     save_module_scores,
 )
-from pipeline.topic_selection import select_for_issue
 from pipeline.translate import pretranslate_issue
 from scripts.compose_topic_issue import (
     _selected_trace_entries,
-    generate_and_check,
     load_config,
-    split_reusable,
+    select_and_generate,
 )
 
 DEFAULT_START = "2026-08-01"
@@ -90,24 +88,15 @@ def compose_day(conn, config: dict, day: str) -> dict | None:
         print(f"[backfill_daily_issues]   {day} 已經有第 {existing['id']} 期，跳過。")
         return {"day": day, "topics": 0, "needs_review": 0, "avg_confidence": None}
 
-    date_range = (day, day)
-    # 選題跟生成都會吐落選紀錄，回填出來的期數一樣要有選題帳，不然補回來的
-    # 期數在網頁上會缺這一頁，跟正常出刊的期數不一致（見 pipeline/gates.py）。
-    selected, rejections = select_for_issue(conn, config, cadence="daily", date_range=date_range)
-    if not selected:
-        record_selection_trace(conn, issue_date=day, cadence="daily", entries=rejections)
-        return {"day": day, "topics": 0, "needs_review": 0, "avg_confidence": None}
-
-    # 生成過的話題直接重用文章（重建歷史期數時大部分素材已經寫過了），
-    # 只對沒生成過的打 LLM。
-    reused, to_generate = split_reusable(conn, selected)
-    if reused:
-        print(f"[backfill_daily_issues]   {day}：{len(reused)} 篇重用現成文章，{len(to_generate)} 篇新生成")
-    results, gen_rejections = generate_and_check(conn, to_generate, config)
-    results = reused + results
-    order = {e["row"]["id"]: i for i, e in enumerate(selected)}
-    results.sort(key=lambda r: order[r["topic_id"]])
-    rejections.extend(gen_rejections)
+    # 候選窗口跟正常日報一致（往回看 carry_over_days 天），不是只看單日。
+    # 2026-08-26 修：這裡原本寫死單日窗口，config 放寬 carry_over 後補刊
+    # 完全沒吃到，稀疏的日子照樣湊不滿版位。
+    carry_days = config["selection"]["daily"].get("carry_over_days", 0)
+    range_start = (date.fromisoformat(day) - timedelta(days=carry_days)).isoformat()
+    date_range = (range_start, day)
+    # 選題＋生成＋失敗補位走跟正常出刊同一條路徑；落選紀錄照樣入帳，回填
+    # 出來的期數在網頁上才有選題帳這一頁（見 pipeline/gates.py）。
+    results, rejections = select_and_generate(conn, config, "daily", date_range)
     if not results:
         record_selection_trace(conn, issue_date=day, cadence="daily", entries=rejections)
         return {"day": day, "topics": 0, "needs_review": 0, "avg_confidence": None}
