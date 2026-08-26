@@ -65,13 +65,23 @@
 
   .ornament-row { text-align: center; color: var(--color-accent-2); letter-spacing: 0.6em; padding: 1.5rem 0; font-size: 0.9rem; }
 
-  .issue-index { max-width: var(--shell); margin: 0 auto; padding: 0 var(--page-gutter) 4rem; display: flex; flex-direction: column; gap: 1.1rem; }
+  /* 報紙頭版式（2026-08-26 改）：原本五張大卡直排要滑很久，改成第一則
+     當頭條大卡（保留摘要），其餘收成兩欄小卡（只留標籤＋標題＋副標），
+     一屏到一屏半看完整期。週報頁因為上面已有專欄，全部用小卡。 */
+  .issue-index { max-width: 52rem; margin: 0 auto; padding: 0 var(--page-gutter) 4rem; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+  @media (max-width: 40rem) { .issue-index { grid-template-columns: 1fr; } }
 
   .topic-card {
     display: block; background: var(--color-paper-2); border: 2px solid var(--color-ink);
     box-shadow: 5px 5px 0 var(--color-ink); padding: 1.4rem 1.6rem;
     transition: transform 120ms ease-out, box-shadow 120ms ease-out;
   }
+  .topic-card.feature { grid-column: 1 / -1; }
+  .topic-card.compact { padding: 1rem 1.1rem; box-shadow: 3px 3px 0 var(--color-ink); }
+  .topic-card.compact h2 { font-size: 1.02rem; line-height: 1.4; }
+  .topic-card.compact .subhead { font-size: 0.85rem; margin-bottom: 0.4rem; }
+  .topic-card.compact .teaser { display: none; }
+  .topic-card.compact .read-more { font-size: 0.7rem; }
   .topic-card:hover { transform: translate(-1px, -1px); box-shadow: 6px 6px 0 var(--color-ink); }
   .topic-card:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 var(--color-ink); }
 
@@ -219,7 +229,8 @@
 {% if delta_column %}<p class="other-news-heading">本週其他要聞</p>{% endif %}
 <nav class="issue-index" aria-label="本期話題列表">
   {% for topic in topics %}
-  <a class="topic-card" href="/issues/{{ issue_id }}/topics/{{ topic.id }}">
+  {# 日報第一則是頭條大卡；週報頁上面已有專欄當重點區，全部用小卡。 #}
+  <a class="topic-card {{ 'feature' if loop.first and not delta_column else 'compact' }}" href="/issues/{{ issue_id }}/topics/{{ topic.id }}">
     <div class="chip-row">
       {# needs_review 只留在資料庫供內部追蹤，不顯示在頁面上：這頁同時是讀者
          看的版面，掛「待人工確認」的標籤會讓內容看起來像半成品。 #}
