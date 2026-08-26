@@ -22,16 +22,36 @@ repo 加兩則 ChatGPT 新聞加一則 Ford 新聞。所以比對的兩篇裡只
 signal_only（只有標題），就改用更嚴的門檻（title_only_threshold），
 不用一般門檻。
 
+## 2026-08-25：title-only 配對改成灰色地帶問 LLM
+
+19 組固定測資（tests/data/clustering_pairs.yaml）跑出來的結論是門檻這條路
+對 title-only 內容是死路：真同事件配對落在 0.656～0.847，不相關的 GitHub
+repo 配對落在 0.676～0.833，中間沒有任何一個門檻值切得開。實際後果是
+七個互不相關的 GitHub repo 併成一個話題，上刊文章下面掛著一排無關連結。
+
+照實體解析的灰色地帶模式（pipeline/entity_resolution.py）改：title-only
+配對的相似度落在灰色地帶（same_event_grey_zone，依實測訂 0.65～0.85）就
+問一次 LLM「這兩篇是不是同一件事」，高於上界直接併、低於下界直接不併。
+LLM 呼叫失敗時判「不是同一件事」：假合併比漏合併嚴重（漏的只是各自成
+話題，假的會讓兩件事被寫成一篇）。兩邊都有實質內文的配對維持純門檻，
+那一段沒有觀察到重疊問題。
+
 跟評分/標籤（pipeline/article_tagging.py、pipeline/module_scoring.py）完全
 脫鉤：這裡只決定「這篇文章屬於哪個話題」，不管內容好壞。
 """
 from __future__ import annotations
 
+import json
 import sqlite3
 from datetime import datetime, timezone
 
+import openai
+
 from pipeline import embeddings, vector_store
 from pipeline.gates import SIGNAL_ONLY
+from pipeline.llm_client import create_chat_completion, get_client, get_model, reasoning_effort_kwargs
+from pipeline.llm_logging import log_call
+from pipeline.prompt_loader import load_prompt_parts
 from pipeline.topic_db import (
     assign_article_to_topic,
     create_topic,
@@ -39,6 +59,10 @@ from pipeline.topic_db import (
     get_unclustered_articles,
     merge_topics,
 )
+
+# 給 LLM 看的內容開頭長度。title-only 的一邊本來就只有標題，有內文的一邊
+# 給個開頭段落夠判斷「在講哪件事」，不用整篇。
+_SAME_EVENT_CONTENT_CHARS = 500
 
 # 找幾篇最相似的既有文章。1 就是舊行為（永遠不會觸發話題合併）。5 夠涵蓋
 # 「同一件事已經有幾家報導、分散在幾個話題」的常見情況，再大隻是多比幾筆
@@ -59,21 +83,59 @@ def _is_signal_only(row) -> bool:
         return False
 
 
+def _same_event(client: openai.OpenAI, row_a, row_b) -> bool:
+    """問 LLM 兩篇是不是同一件事。呼叫失敗一律當「不是」：假合併比漏合併
+    嚴重，而且漏掉的下次重跑還有機會，假併進去的很難再拆出來。"""
+    system, user = load_prompt_parts(
+        "same_event_check",
+        title_a=row_a["title"],
+        content_a=(row_a["content"] or "")[:_SAME_EVENT_CONTENT_CHARS] or "（只有標題）",
+        title_b=row_b["title"],
+        content_b=(row_b["content"] or "")[:_SAME_EVENT_CONTENT_CHARS] or "（只有標題）",
+    )
+    try:
+        response = create_chat_completion(
+            client,
+            model=get_model(),
+            max_tokens=200,
+            temperature=0.0,
+            messages=[
+                {"role": "system", "content": system},
+                {"role": "user", "content": user},
+            ],
+            **reasoning_effort_kwargs(),
+        )
+        raw_text = response.choices[0].message.content
+        start, end = raw_text.find("{"), raw_text.rfind("}")
+        parsed = json.loads(raw_text[start : end + 1], strict=False)
+        log_call("same_event_check", system, user, raw_text, parsed)
+        return bool(parsed["same_event"])
+    except Exception as exc:  # noqa: BLE001 -- 判定失敗不能讓整批聚類中斷
+        print(f"[topic_clustering]   同事件判定失敗，保守判為不同事件：{exc}")
+        return False
+
+
 def cluster_new_articles(
     conn: sqlite3.Connection,
     qdrant_path: str,
     collection: str,
     similarity_threshold: float,
     title_only_threshold: float | None = None,
+    same_event_grey_zone: tuple[float, float] | None = None,
 ) -> dict:
     """對 pool 裡還沒聚類的文章逐一跑聚類，回傳統計數字方便呼叫端印 log。
 
     title_only_threshold：比對的兩篇裡任一邊只有標題（signal_only）時改用的
     較嚴門檻。沒給就退回一律用 similarity_threshold（舊行為）。
+
+    same_event_grey_zone：(下界, 上界)。有給的話 title-only 配對改走灰色
+    地帶邏輯（見模組 docstring），title_only_threshold 就不再使用。
     """
     rows = get_unclustered_articles(conn)
     if not rows:
         return {"processed": 0, "new_topics": 0, "merged": 0, "topics_merged": 0}
+
+    llm_client = get_client() if same_event_grey_zone is not None else None
 
     client = vector_store.get_client(qdrant_path)
     vector_store.ensure_collection(client, collection, embeddings.embedding_dimension())
@@ -101,13 +163,28 @@ def cluster_new_articles(
             if hit_topic_id is None or hit_topic_id in matched_topic_ids:
                 continue
             hit_row = conn.execute(
-                "SELECT gate_status FROM articles WHERE id = ?", (hit_article_id,)
+                "SELECT id, title, content, gate_status FROM articles WHERE id = ?",
+                (hit_article_id,),
             ).fetchone()
             hit_is_signal = hit_row is not None and hit_row["gate_status"] == SIGNAL_ONLY
-            threshold = similarity_threshold
-            if title_only_threshold is not None and (row_is_signal or hit_is_signal):
-                threshold = title_only_threshold
-            if score >= threshold:
+            title_only_pair = row_is_signal or hit_is_signal
+
+            if same_event_grey_zone is not None and title_only_pair:
+                # title-only 配對：門檻切不開真假（見模組 docstring），
+                # 高於上界直接併、灰色地帶問 LLM、低於下界直接不併。
+                lower, upper = same_event_grey_zone
+                if score >= upper:
+                    matched = True
+                elif score >= lower:
+                    matched = hit_row is not None and _same_event(llm_client, row, hit_row)
+                else:
+                    matched = False
+            else:
+                threshold = similarity_threshold
+                if title_only_threshold is not None and same_event_grey_zone is None and title_only_pair:
+                    threshold = title_only_threshold
+                matched = score >= threshold
+            if matched:
                 matched_topic_ids.append(hit_topic_id)
 
         if matched_topic_ids:

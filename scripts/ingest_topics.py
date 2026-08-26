@@ -347,12 +347,16 @@ def main() -> None:
     print("[ingest_topics] 話題聚類中（本機 embedding，第一次執行會下載模型權重）...")
     embed_cfg = config["embedding"]
     vector_cfg = config["vector_store"]
+    same_event_cfg = embed_cfg.get("same_event_check")
     cluster_stats = cluster_new_articles(
         conn,
         qdrant_path=vector_cfg["path"],
         collection=vector_cfg["collection"],
         similarity_threshold=embed_cfg["cluster_similarity_threshold"],
         title_only_threshold=embed_cfg.get("cluster_similarity_threshold_title_only"),
+        same_event_grey_zone=(
+            (same_event_cfg["lower"], same_event_cfg["upper"]) if same_event_cfg else None
+        ),
     )
     print(
         f"[ingest_topics] 聚類完成：處理 {cluster_stats['processed']} 篇，"
