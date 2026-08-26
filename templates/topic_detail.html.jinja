@@ -172,8 +172,14 @@ Carnival 藍設計系統。內容是從原本整期塞成一頁的手風琴版�
     <a class="back-link" href="/issues/{{ issue_id }}" data-i18n="backLink">← 回本期導讀</a>
     <p class="eyebrow">{{ newsletter_name }} · 第 {{ issue_no if issue_no is defined else issue_id }} 期</p>
     <div class="chip-row">
-      {# 同 topic_issue.html.jinja：needs_review 不顯示在讀者頁面上。 #}
-      {% if topic.top_module_name %}<span class="chip {{ 'chip--domain' if topic.top_module_is_domain else '' }}">{{ topic.top_module_name }}</span>{% endif %}
+      {# 同 topic_issue.html.jinja：needs_review 不顯示在讀者頁面上。
+         標籤列全部過門檻的領域（一篇文章可以同時屬於多個領域），每個都
+         可點、跳到該領域的跨期頁面（2026-08-26 改版）。 #}
+      {% if topic.module_tags %}
+        {% for t in topic.module_tags %}<a class="chip {{ 'chip--domain' if t.is_domain else '' }}" href="/modules/{{ t.id }}">{{ t.name }}</a>{% endfor %}
+      {% elif topic.top_module_name %}
+        <span class="chip {{ 'chip--domain' if topic.top_module_is_domain else '' }}">{{ topic.top_module_name }}</span>
+      {% endif %}
       {% if topic.primary_tag %}<span class="chip">{{ topic.primary_tag }}</span>{% endif %}
     </div>
     <h1>{{ topic.chosen_headline }}</h1>

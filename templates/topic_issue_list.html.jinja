@@ -62,13 +62,20 @@
   .issue-card-cadence { font-family: var(--font-label); font-size: 0.7rem; border: 1px solid var(--color-ink); padding: 0.1em 0.5em; white-space: nowrap; }
   .issue-card-cadence.weekly { background: var(--color-ink); color: var(--color-paper); }
 
-  /* 依領域瀏覽入口。 */
-  .module-entry { max-width: 52rem; margin: 0 auto; padding: 0 var(--page-gutter) 1.4rem; }
-  .module-entry-label { font-family: var(--font-label); font-size: 0.72rem; color: var(--color-muted); margin: 0 0 0.45rem; }
-  .module-entry-row { display: flex; flex-wrap: wrap; gap: 0.4rem; }
-  .module-entry-chip { font-family: var(--font-label); font-size: 0.72rem; border: 1.5px solid var(--color-ink); background: var(--color-paper-2); padding: 0.25em 0.6em; }
-  .module-entry-chip.domain { border-color: var(--color-accent); color: var(--color-accent); font-weight: 700; }
-  .module-entry-chip:hover { background: var(--color-accent); color: var(--color-accent-ink); border-color: var(--color-accent); }
+  /* 首頁領域卡片（2026-08-26 改版主視覺）。 */
+  .module-board { max-width: 52rem; margin: 0 auto; padding: 0 var(--page-gutter) 2rem; }
+  .board-title { font-family: var(--font-display); font-weight: 800; text-transform: uppercase; font-size: clamp(1.4rem, 2.4vw + 0.8rem, 2rem); margin: 0; color: var(--color-ink); border-bottom: 4px solid var(--color-accent); display: inline-block; padding-bottom: 0.15em; }
+  .board-sub { font-family: var(--font-label); font-size: 0.76rem; color: var(--color-muted); margin: 0.6rem 0 1rem; line-height: 1.6; max-width: 60ch; }
+  .board-group-label { font-family: var(--font-label); font-size: 0.72rem; letter-spacing: 0.08em; color: var(--color-muted); margin: 1rem 0 0.5rem; }
+  .module-card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(13.5rem, 1fr)); gap: 0.8rem; }
+  .module-card { display: flex; flex-direction: column; gap: 0.3rem; background: var(--color-paper-2); border: 2px solid var(--color-ink); box-shadow: 3px 3px 0 var(--color-ink); padding: 0.8rem 0.95rem; transition: transform 120ms ease-out, box-shadow 120ms ease-out; }
+  .module-card:hover { transform: translate(-1px, -1px); box-shadow: 4px 4px 0 var(--color-ink); }
+  .module-card.domain { border-color: var(--color-accent); }
+  .module-card-name { font-family: var(--font-display); font-weight: 800; font-size: 1.05rem; text-transform: uppercase; }
+  .module-card.domain .module-card-name { color: var(--color-accent); }
+  .module-card-count { font-family: var(--font-label); font-size: 0.72rem; color: var(--color-muted); }
+  .module-card-latest { font-size: 0.76rem; line-height: 1.5; color: var(--color-ink-2); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .cal-section-title { margin-top: 0.5rem; }
 
   /* 月曆：一週從週日起算（跟週報的週定義一致）。日曆是首頁主視覺，
      底下保留原本的期數列表當備援。 */
@@ -120,19 +127,39 @@
 
 <div class="ornament-row" aria-hidden="true">✱ ✱ ✱ ✱</div>
 
-{% if modules_by_group %}
-{# 依領域瀏覽入口（2026-08-26 主管反饋：特定領域的讀者用月曆不好查）。 #}
-<nav class="module-entry" aria-label="依領域瀏覽">
-  <p class="module-entry-label">只追特定領域？點領域看跨期彙整</p>
-  <div class="module-entry-row">
-    {% for m in modules_by_group.domain %}<a class="module-entry-chip domain" href="/modules/{{ m.id }}">{{ m.name }}</a>{% endfor %}
-    {% for m in modules_by_group.functional %}<a class="module-entry-chip" href="/modules/{{ m.id }}">{{ m.name }}</a>{% endfor %}
+{% if module_overview %}
+{# 首頁主視覺：領域卡片（2026-08-26 改版）。讀者是帶著職能來的，法務的人
+   點法務、能源的人點能源，日期是次要資訊，月曆降到下面當出刊紀錄。 #}
+<section class="module-board" aria-label="依領域瀏覽">
+  <h2 class="board-title">選你的領域</h2>
+  <p class="board-sub">每張卡是一個領域的專屬頁面：跟這個領域相關的所有文章，新的在前。一篇文章同時屬於幾個領域，就會出現在幾個頁面。</p>
+  <p class="board-group-label">台達本業</p>
+  <div class="module-card-grid">
+    {% for m in module_overview.domain %}
+    <a class="module-card domain" href="/modules/{{ m.id }}">
+      <span class="module-card-name">{{ m.name }}</span>
+      <span class="module-card-count">{{ m.count }} 篇</span>
+      {% if m.latest %}<span class="module-card-latest">{{ m.latest.date }}｜{{ m.latest.title }}</span>{% endif %}
+    </a>
+    {% endfor %}
   </div>
-</nav>
+  <p class="board-group-label">職能</p>
+  <div class="module-card-grid">
+    {% for m in module_overview.functional %}
+    <a class="module-card" href="/modules/{{ m.id }}">
+      <span class="module-card-name">{{ m.name }}</span>
+      <span class="module-card-count">{{ m.count }} 篇</span>
+      {% if m.latest %}<span class="module-card-latest">{{ m.latest.date }}｜{{ m.latest.title }}</span>{% endif %}
+    </a>
+    {% endfor %}
+  </div>
+</section>
 {% endif %}
 
 {% if months %}
-<section class="cal-wrap" aria-label="出刊日曆">
+<section class="cal-wrap" aria-label="出刊紀錄">
+<h2 class="board-title cal-section-title">出刊紀錄</h2>
+<p class="board-sub">日報每天中午自動出、週報每週一。點格子看當期。</p>
   {% for month in months %}
   <div class="cal-month">
     <h2 class="cal-title">{{ month.label }}</h2>

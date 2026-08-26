@@ -54,17 +54,41 @@ _MODULE_NAMES = {
 _DOMAIN_MODULE_IDS = {m["id"] for m in _config["modules"]["domain"]}
 
 
+_TAG_MIN_SCORE = _config["selection"]["weekly"]["min_module_score_to_select"]
+
+
+def _module_tags(module_scores: dict, exclude: str | None = None) -> list[dict]:
+    """一篇文章的領域標籤：所有分數過門檻的模組，分數高到低。一篇文章天生
+    帶 18 個維度的關聯度，這裡把過門檻的攤出來當可點擊的標籤
+    （2026-08-26 主管反饋：一篇文章可以有很多標籤，讀者要能從自己的職能
+    點進去看）。"""
+    tags = [
+        {
+            "id": mid,
+            "name": _MODULE_NAMES.get(mid, mid),
+            "score": entry["score"],
+            "is_domain": mid in _DOMAIN_MODULE_IDS,
+        }
+        for mid, entry in (module_scores or {}).items()
+        if entry["score"] >= _TAG_MIN_SCORE and mid != exclude
+    ]
+    return sorted(tags, key=lambda t: -t["score"])
+
+
 def _attach_top_module(topic: dict) -> dict:
-    """在話題卡片/內文頁上標出「這篇跟台達哪個業務模組最相關」，讓讀者一眼
-    看出選題邏輯不是隨機湊數，尤其是 domain（本業）模組要讓讀者看得到。"""
+    """在話題卡片/內文頁上標出「這篇跟台達哪個業務模組最相關」，並附上
+    全部過門檻的領域標籤（module_tags），讓讀者從任何一個相關職能點進
+    對應的領域頁。"""
     module_scores = topic.get("module_scores") or {}
     if module_scores:
         top_module_id = max(module_scores, key=lambda mid: module_scores[mid]["score"])
         topic["top_module_name"] = _MODULE_NAMES.get(top_module_id)
         topic["top_module_is_domain"] = top_module_id in _DOMAIN_MODULE_IDS
+        topic["module_tags"] = _module_tags(module_scores)
     else:
         topic["top_module_name"] = None
         topic["top_module_is_domain"] = False
+        topic["module_tags"] = []
     return topic
 
 # 全站 HTTP Basic Auth（2026-08-26 加）。帳密放 .env 的 NEWSLETTER_WEB_USER
@@ -184,6 +208,8 @@ def module_timeline(request: Request, module_id: str, lang: str | None = None):
                 "subhead": generated.get("chosen_subhead") or "",
                 "score": entry["score"],
                 "reason": entry.get("reason", ""),
+                # 這篇同時掛的其他領域標籤（可點跳去那個領域頁），最多四個。
+                "other_tags": _module_tags(scores, exclude=module_id)[:4],
             }
         )
     return templates.TemplateResponse(
@@ -281,6 +307,54 @@ def _build_calendar_months(conn, issues) -> list[dict]:
     return months
 
 
+def _module_overview(conn) -> dict[str, list[dict]]:
+    """首頁領域卡片的資料：每個模組的累積文章數跟最新一篇。
+
+    2026-08-26 改版：主管反饋讀者是帶著職能來的（法務的人要直接點進法務），
+    首頁從「日期為主」改成「領域為主」，這個函式餵那些卡片。
+    """
+    rows = conn.execute(
+        """SELECT g.id AS gid, g.issue_id, g.topic_id, g.generated_json,
+                  i.issue_date, t.module_scores_json
+           FROM generated_topics g
+           JOIN issues i ON i.id = g.issue_id
+           JOIN topics t ON t.id = g.topic_id
+           ORDER BY i.issue_date DESC, g.id DESC"""
+    ).fetchall()
+    stats: dict[str, dict] = {}
+    seen: dict[str, set[int]] = {}
+    for row in rows:
+        scores = json.loads(row["module_scores_json"]) if row["module_scores_json"] else {}
+        for mid, entry in scores.items():
+            if entry["score"] < _TAG_MIN_SCORE:
+                continue
+            if row["topic_id"] in seen.setdefault(mid, set()):
+                continue
+            seen[mid].add(row["topic_id"])
+            stat = stats.setdefault(mid, {"count": 0, "latest": None})
+            stat["count"] += 1
+            if stat["latest"] is None:
+                generated = json.loads(row["generated_json"])
+                stat["latest"] = {
+                    "title": generated.get("chosen_headline") or generated.get("title") or "",
+                    "date": row["issue_date"],
+                    "issue_id": row["issue_id"],
+                    "gid": row["gid"],
+                }
+    overview: dict[str, list[dict]] = {}
+    for group in ("domain", "functional"):
+        overview[group] = [
+            {
+                "id": m["id"],
+                "name": m["name"],
+                "count": stats.get(m["id"], {}).get("count", 0),
+                "latest": stats.get(m["id"], {}).get("latest"),
+            }
+            for m in _config["modules"][group]
+        ]
+    return overview
+
+
 def _issue_display_no(conn, issue) -> int:
     """顯示用期數：同一種刊（daily／weekly）各自照出刊日期從 1 排，跟資料庫
     的流水號 id 脫鉤（id 經過幾輪重建已經跳號，使用者要 8/1 是第 1 期，
@@ -305,10 +379,7 @@ def issue_list(request: Request, lang: str | None = None):
             "newsletter_name": _config["newsletter"]["name"],
             "issues": issues,
             "months": _build_calendar_months(conn, issues),
-            "modules_by_group": {
-                "domain": _config["modules"]["domain"],
-                "functional": _config["modules"]["functional"],
-            },
+            "module_overview": _module_overview(conn),
             "lang": _normalise_lang(lang),
         },
     )
