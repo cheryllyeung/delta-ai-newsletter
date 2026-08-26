@@ -305,6 +305,16 @@ def merge_topics(conn: sqlite3.Connection, winner_id: int, loser_id: int) -> lis
            WHERE id = ?""",
         (loser_id, loser_id, winner_id),
     )
+    # loser 可能還被歷史紀錄引用著（例如重建期數時保留下來當重用快取的
+    # generated_topics 列，它的 published_issue_id 已被清空所以通過了
+    # 「已出刊不合併」的檢查）。直接刪會撞外鍵，先把引用改指到 winner，
+    # 語意也正確：那篇舊文章寫的內容現在屬於合併後的話題。2026-08-26 修。
+    conn.execute(
+        "UPDATE generated_topics SET topic_id = ? WHERE topic_id = ?", (winner_id, loser_id)
+    )
+    conn.execute(
+        "UPDATE selection_trace SET topic_id = ? WHERE topic_id = ?", (winner_id, loser_id)
+    )
     conn.execute("DELETE FROM topics WHERE id = ?", (loser_id,))
     conn.commit()
     return moved
