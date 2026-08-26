@@ -144,20 +144,20 @@
   /* 週報主題大標題：每期從當週內容提煉（pipeline/delta_column.py）。 */
   .weekly-headline { margin: 1rem 0 0; font-family: var(--font-display); font-weight: 800; font-size: clamp(1.3rem, 2.2vw + 0.8rem, 1.9rem); line-height: 1.25; color: var(--color-accent-2); }
 
-  /* 台達專欄：黑底區塊跟正刊卡片區隔，格子用 Carnival 的硬邊語彙。 */
-  .delta-column { background: var(--color-ink); color: var(--color-accent-ink); padding: 2rem var(--page-gutter) 2.5rem; }
+  /* 台達專欄：亮底、跟文章卡片同一套硬邊語彙。原本是黑底金字，使用者
+     反映小字反白費眼（2026-08-26），改回紙色底＋深色字，用藍色只點綴
+     領域標籤，靠邊框陰影做區隔就夠了。 */
+  .delta-column { padding: 1.5rem var(--page-gutter) 2.5rem; }
   .delta-column-inner { max-width: 52rem; margin: 0 auto; }
-  .delta-column-title { font-family: var(--font-display); font-weight: 800; text-transform: uppercase; font-size: clamp(1.4rem, 2.4vw + 0.8rem, 2rem); margin: 0; color: var(--color-accent-2); }
-  .delta-column-sub { font-family: var(--font-label); font-size: 0.78rem; margin: 0.4rem 0 1.2rem; opacity: 0.75; }
-  .delta-column-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr)); gap: 0.9rem; }
-  .delta-cell { border: 1.5px solid color-mix(in oklch, var(--color-accent-ink) 40%, transparent); padding: 0.8rem 0.9rem; display: flex; flex-direction: column; gap: 0.45rem; }
-  .delta-cell.is-empty { opacity: 0.45; }
-  .delta-cell-group { font-family: var(--font-label); font-size: 0.72rem; letter-spacing: 0.06em; color: var(--color-accent-2); display: flex; gap: 0.6em; align-items: baseline; }
-  .delta-cell-minor { font-style: normal; font-size: 0.65rem; border: 1px solid currentColor; padding: 0 0.4em; opacity: 0.8; }
-  .delta-cell-headline { font-family: var(--font-body); font-weight: 700; font-size: 0.92rem; line-height: 1.45; color: var(--color-accent-ink); }
-  a.delta-cell-headline:hover { color: var(--color-accent-2); text-decoration: underline; }
-  .delta-cell-comment { margin: 0; font-size: 0.82rem; line-height: 1.65; opacity: 0.88; }
-  .delta-cell-none { margin: 0; font-size: 0.82rem; font-family: var(--font-label); }
+  .delta-column-title { font-family: var(--font-display); font-weight: 800; text-transform: uppercase; font-size: clamp(1.4rem, 2.4vw + 0.8rem, 2rem); margin: 0; color: var(--color-ink); border-bottom: 4px solid var(--color-accent); display: inline-block; padding-bottom: 0.15em; }
+  .delta-column-sub { font-family: var(--font-label); font-size: 0.78rem; margin: 0.6rem 0 1.2rem; color: var(--color-muted); }
+  .delta-column-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr)); gap: 1rem; }
+  .delta-cell { background: var(--color-paper-2); border: 2px solid var(--color-ink); box-shadow: 3px 3px 0 var(--color-ink); padding: 0.9rem 1rem; display: flex; flex-direction: column; gap: 0.5rem; }
+  .delta-cell-group { font-family: var(--font-label); font-size: 0.72rem; letter-spacing: 0.06em; color: var(--color-accent); font-weight: 700; display: flex; gap: 0.6em; align-items: baseline; }
+  .delta-cell-minor { font-style: normal; font-size: 0.65rem; border: 1px solid var(--color-muted); color: var(--color-muted); padding: 0 0.4em; }
+  .delta-cell-headline { font-family: var(--font-body); font-weight: 700; font-size: 0.95rem; line-height: 1.45; color: var(--color-ink); }
+  a.delta-cell-headline:hover { color: var(--color-accent); text-decoration: underline; }
+  .delta-cell-comment { margin: 0; font-size: 0.84rem; line-height: 1.7; color: var(--color-ink-2); }
 </style>
 </head>
 <body>
