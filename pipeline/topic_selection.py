@@ -387,6 +387,37 @@ def select_for_issue(
     group_counts: Counter[str] = Counter()
     tier_counts: Counter[str] = Counter()
 
+    # 全收模式（2026-08-26 加）：網站改成領域為主之後，日報不再固定 5 則，
+    # 門檻過了就全上，配額輪動整套跳過。理由：版位配給制下職能類話題
+    # （行銷、法務）永遠搶不過本業，領域頁一直是空的；改成夠格全上，
+    # 每個領域自然累積自己的內容。品質仍由 min_module_score_to_select 把關。
+    if selection_cfg.get("publish_all_qualified"):
+        qualified = []
+        for entry in scored:
+            top_module_id, top_score = _top_module(entry["module_scores"])
+            if top_score < min_module_score:
+                rejections.append(
+                    {
+                        "topic_id": entry["row"]["id"],
+                        "decision": "rejected",
+                        "reason": "below_module_threshold",
+                        "stage": "selection",
+                        "detail": {"top_module": top_module_id, "top_score": round(top_score, 2),
+                                   "threshold": min_module_score},
+                    }
+                )
+                continue
+            qualified.append(entry)
+        for entry in sorted(qualified, key=rank_key, reverse=True):
+            top_module_id, top_score = _top_module(entry["module_scores"])
+            entry["selected_via"] = {
+                "round": "all_qualified",
+                "module_id": top_module_id,
+                "score": round(top_score, 2),
+            }
+            selected.append(entry)
+        return selected, rejections
+
     def quota_max(content_type: str) -> int:
         return content_type_quota.get(content_type, [0, total_max])[1]
 
