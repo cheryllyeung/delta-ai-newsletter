@@ -1,0 +1,114 @@
+<!--
+依領域瀏覽頁：單一模組的所有出刊文章時間軸（scripts/serve_topics.py 的
+/modules/{module_id}）。跟 topic_issue_list.html.jinja 共用同一套 Carnival
+藍設計語彙。2026-08-26 加，回應主管「特定領域的讀者用月曆不好查」的反饋。
+-->
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{ module.name }}｜{{ newsletter_name }}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800&family=Noto+Sans+TC:wght@700;900&family=IBM+Plex+Sans:wght@400;500&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --color-paper:   oklch(93% 0.020 240);
+    --color-paper-2: oklch(89% 0.024 238);
+    --color-paper-3: oklch(83% 0.028 235);
+    --color-ink:     oklch(16% 0.030 250);
+    --color-ink-2:   oklch(28% 0.028 248);
+    --color-muted:   oklch(46% 0.020 245);
+    --color-accent:      oklch(58% 0.160 247);
+    --color-accent-ink:  oklch(97% 0.010 240);
+    --color-accent-2:    oklch(76% 0.150  75);
+    --font-display: "Big Shoulders Display", "Noto Sans TC", sans-serif;
+    --font-body:    "IBM Plex Sans", ui-sans-serif, "PingFang TC", "Noto Sans TC", sans-serif;
+    --font-label:   "JetBrains Mono", ui-monospace, monospace;
+    --page-gutter: clamp(1.25rem, 4vw, 3rem);
+    --shell: 46rem;
+  }
+  * { box-sizing: border-box; }
+  html, body { overflow-x: clip; margin: 0; padding: 0; }
+  body { background: var(--color-paper); color: var(--color-ink); font-family: var(--font-body); }
+  a { color: inherit; text-decoration: none; }
+  h1 { font-family: var(--font-display); font-weight: 800; text-transform: uppercase; line-height: 0.96; }
+
+  .masthead { background: var(--color-accent); color: var(--color-accent-ink); padding: 2.5rem var(--page-gutter) 2rem; }
+  .masthead-inner { max-width: var(--shell); margin: 0 auto; }
+  .back-link { font-family: var(--font-label); font-size: 0.78rem; display: inline-block; margin-bottom: 0.8rem; opacity: 0.85; }
+  .back-link:hover { opacity: 1; text-decoration: underline; }
+  .masthead .eyebrow { font-family: var(--font-label); font-size: 0.75rem; letter-spacing: 0.1em; margin: 0 0 0.5rem; }
+  .masthead h1 { margin: 0; font-size: clamp(1.8rem, 3.4vw + 1rem, 2.8rem); }
+  .masthead p { margin: 0.8rem 0 0; font-size: 0.88rem; line-height: 1.6; max-width: 56ch; color: color-mix(in oklch, var(--color-accent-ink) 85%, transparent); }
+
+  .module-nav { max-width: var(--shell); margin: 0 auto; padding: 1.2rem var(--page-gutter) 0.4rem; }
+  .module-nav-label { font-family: var(--font-label); font-size: 0.72rem; color: var(--color-muted); margin: 0 0 0.4rem; }
+  .module-nav-row { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 0.7rem; }
+  .module-chip { font-family: var(--font-label); font-size: 0.72rem; border: 1.5px solid var(--color-ink); background: var(--color-paper-2); padding: 0.25em 0.6em; }
+  .module-chip:hover { background: var(--color-accent); color: var(--color-accent-ink); }
+  .module-chip.active { background: var(--color-ink); color: var(--color-paper); }
+
+  .timeline { max-width: var(--shell); margin: 0 auto; padding: 1rem var(--page-gutter) 4rem; display: flex; flex-direction: column; gap: 0.9rem; }
+  .entry { display: block; background: var(--color-paper-2); border: 2px solid var(--color-ink); box-shadow: 3px 3px 0 var(--color-ink); padding: 1rem 1.2rem; transition: transform 120ms ease-out, box-shadow 120ms ease-out; }
+  .entry:hover { transform: translate(-1px, -1px); box-shadow: 4px 4px 0 var(--color-ink); }
+  .entry-meta { font-family: var(--font-label); font-size: 0.72rem; color: var(--color-muted); margin-bottom: 0.35rem; display: flex; gap: 0.9em; }
+  .entry-score { color: var(--color-accent); font-weight: 700; }
+  .entry h2 { margin: 0 0 0.25rem; font-size: 1.05rem; line-height: 1.4; }
+  .entry .subhead { margin: 0; font-size: 0.85rem; line-height: 1.55; color: var(--color-ink-2); }
+
+  .empty { max-width: var(--shell); margin: 0 auto; padding: 3rem var(--page-gutter); color: var(--color-muted); }
+  .foot { background: var(--color-ink); color: var(--color-accent-ink); padding: 1.5rem var(--page-gutter) 2.5rem; }
+  .foot-inner { max-width: var(--shell); margin: 0 auto; font-size: 0.8rem; opacity: 0.85; }
+</style>
+</head>
+<body>
+
+<header class="masthead">
+  <div class="masthead-inner">
+    <a class="back-link" href="/">← 回出刊日曆</a>
+    <p class="eyebrow">依領域瀏覽</p>
+    <h1>{{ module.name }}</h1>
+    {% if module.desc %}<p>{{ module.desc }}</p>{% endif %}
+  </div>
+</header>
+
+<nav class="module-nav" aria-label="領域切換">
+  <p class="module-nav-label">台達本業</p>
+  <div class="module-nav-row">
+    {% for m in modules_by_group.domain %}
+    <a class="module-chip{% if m.id == module.id %} active{% endif %}" href="/modules/{{ m.id }}">{{ m.name }}</a>
+    {% endfor %}
+  </div>
+  <p class="module-nav-label">職能</p>
+  <div class="module-nav-row">
+    {% for m in modules_by_group.functional %}
+    <a class="module-chip{% if m.id == module.id %} active{% endif %}" href="/modules/{{ m.id }}">{{ m.name }}</a>
+    {% endfor %}
+  </div>
+</nav>
+
+{% if entries %}
+<section class="timeline" aria-label="文章時間軸">
+  {% for e in entries %}
+  <a class="entry" href="/issues/{{ e.issue_id }}/topics/{{ e.generated_id }}">
+    <div class="entry-meta">
+      <span>{{ e.issue_date }}</span>
+      <span class="entry-score">{{ module.name }}相關度 {{ e.score }}</span>
+    </div>
+    <h2>{{ e.headline }}</h2>
+    {% if e.subhead %}<p class="subhead">{{ e.subhead }}</p>{% endif %}
+  </a>
+  {% endfor %}
+</section>
+{% else %}
+<div class="empty"><p>這個領域目前還沒有夠相關的出刊文章。</p></div>
+{% endif %}
+
+<footer class="foot">
+  <div class="foot-inner"><p>{{ newsletter_name }}．僅供台達內部參考。</p></div>
+</footer>
+
+</body>
+</html>

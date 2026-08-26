@@ -62,6 +62,14 @@
   .issue-card-cadence { font-family: var(--font-label); font-size: 0.7rem; border: 1px solid var(--color-ink); padding: 0.1em 0.5em; white-space: nowrap; }
   .issue-card-cadence.weekly { background: var(--color-ink); color: var(--color-paper); }
 
+  /* 依領域瀏覽入口。 */
+  .module-entry { max-width: 52rem; margin: 0 auto; padding: 0 var(--page-gutter) 1.4rem; }
+  .module-entry-label { font-family: var(--font-label); font-size: 0.72rem; color: var(--color-muted); margin: 0 0 0.45rem; }
+  .module-entry-row { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+  .module-entry-chip { font-family: var(--font-label); font-size: 0.72rem; border: 1.5px solid var(--color-ink); background: var(--color-paper-2); padding: 0.25em 0.6em; }
+  .module-entry-chip.domain { border-color: var(--color-accent); color: var(--color-accent); font-weight: 700; }
+  .module-entry-chip:hover { background: var(--color-accent); color: var(--color-accent-ink); border-color: var(--color-accent); }
+
   /* 月曆：一週從週日起算（跟週報的週定義一致）。日曆是首頁主視覺，
      底下保留原本的期數列表當備援。 */
   .cal-wrap { max-width: 52rem; margin: 0 auto; padding: 0 var(--page-gutter) 2.5rem; }
@@ -112,6 +120,17 @@
 
 <div class="ornament-row" aria-hidden="true">✱ ✱ ✱ ✱</div>
 
+{% if modules_by_group %}
+{# 依領域瀏覽入口（2026-08-26 主管反饋：特定領域的讀者用月曆不好查）。 #}
+<nav class="module-entry" aria-label="依領域瀏覽">
+  <p class="module-entry-label">只追特定領域？點領域看跨期彙整</p>
+  <div class="module-entry-row">
+    {% for m in modules_by_group.domain %}<a class="module-entry-chip domain" href="/modules/{{ m.id }}">{{ m.name }}</a>{% endfor %}
+    {% for m in modules_by_group.functional %}<a class="module-entry-chip" href="/modules/{{ m.id }}">{{ m.name }}</a>{% endfor %}
+  </div>
+</nav>
+{% endif %}
+
 {% if months %}
 <section class="cal-wrap" aria-label="出刊日曆">
   {% for month in months %}
@@ -128,7 +147,7 @@
           <span class="cal-day">{{ cell.day }}</span>
           {% for issue in cell.issues %}
           <a class="cal-chip{% if issue.cadence == 'weekly' %} weekly{% endif %}" href="/issues/{{ issue.id }}">
-            {%- if issue.cadence == 'weekly' -%}週報 {{ issue.count }} 則
+            {%- if issue.cadence == 'weekly' -%}{{ issue.headline or '週報' }}
             {%- else -%}{{ issue.count }} 則{%- endif -%}
           </a>
           {% endfor %}

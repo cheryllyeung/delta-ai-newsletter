@@ -71,14 +71,22 @@ def _attach_top_module(topic: dict) -> dict:
 # ／NEWSLETTER_WEB_PASSWORD；沒設帳密時對外（0.0.0.0）啟動會直接被 main
 # 擋下來拒絕啟動，本機開發（127.0.0.1）沒設就不啟用驗證，維持順手。
 # 比對用 secrets.compare_digest 防 timing attack（成本為零，順手做對）。
-_security = HTTPBasic()
+_security = HTTPBasic(auto_error=False)
+
+# 不用驗證的路徑：/neo4j-guide 是 Neo4j Browser 自動來抓的指南頁（它不會帶
+# 帳密，擋了指南就開不起來），內容只是查詢教學、沒有刊物資料。
+_AUTH_EXEMPT_PATHS = {"/neo4j-guide"}
 
 
-def _basic_auth(credentials: HTTPBasicCredentials = Depends(_security)):
+def _basic_auth(request: Request, credentials: HTTPBasicCredentials | None = Depends(_security)):
+    if request.url.path in _AUTH_EXEMPT_PATHS:
+        return
     expected_user = os.environ.get("NEWSLETTER_WEB_USER", "")
     expected_password = os.environ.get("NEWSLETTER_WEB_PASSWORD", "")
-    ok = secrets.compare_digest(credentials.username, expected_user) and secrets.compare_digest(
-        credentials.password, expected_password
+    ok = (
+        credentials is not None
+        and secrets.compare_digest(credentials.username, expected_user)
+        and secrets.compare_digest(credentials.password, expected_password)
     )
     if not ok:
         raise HTTPException(
@@ -129,6 +137,71 @@ def _localise(conn, topic: dict, lang: str) -> dict:
     return {**topic, **translated}
 
 
+@app.get("/modules/{module_id}", response_class=HTMLResponse)
+def module_timeline(request: Request, module_id: str, lang: str | None = None):
+    """依領域瀏覽：這個模組分數 >= 週報選題門檻的所有出刊文章，照日期新到舊。
+
+    月曆是「按時間看」的入口，只關心特定領域的讀者需要「按領域看」的入口
+    （2026-08-26 主管反饋），首頁的領域 chip 連到這裡。同一話題上過日報又上
+    週報時只列一次（保留最早那期，通常是日報原文）。
+    """
+    modules_by_id = {
+        m["id"]: {**m, "group": group}
+        for group in ("functional", "domain")
+        for m in _config["modules"][group]
+    }
+    module = modules_by_id.get(module_id)
+    if module is None:
+        raise HTTPException(status_code=404, detail="沒有這個領域")
+
+    threshold = _config["selection"]["weekly"]["min_module_score_to_select"]
+    conn = _get_conn()
+    rows = conn.execute(
+        """SELECT g.id AS generated_id, g.issue_id, g.topic_id, g.generated_json,
+                  i.issue_date, i.cadence, t.module_scores_json
+           FROM generated_topics g
+           JOIN issues i ON i.id = g.issue_id
+           JOIN topics t ON t.id = g.topic_id
+           ORDER BY i.issue_date DESC, g.id"""
+    ).fetchall()
+    entries = []
+    seen_topics: set[int] = set()
+    for row in rows:
+        if row["topic_id"] in seen_topics:
+            continue
+        scores = json.loads(row["module_scores_json"]) if row["module_scores_json"] else {}
+        entry = scores.get(module_id)
+        if not entry or entry["score"] < threshold:
+            continue
+        seen_topics.add(row["topic_id"])
+        generated = json.loads(row["generated_json"])
+        entries.append(
+            {
+                "issue_id": row["issue_id"],
+                "generated_id": row["generated_id"],
+                "issue_date": row["issue_date"],
+                "headline": generated.get("chosen_headline") or generated.get("title") or "",
+                "subhead": generated.get("chosen_subhead") or "",
+                "score": entry["score"],
+                "reason": entry.get("reason", ""),
+            }
+        )
+    return templates.TemplateResponse(
+        request,
+        "topic_module_list.html.jinja",
+        {
+            "newsletter_name": _config["newsletter"]["name"],
+            "module": module,
+            "modules_by_group": {
+                "domain": _config["modules"]["domain"],
+                "functional": _config["modules"]["functional"],
+            },
+            "entries": entries,
+            "lang": _normalise_lang(lang),
+        },
+    )
+
+
 @app.get("/graph", response_class=HTMLResponse)
 def knowledge_graph():
     """知識圖譜的互動頁（tools/export_graph_html.py 產出的靜態檔）。
@@ -166,8 +239,22 @@ def _build_calendar_months(conn, issues) -> list[dict]:
     month_keys: set[tuple[int, int]] = set()
     for issue in issues:
         d = date_cls.fromisoformat(issue["issue_date"])
+        # 週報 chip 顯示主題大標題而不是「N 則」：週報格式固定，則數沒有
+        # 資訊量，主題才有（2026-08-26 主管反饋）。
+        headline = None
+        if issue["cadence"] == "weekly" and issue.get("column_json"):
+            try:
+                parsed = json.loads(issue["column_json"])
+                headline = parsed.get("headline") if isinstance(parsed, dict) else None
+            except ValueError:
+                pass
         by_day.setdefault(issue["issue_date"], []).append(
-            {"id": issue["id"], "cadence": issue["cadence"], "count": counts.get(issue["id"], 0)}
+            {
+                "id": issue["id"],
+                "cadence": issue["cadence"],
+                "count": counts.get(issue["id"], 0),
+                "headline": headline,
+            }
         )
         month_keys.add((d.year, d.month))
 
@@ -218,6 +305,10 @@ def issue_list(request: Request, lang: str | None = None):
             "newsletter_name": _config["newsletter"]["name"],
             "issues": issues,
             "months": _build_calendar_months(conn, issues),
+            "modules_by_group": {
+                "domain": _config["modules"]["domain"],
+                "functional": _config["modules"]["functional"],
+            },
             "lang": _normalise_lang(lang),
         },
     )
