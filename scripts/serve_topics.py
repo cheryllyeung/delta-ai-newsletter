@@ -168,10 +168,23 @@ def _build_calendar_months(conn, issues) -> list[dict]:
     return months
 
 
+def _issue_display_no(conn, issue) -> int:
+    """顯示用期數：同一種刊（daily／weekly）各自照出刊日期從 1 排，跟資料庫
+    的流水號 id 脫鉤（id 經過幾輪重建已經跳號，使用者要 8/1 是第 1 期，
+    2026-08-26）。網址仍然用 id，這個數字只管顯示。"""
+    return conn.execute(
+        """SELECT COUNT(*) FROM issues WHERE cadence = ?
+           AND (issue_date < ? OR (issue_date = ? AND id <= ?))""",
+        (issue["cadence"], issue["issue_date"], issue["issue_date"], issue["id"]),
+    ).fetchone()[0]
+
+
 @app.get("/", response_class=HTMLResponse)
 def issue_list(request: Request, lang: str | None = None):
     conn = _get_conn()
-    issues = list_issues(conn)
+    issues = [dict(row) for row in list_issues(conn)]
+    for issue in issues:
+        issue["no"] = _issue_display_no(conn, issue)
     return templates.TemplateResponse(
         request,
         "topic_issue_list.html.jinja",
@@ -215,13 +228,15 @@ def issue_overview(request: Request, issue_id: int, lang: str | None = None):
         column_topic_ids = {c.get("topic_id") for c in delta_column}
         column_topic_count = sum(1 for t in topics if t.get("topic_id") in column_topic_ids)
         topics = [t for t in topics if t.get("topic_id") not in column_topic_ids]
+    issue_no = _issue_display_no(conn, issue)
     return templates.TemplateResponse(
         request,
         "topic_issue.html.jinja",
         {
-            "issue_title": f"{_config['newsletter']['name']} 第{issue_id}期",
+            "issue_title": f"{_config['newsletter']['name']} 第{issue_no}期",
             "newsletter_name": _config["newsletter"]["name"],
             "issue_id": issue["id"],
+            "issue_no": issue_no,
             "issue_date": issue["issue_date"],
             "issue_cadence": issue["cadence"],
             "topics": topics,
@@ -244,13 +259,16 @@ def issue_topic_detail(request: Request, issue_id: int, topic_id: int, lang: str
     lang = _normalise_lang(lang)
     topic = _localise(conn, _attach_top_module(topic), lang)
 
+    issue_row = conn.execute("SELECT * FROM issues WHERE id = ?", (issue_id,)).fetchone()
+    issue_no = _issue_display_no(conn, issue_row) if issue_row else issue_id
     return templates.TemplateResponse(
         request,
         "topic_detail.html.jinja",
         {
-            "issue_title": f"{_config['newsletter']['name']} 第{issue_id}期",
+            "issue_title": f"{_config['newsletter']['name']} 第{issue_no}期",
             "newsletter_name": _config["newsletter"]["name"],
             "issue_id": issue_id,
+            "issue_no": issue_no,
             "topic": topic,
             "content_type_names": _CONTENT_TYPE_NAMES,
             "lang": lang,

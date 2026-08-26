@@ -191,7 +191,7 @@
     <p class="eyebrow">DELTA AI TREND DAILY</p>
     <h1>{{ newsletter_name }}</h1>
     <div class="masthead-meta">
-      <span>第 {{ issue_id }} 期 · {{ issue_date }}</span>
+      <span>第 {{ issue_no if issue_no is defined else issue_id }} 期 · {{ issue_date }}</span>
       <span>{{ total_articles if total_articles is defined else topics | length }} 篇文章</span>
     </div>
     {% if weekly_headline %}<p class="weekly-headline">{{ weekly_headline }}</p>{% endif %}

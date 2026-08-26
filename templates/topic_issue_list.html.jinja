@@ -152,7 +152,7 @@
   {% for issue in issues %}
   <a class="issue-card" href="/issues/{{ issue.id }}">
     <div class="issue-card-row">
-      <span class="issue-card-title">第 {{ issue.id }} 期</span>
+      <span class="issue-card-title">第 {{ issue.no if issue.no is defined else issue.id }} 期</span>
       {# 週報跟日報混在同一個列表，不標出來分不出誰是誰。舊的 7 期 cadence
          是 NULL（日報化之前的週報時代），不標。#}
       {% if issue.cadence == 'weekly' %}

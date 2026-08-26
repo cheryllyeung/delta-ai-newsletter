@@ -170,7 +170,7 @@ Carnival 藍設計系統。內容是從原本整期塞成一頁的手風琴版�
       </div>
     </div>
     <a class="back-link" href="/issues/{{ issue_id }}" data-i18n="backLink">← 回本期導讀</a>
-    <p class="eyebrow">{{ newsletter_name }} · 第 {{ issue_id }} 期</p>
+    <p class="eyebrow">{{ newsletter_name }} · 第 {{ issue_no if issue_no is defined else issue_id }} 期</p>
     <div class="chip-row">
       {# 同 topic_issue.html.jinja：needs_review 不顯示在讀者頁面上。 #}
       {% if topic.top_module_name %}<span class="chip {{ 'chip--domain' if topic.top_module_is_domain else '' }}">{{ topic.top_module_name }}</span>{% endif %}
