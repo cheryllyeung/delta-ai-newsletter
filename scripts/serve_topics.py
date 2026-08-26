@@ -10,13 +10,16 @@
 from __future__ import annotations
 
 import json
+import os
+import secrets
 import sys
 from pathlib import Path
 
 import yaml
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
+from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi.templating import Jinja2Templates
 from starlette.requests import Request
 
@@ -64,7 +67,30 @@ def _attach_top_module(topic: dict) -> dict:
         topic["top_module_is_domain"] = False
     return topic
 
-app = FastAPI(title=_config["newsletter"]["name"])
+# 全站 HTTP Basic Auth（2026-08-26 加）。帳密放 .env 的 NEWSLETTER_WEB_USER
+# ／NEWSLETTER_WEB_PASSWORD；沒設帳密時對外（0.0.0.0）啟動會直接被 main
+# 擋下來拒絕啟動，本機開發（127.0.0.1）沒設就不啟用驗證，維持順手。
+# 比對用 secrets.compare_digest 防 timing attack（成本為零，順手做對）。
+_security = HTTPBasic()
+
+
+def _basic_auth(credentials: HTTPBasicCredentials = Depends(_security)):
+    expected_user = os.environ.get("NEWSLETTER_WEB_USER", "")
+    expected_password = os.environ.get("NEWSLETTER_WEB_PASSWORD", "")
+    ok = secrets.compare_digest(credentials.username, expected_user) and secrets.compare_digest(
+        credentials.password, expected_password
+    )
+    if not ok:
+        raise HTTPException(
+            status_code=401, detail="帳號或密碼不對", headers={"WWW-Authenticate": "Basic"}
+        )
+
+
+_AUTH_ENABLED = bool(os.environ.get("NEWSLETTER_WEB_PASSWORD"))
+app = FastAPI(
+    title=_config["newsletter"]["name"],
+    dependencies=[Depends(_basic_auth)] if _AUTH_ENABLED else [],
+)
 templates = Jinja2Templates(directory=str(TEMPLATE_DIR))
 
 # Neo4j Browser（跑在 7474）要來抓 /neo4j-guide，那是跨來源請求，沒有 CORS
@@ -292,6 +318,13 @@ if __name__ == "__main__":
     )
     parser.add_argument("--port", type=int, default=8001)
     args = parser.parse_args()
+
+    if args.host == "0.0.0.0" and not os.environ.get("NEWSLETTER_WEB_PASSWORD"):  # noqa: S104
+        # 對內網開放但沒設帳密，直接拒絕啟動（PRD 排定的權限項，2026-08-26 補上）。
+        raise SystemExit(
+            "[serve_topics] 要對外開放（--host 0.0.0.0）必須先在 .env 設 "
+            "NEWSLETTER_WEB_USER 跟 NEWSLETTER_WEB_PASSWORD，沒有登入保護的服務不准對內網裸奔。"
+        )
 
     if args.host == "0.0.0.0":  # noqa: S104 -- 內網分享是刻意的
         import socket
