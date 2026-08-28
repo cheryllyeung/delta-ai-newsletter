@@ -1,0 +1,107 @@
+<!--
+LMArena 分類排行榜頁（scripts/serve_topics.py 的 /leaderboard）。
+2026-08-28 從發佈頁頂部搬出來成獨立頁：使用者要發佈頁只留一個小入口，
+點進來才看完整榜。跟其他頁共用同一套 Carnival 藍設計語彙。
+-->
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>模型排行榜｜{{ newsletter_name }}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800&family=Noto+Sans+TC:wght@700;900&family=IBM+Plex+Sans:wght@400;500&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --color-paper:   oklch(93% 0.020 240);
+    --color-paper-2: oklch(89% 0.024 238);
+    --color-paper-3: oklch(83% 0.028 235);
+    --color-ink:     oklch(16% 0.030 250);
+    --color-ink-2:   oklch(28% 0.028 248);
+    --color-muted:   oklch(46% 0.020 245);
+    --color-accent:      oklch(58% 0.160 247);
+    --color-accent-ink:  oklch(97% 0.010 240);
+    --font-display: "Big Shoulders Display", "Noto Sans TC", sans-serif;
+    --font-body:    "IBM Plex Sans", ui-sans-serif, "PingFang TC", "Noto Sans TC", sans-serif;
+    --font-label:   "JetBrains Mono", ui-monospace, monospace;
+    --page-gutter: clamp(1.25rem, 4vw, 3rem);
+    --shell: 46rem;
+  }
+  * { box-sizing: border-box; }
+  html, body { overflow-x: clip; margin: 0; padding: 0; }
+  body { background: var(--color-paper); color: var(--color-ink); font-family: var(--font-body); }
+  a { color: inherit; text-decoration: none; }
+  h1 { font-family: var(--font-display); font-weight: 800; text-transform: uppercase; line-height: 0.96; }
+
+  .masthead { background: var(--color-accent); color: var(--color-accent-ink); padding: 2.5rem var(--page-gutter) 2rem; }
+  .masthead-inner { max-width: var(--shell); margin: 0 auto; }
+  .back-link { font-family: var(--font-label); font-size: 0.78rem; display: inline-block; margin-bottom: 0.8rem; opacity: 0.85; }
+  .back-link:hover { opacity: 1; text-decoration: underline; }
+  .masthead .eyebrow { font-family: var(--font-label); font-size: 0.75rem; letter-spacing: 0.1em; margin: 0 0 0.5rem; }
+  .masthead h1 { margin: 0; font-size: clamp(1.8rem, 3.4vw + 1rem, 2.8rem); }
+  .masthead p { margin: 0.8rem 0 0; font-family: var(--font-label); font-size: 0.78rem; color: color-mix(in oklch, var(--color-accent-ink) 85%, transparent); }
+  .src-link { text-decoration: underline; }
+
+  .leaderboard { max-width: var(--shell); margin: 1.5rem auto 0; padding: 0 var(--page-gutter) 4rem; }
+  .leaderboard-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+  @media (max-width: 40rem) { .leaderboard-grid { grid-template-columns: 1fr; } }
+  .leaderboard-box { background: var(--color-paper-2); border: 2px solid var(--color-ink); box-shadow: 3px 3px 0 var(--color-ink); padding: 1rem 1.2rem; }
+  .leaderboard-title { font-family: var(--font-label); font-size: 0.78rem; font-weight: 700; color: var(--color-accent); margin: 0 0 0.6rem; }
+  .leaderboard table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+  .leaderboard th { font-family: var(--font-label); font-size: 0.68rem; text-align: left; color: var(--color-muted); padding: 0.25em 0.5em; border-bottom: 1.5px solid var(--color-ink); }
+  .leaderboard td { padding: 0.35em 0.5em; border-bottom: 1px solid var(--color-paper-3); }
+  .leaderboard .rank { font-family: var(--font-label); }
+
+  .empty { max-width: var(--shell); margin: 0 auto; padding: 3rem var(--page-gutter); color: var(--color-muted); }
+  .foot { background: var(--color-ink); color: var(--color-accent-ink); padding: 1.5rem var(--page-gutter) 2.5rem; }
+  .foot-inner { max-width: var(--shell); margin: 0 auto; font-size: 0.8rem; opacity: 0.85; }
+</style>
+</head>
+<body>
+
+<header class="masthead">
+  <div class="masthead-inner">
+    <a class="back-link" href="/releases">← 回模型與工具發佈</a>
+    <p class="eyebrow">LMArena</p>
+    <h1>模型排行榜</h1>
+    {% if leaderboard %}<p>資料取自 <a class="src-link" href="https://lmarena.ai/leaderboard" target="_blank" rel="noopener">lmarena.ai</a>，更新於 {{ leaderboard[0].fetched_at }}</p>{% endif %}
+  </div>
+</header>
+
+{% if leaderboard %}
+<section class="leaderboard" aria-label="模型排行榜">
+  <div class="leaderboard-grid">
+    {% for board in leaderboard %}
+    <div class="leaderboard-box">
+      <p class="leaderboard-title">{{ board.title }}</p>
+      <table>
+        {# 欄位照 lmarena 原樣（名次、分數、票數），不自己算升降
+           （arena 的資料裡沒有升降，自己跟昨天比是衍生數字，使用者定調不要）。 #}
+        <thead><tr><th>名次</th><th>模型</th><th>開發者</th><th>分數</th><th>票數</th></tr></thead>
+        <tbody>
+          {% for r in board.rows %}
+          <tr>
+            <td class="rank">{{ r.rank }}</td>
+            <td>{{ r.model }}</td>
+            <td>{{ r.org or "" }}</td>
+            <td class="rank">{{ r.score if r.score is not none else "—" }}</td>
+            <td class="rank">{{ "{:,}".format(r.votes) if r.votes else "—" }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+{% else %}
+<div class="empty"><p>排行榜整理中，敬請期待。</p></div>
+{% endif %}
+
+<footer class="foot">
+  <div class="foot-inner"><p>{{ newsletter_name }}．僅供台達內部參考。</p></div>
+</footer>
+
+</body>
+</html>

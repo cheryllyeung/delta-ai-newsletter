@@ -65,7 +65,6 @@
   /* 首頁領域卡片（2026-08-26 改版主視覺）。 */
   .module-board { max-width: 52rem; margin: 0 auto; padding: 0 var(--page-gutter) 2rem; }
   .board-title { font-family: var(--font-display); font-weight: 800; text-transform: uppercase; font-size: clamp(1.4rem, 2.4vw + 0.8rem, 2rem); margin: 0; color: var(--color-ink); border-bottom: 4px solid var(--color-accent); display: inline-block; padding-bottom: 0.15em; }
-  .board-sub { font-family: var(--font-label); font-size: 0.76rem; color: var(--color-muted); margin: 0.6rem 0 1rem; line-height: 1.6; max-width: 60ch; }
   .board-group-label { font-family: var(--font-label); font-size: 0.72rem; letter-spacing: 0.08em; color: var(--color-muted); margin: 1rem 0 0.5rem; }
   .module-card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(13.5rem, 1fr)); gap: 0.8rem; }
   .module-card { display: flex; flex-direction: column; gap: 0.3rem; background: var(--color-paper-2); border: 2px solid var(--color-ink); box-shadow: 3px 3px 0 var(--color-ink); padding: 0.8rem 0.95rem; transition: transform 120ms ease-out, box-shadow 120ms ease-out; }
@@ -131,28 +130,10 @@
 {# 首頁主視覺：領域卡片（2026-08-26 改版）。讀者是帶著職能來的，法務的人
    點法務、能源的人點能源，日期是次要資訊，月曆降到下面當出刊紀錄。 #}
 <section class="module-board" aria-label="依領域瀏覽">
+  {# 標題下面刻意不放說明句：原本那句在解釋資料模型（專屬頁面、一篇文章
+     屬於幾個領域），讀者點一次就懂的事不用先教（2026-08-28 使用者定調）。 #}
   <h2 class="board-title">選你的領域</h2>
-  <p class="board-sub">每張卡是一個領域的專屬頁面：跟這個領域相關的所有文章，新的在前。一篇文章同時屬於幾個領域，就會出現在幾個頁面。</p>
-  <p class="board-group-label">台達本業</p>
-  <div class="module-card-grid">
-    {% for m in module_overview.domain %}
-    <a class="module-card domain" href="/modules/{{ m.id }}">
-      <span class="module-card-name">{{ m.name }}</span>
-      <span class="module-card-count">{{ m.count }} 篇</span>
-      {% if m.latest %}<span class="module-card-latest">{{ m.latest.date }}｜{{ m.latest.title }}</span>{% endif %}
-    </a>
-    {% endfor %}
-  </div>
-  <p class="board-group-label">職能</p>
-  <div class="module-card-grid">
-    {% for m in module_overview.functional %}
-    <a class="module-card" href="/modules/{{ m.id }}">
-      <span class="module-card-name">{{ m.name }}</span>
-      <span class="module-card-count">{{ m.count }} 篇</span>
-      {% if m.latest %}<span class="module-card-latest">{{ m.latest.date }}｜{{ m.latest.title }}</span>{% endif %}
-    </a>
-    {% endfor %}
-  </div>
+  {# 特輯放在台達本業上面（2026-08-28 使用者要求）。 #}
   {% if release_overview %}
   <p class="board-group-label">特輯</p>
   <div class="module-card-grid">
@@ -163,71 +144,31 @@
     </a>
   </div>
   {% endif %}
-</section>
-{% endif %}
-
-{% if months %}
-<section class="cal-wrap" aria-label="出刊紀錄">
-<h2 class="board-title cal-section-title">出刊紀錄</h2>
-<p class="board-sub">日報每天中午自動出、週報每週一。點格子看當期。</p>
-  {% for month in months %}
-  <div class="cal-month">
-    <h2 class="cal-title">{{ month.label }}</h2>
-    <div class="cal-board">
-      <div class="cal-head">
-        <span>日</span><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span>
-      </div>
-      {% for week in month.weeks %}
-      <div class="cal-week">
-        {% for cell in week %}
-        <div class="cal-cell{% if not cell.in_month %} out{% endif %}{% if cell.is_today %} today{% endif %}">
-          <span class="cal-day">{{ cell.day }}</span>
-          {% for issue in cell.issues %}
-          <a class="cal-chip{% if issue.cadence == 'weekly' %} weekly{% endif %}" href="/issues/{{ issue.id }}">
-            {%- if issue.cadence == 'weekly' -%}{{ issue.headline or '週報' }}
-            {%- else -%}{{ issue.count }} 則{%- endif -%}
-          </a>
-          {% endfor %}
-        </div>
-        {% endfor %}
-      </div>
-      {% endfor %}
-    </div>
-    <div class="cal-legend">
-      <span><span class="cal-chip">N 則</span> 日報（點進去看當天）</span>
-      <span><span class="cal-chip weekly">週報</span> 每週一出，涵蓋上週日到週六</span>
-    </div>
+  <p class="board-group-label">事業領域</p>
+  <div class="module-card-grid">
+    {% for m in module_overview.domain %}
+    <a class="module-card domain" href="/modules/{{ m.id }}">
+      <span class="module-card-name">{{ m.name }}</span>
+      <span class="module-card-count">{{ m.count }} 篇</span>
+      {% if m.latest %}<span class="module-card-latest">{{ m.latest.date }}｜{{ m.latest.title }}</span>{% endif %}
+    </a>
+    {% endfor %}
   </div>
-  {% endfor %}
+  <p class="board-group-label">工作職能</p>
+  <div class="module-card-grid">
+    {% for m in module_overview.functional %}
+    <a class="module-card" href="/modules/{{ m.id }}">
+      <span class="module-card-name">{{ m.name }}</span>
+      <span class="module-card-count">{{ m.count }} 篇</span>
+      {% if m.latest %}<span class="module-card-latest">{{ m.latest.date }}｜{{ m.latest.title }}</span>{% endif %}
+    </a>
+    {% endfor %}
+  </div>
 </section>
 {% endif %}
 
-{% if issues %}
-<p class="list-heading">全部期數</p>
-<nav class="issue-index" aria-label="期數列表">
-  {% for issue in issues %}
-  <a class="issue-card" href="/issues/{{ issue.id }}">
-    <div class="issue-card-row">
-      <span class="issue-card-title">第 {{ issue.no if issue.no is defined else issue.id }} 期</span>
-      {# 週報跟日報混在同一個列表，不標出來分不出誰是誰。舊的 7 期 cadence
-         是 NULL（日報化之前的週報時代），不標。#}
-      {% if issue.cadence == 'weekly' %}
-      <span class="issue-card-cadence weekly">週報{% if issue.period_start %} {{ issue.period_start }} ~ {{ issue.period_end }}{% endif %}</span>
-      {% elif issue.cadence == 'daily' %}
-      <span class="issue-card-cadence">日報</span>
-      {% endif %}
-      <span class="issue-card-date">{{ issue.issue_date }}</span>
-    </div>
-  </a>
-  {% endfor %}
-</nav>
-{% else %}
-<div class="empty">
-  <p>目前還沒有任何一期。</p>
-  <p>跑 <code>python -m scripts.compose_topic_issue</code> 組一期看看。</p>
-</div>
-{% endif %}
-
+{# 月曆（出刊紀錄）跟期數列表 2026-08-28 拿掉：使用者定調首頁只留
+   「選你的領域」。單期頁的網址（/issues/<id>）都還在，只是首頁不再列。 #}
 <footer class="foot">
   <div class="foot-inner"><p>{{ newsletter_name }}．僅供台達內部參考。</p></div>
 </footer>

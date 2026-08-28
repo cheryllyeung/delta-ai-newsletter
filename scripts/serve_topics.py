@@ -59,6 +59,11 @@ _DOMAIN_MODULE_IDS = {m["id"] for m in _config["modules"]["domain"]}
 
 _TAG_MIN_SCORE = _config["selection"]["weekly"]["min_module_score_to_select"]
 
+# 領域頁列表跟首頁卡片計數共用的顯示門檻，刻意比選題門檻低（理由見
+# module_timeline）。兩處一定要用同一個值，不然會出現「首頁卡片寫 0 篇、
+# 點進去卻有文章」的矛盾（2026-08-28 消費性產品實際發生過）。
+_MODULE_PAGE_MIN_SCORE = 4.0
+
 
 def _module_tags(module_scores: dict, exclude: str | None = None) -> list[dict]:
     """一篇文章的領域標籤：所有分數過門檻的模組，分數高到低。一篇文章天生
@@ -181,7 +186,11 @@ def module_timeline(request: Request, module_id: str, lang: str | None = None):
     if module is None:
         raise HTTPException(status_code=404, detail="沒有這個領域")
 
-    threshold = _config["selection"]["weekly"]["min_module_score_to_select"]
+    # 顯示門檻刻意比選題門檻（6）低：消費性產品這種定義窄的模組，全池最高
+    # 只有 4 分，用選題門檻整頁會空著（2026-08-28 使用者反饋「沒有話題太怪」）。
+    # 4.0 跟台達專欄「次要動態」的下限（pipeline/delta_column.py 的
+    # _MINOR_MIN_SCORE）是同一個標準：不夠格主打，但值得列出來。
+    threshold = _MODULE_PAGE_MIN_SCORE
     conn = _get_conn()
     rows = conn.execute(
         """SELECT g.id AS generated_id, g.issue_id, g.topic_id, g.generated_json,
@@ -240,22 +249,37 @@ _RELEASE_KIND_NAMES = {
 }
 
 
-def _leaderboard_context(conn) -> dict | None:
-    """發佈頁頂部的排行榜區塊：最新一份快照，跟上一份比名次升降。
-    還沒抓過（tools/fetch_leaderboard.py 沒跑過或一直失敗）就回 None，
-    頁面顯示提示而不是空表。"""
-    snaps = get_recent_leaderboard_snapshots(conn, "lmarena", limit=2)
-    if not snaps:
-        return None
-    latest = json.loads(snaps[0]["data_json"])
-    prev_rank: dict[str, int] = {}
-    if len(snaps) > 1:
-        prev_rank = {row["model"]: row["rank"] for row in json.loads(snaps[1]["data_json"])}
-    rows = []
-    for row in latest[:15]:
-        old = prev_rank.get(row["model"])
-        rows.append({**row, "delta": (old - row["rank"]) if old is not None else None})
-    return {"fetched_at": snaps[0]["fetched_at"][:16].replace("T", " "), "rows": rows}
+# 發佈頁排行榜的分類（DB source key 的後綴, 顯示名），跟
+# tools/fetch_leaderboard.py 的 CATEGORIES 對應。2026-08-28 從單一總榜改成
+# 分類榜：使用者要的是「各個功能（文字、程式、視覺、圖像生成）誰排最前面」。
+_LEADERBOARD_CATEGORIES = [
+    ("text", "文字對話"),
+    ("coding", "程式開發"),
+    ("vision", "視覺理解"),
+    ("text-to-image", "圖像生成"),
+    ("search", "搜尋"),
+]
+
+
+def _leaderboard_context(conn) -> list[dict]:
+    """排行榜頁的資料：每個分類的最新快照，欄位照 lmarena 原樣（名次、分數、
+    票數），不自己衍生任何數字。原本有拿前一天快照算的升降欄，2026-08-28
+    使用者定調只呈現 arena 自己寫的東西（arena 的資料裡沒有升降欄位），
+    拿掉了。還沒抓過的分類直接不出現，全部沒抓過就回空 list。"""
+    boards = []
+    for key, title in _LEADERBOARD_CATEGORIES:
+        snaps = get_recent_leaderboard_snapshots(conn, f"lmarena-{key}", limit=1)
+        if not snaps:
+            continue
+        latest = json.loads(snaps[0]["data_json"])
+        boards.append(
+            {
+                "title": title,
+                "fetched_at": snaps[0]["fetched_at"][:16].replace("T", " "),
+                "rows": latest[:10],
+            }
+        )
+    return boards
 
 
 def _release_overview(conn) -> dict:
@@ -273,7 +297,7 @@ def _release_overview(conn) -> dict:
 
 
 @app.get("/releases", response_class=HTMLResponse)
-def release_timeline(request: Request, vendor: str | None = None):
+def release_timeline(request: Request, vendor: str | None = None, kind: str | None = None):
     """模型與工具發佈頁：池裡所有判定為官方發佈的文章，發佈時間新到舊。
 
     跟領域頁（/modules/*）不同，這裡列的是池裡的文章、不是出刊文章：
@@ -283,10 +307,33 @@ def release_timeline(request: Request, vendor: str | None = None):
     """
     conn = _get_conn()
     rows = [dict(r) for r in list_release_articles(conn)]
+    # 依類型看（2026-08-28 使用者要求）：kind 的 id 是 release_kind 的原始值
+    # （進 URL），name 是中文顯示名。沒判出類型的歸「其他」。兩個篩選可疊加。
+    #
+    # chip 的呈現來回改了幾次，最後定案是不對稱的（同日使用者討論）：
+    # 廠商排永遠固定（全站數量，不跟著類型變），類型排跟著選中的廠商變
+    # （只列那家有的類型；沒選廠商就是全站類型）。心智模型是「廠商是主要
+    # 入口、類型是廠商底下的細分」。反過來讓廠商排跟著類型變的版本試過，
+    # 選 arXiv＋評測榜單時 IBM 會亮起來，使用者覺得莫名其妙，不要再走回去。
     vendor_counts: Counter[str] = Counter(r["release_vendor"] or "其他" for r in rows)
     vendors = [{"name": name, "count": count} for name, count in vendor_counts.most_common()]
+    kind_counts: Counter[str] = Counter(
+        r["release_kind"] or "other"
+        for r in rows
+        if not vendor or (r["release_vendor"] or "其他") == vendor
+    )
+    kinds = [
+        {"id": kid, "name": _RELEASE_KIND_NAMES.get(kid, "其他"), "count": count}
+        for kid, count in kind_counts.most_common()
+    ]
+    # 換廠商時網址會帶著原本的 kind，新廠商可能沒有那個類型：選中的 chip
+    # 還是要出現（標 0），不然使用者取消不掉這個篩選。
+    if kind and kind not in kind_counts:
+        kinds.insert(0, {"id": kind, "name": _RELEASE_KIND_NAMES.get(kind, "其他"), "count": 0})
     if vendor:
         rows = [r for r in rows if (r["release_vendor"] or "其他") == vendor]
+    if kind:
+        rows = [r for r in rows if (r["release_kind"] or "other") == kind]
     for r in rows:
         r["kind_name"] = _RELEASE_KIND_NAMES.get(r["release_kind"], r["release_kind"] or "")
         r["published_date"] = r["published_at"][:10]
@@ -298,6 +345,21 @@ def release_timeline(request: Request, vendor: str | None = None):
             "entries": rows,
             "vendors": vendors,
             "active_vendor": vendor,
+            "kinds": kinds,
+            "active_kind": kind,
+        },
+    )
+
+
+@app.get("/leaderboard", response_class=HTMLResponse)
+def leaderboard_page(request: Request):
+    """LMArena 分類排行榜的完整頁，資料照舊來自每小時排程存的快照。"""
+    conn = _get_conn()
+    return templates.TemplateResponse(
+        request,
+        "topic_leaderboard.html.jinja",
+        {
+            "newsletter_name": _config["newsletter"]["name"],
             "leaderboard": _leaderboard_context(conn),
         },
     )
@@ -401,7 +463,7 @@ def _module_overview(conn) -> dict[str, list[dict]]:
     for row in rows:
         scores = json.loads(row["module_scores_json"]) if row["module_scores_json"] else {}
         for mid, entry in scores.items():
-            if entry["score"] < _TAG_MIN_SCORE:
+            if entry["score"] < _MODULE_PAGE_MIN_SCORE:
                 continue
             if row["topic_id"] in seen.setdefault(mid, set()):
                 continue
@@ -443,17 +505,15 @@ def _issue_display_no(conn, issue) -> int:
 
 @app.get("/", response_class=HTMLResponse)
 def issue_list(request: Request, lang: str | None = None):
+    # 2026-08-28 使用者要求：首頁只留「選你的領域」（含特輯卡），月曆跟
+    # 期數列表拿掉，所以不再組 issues／months。讀者從領域頁點文章時網址
+    # 還是帶期數（/issues/<id>/topics/<gid>），入口變了、內容路徑沒變。
     conn = _get_conn()
-    issues = [dict(row) for row in list_issues(conn)]
-    for issue in issues:
-        issue["no"] = _issue_display_no(conn, issue)
     return templates.TemplateResponse(
         request,
         "topic_issue_list.html.jinja",
         {
             "newsletter_name": _config["newsletter"]["name"],
-            "issues": issues,
-            "months": _build_calendar_months(conn, issues),
             "module_overview": _module_overview(conn),
             "release_overview": _release_overview(conn),
             "lang": _normalise_lang(lang),

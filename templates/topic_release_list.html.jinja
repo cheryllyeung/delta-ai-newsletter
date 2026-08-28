@@ -44,18 +44,8 @@ topic_module_list.html.jinja 共用同一套 Carnival 藍設計語彙，差別�
   .masthead h1 { margin: 0; font-size: clamp(1.8rem, 3.4vw + 1rem, 2.8rem); }
   .masthead p { margin: 0.8rem 0 0; font-size: 0.88rem; line-height: 1.6; max-width: 56ch; color: color-mix(in oklch, var(--color-accent-ink) 85%, transparent); }
 
-  .leaderboard { max-width: var(--shell); margin: 1.2rem auto 0; padding: 0 var(--page-gutter); }
-  .leaderboard-box { background: var(--color-paper-2); border: 2px solid var(--color-ink); box-shadow: 3px 3px 0 var(--color-ink); padding: 1rem 1.2rem; }
-  .leaderboard-title { font-family: var(--font-label); font-size: 0.78rem; margin: 0 0 0.6rem; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 0.5em; }
-  .leaderboard-title .stamp { color: var(--color-muted); }
-  .leaderboard table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
-  .leaderboard th { font-family: var(--font-label); font-size: 0.68rem; text-align: left; color: var(--color-muted); padding: 0.25em 0.5em; border-bottom: 1.5px solid var(--color-ink); }
-  .leaderboard td { padding: 0.35em 0.5em; border-bottom: 1px solid var(--color-paper-3); }
-  .leaderboard .rank { font-family: var(--font-label); }
-  .leaderboard .delta-up { color: oklch(55% 0.15 150); font-family: var(--font-label); font-size: 0.75rem; }
-  .leaderboard .delta-down { color: oklch(55% 0.19 25); font-family: var(--font-label); font-size: 0.75rem; }
-  .leaderboard .delta-flat { color: var(--color-muted); font-family: var(--font-label); font-size: 0.75rem; }
-  .leaderboard-empty { font-size: 0.82rem; color: var(--color-muted); margin: 0; }
+  /* 排行榜入口 chip：跟篩選 chip 同型但走強調色，表明是連結不是篩選。 */
+  .lb-chip { border-color: var(--color-accent); color: var(--color-accent); font-weight: 700; }
 
   .vendor-nav { max-width: var(--shell); margin: 0 auto; padding: 1.2rem var(--page-gutter) 0.4rem; }
   .vendor-nav-label { font-family: var(--font-label); font-size: 0.72rem; color: var(--color-muted); margin: 0 0 0.4rem; }
@@ -64,7 +54,13 @@ topic_module_list.html.jinja 共用同一套 Carnival 藍設計語彙，差別�
   .vendor-chip:hover { background: var(--color-accent); color: var(--color-accent-ink); }
   .vendor-chip.active { background: var(--color-ink); color: var(--color-paper); }
 
-  .timeline { max-width: var(--shell); margin: 0 auto; padding: 1rem var(--page-gutter) 4rem; display: flex; flex-direction: column; gap: 0.9rem; }
+  /* 跟 topic_module_list.html.jinja 同一套：兩欄格線，日期小標橫跨整列，
+     同一天的發佈並排、多的往下折。 */
+  .timeline { max-width: var(--shell); margin: 0 auto; padding: 1rem var(--page-gutter) 4rem; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.9rem; }
+  @media (max-width: 40rem) { .timeline { grid-template-columns: 1fr; } }
+  .timeline-date { grid-column: 1 / -1; font-family: var(--font-label); font-size: 0.8rem; font-weight: 700; letter-spacing: 0.08em; color: var(--color-accent); margin: 1rem 0 -0.2rem; display: flex; align-items: center; gap: 0.7em; }
+  .timeline-date::after { content: ""; flex: 1; border-top: 2px solid var(--color-paper-3); }
+  .timeline-date:first-child { margin-top: 0.2rem; }
   .entry { display: block; background: var(--color-paper-2); border: 2px solid var(--color-ink); box-shadow: 3px 3px 0 var(--color-ink); padding: 1rem 1.2rem; transition: transform 120ms ease-out, box-shadow 120ms ease-out; }
   .entry:hover { transform: translate(-1px, -1px); box-shadow: 4px 4px 0 var(--color-ink); }
   .entry-meta { font-family: var(--font-label); font-size: 0.72rem; color: var(--color-muted); margin-bottom: 0.35rem; display: flex; gap: 0.9em; flex-wrap: wrap; align-items: baseline; }
@@ -83,60 +79,42 @@ topic_module_list.html.jinja 共用同一套 Carnival 藍設計語彙，差別�
 
 <header class="masthead">
   <div class="masthead-inner">
-    <a class="back-link" href="/">← 回出刊日曆</a>
+    <a class="back-link" href="/">← 回首頁</a>
     <p class="eyebrow">特輯</p>
     <h1>模型與工具發佈</h1>
-    <p>各家廠商最新發佈的模型、工具、硬體與資料集，發佈時間新到舊。
-       這裡列的是來源池裡的原始快訊，點標題直接看原文，不用等它寫成日報文章。</p>
   </div>
 </header>
 
-<section class="leaderboard" aria-label="模型排行榜">
-  <div class="leaderboard-box">
-    {% if leaderboard %}
-    <p class="leaderboard-title"><span>LMArena 排行榜 TOP {{ leaderboard.rows | length }}</span><span class="stamp">快照時間 {{ leaderboard.fetched_at }}</span></p>
-    <table>
-      <thead><tr><th>名次</th><th>模型</th><th>開發者</th><th>分數</th><th>升降</th></tr></thead>
-      <tbody>
-        {% for r in leaderboard.rows %}
-        <tr>
-          <td class="rank">{{ r.rank }}</td>
-          <td>{{ r.model }}</td>
-          <td>{{ r.org or "" }}</td>
-          <td class="rank">{{ r.score or "" }}</td>
-          <td>
-            {% if r.delta is none %}<span class="delta-flat">新進榜</span>
-            {% elif r.delta > 0 %}<span class="delta-up">▲ {{ r.delta }}</span>
-            {% elif r.delta < 0 %}<span class="delta-down">▼ {{ -r.delta }}</span>
-            {% else %}<span class="delta-flat">─</span>{% endif %}
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-    {% else %}
-    <p class="leaderboard-empty">還沒有榜單資料。跑一次 python -m tools.fetch_leaderboard 就會出現。</p>
-    {% endif %}
-  </div>
-</section>
-
-<nav class="vendor-nav" aria-label="廠商篩選">
+<nav class="vendor-nav" aria-label="篩選">
+  {# 兩排篩選可疊加：chip 的連結會保留另一排目前選中的值。 #}
   <p class="vendor-nav-label">依廠商看</p>
   <div class="vendor-nav-row">
-    <a class="vendor-chip{% if not active_vendor %} active{% endif %}" href="/releases">全部</a>
+    <a class="vendor-chip{% if not active_vendor %} active{% endif %}" href="/releases{% if active_kind %}?kind={{ active_kind }}{% endif %}">全部</a>
     {% for v in vendors %}
-    <a class="vendor-chip{% if v.name == active_vendor %} active{% endif %}" href="/releases?vendor={{ v.name | urlencode }}">{{ v.name }}（{{ v.count }}）</a>
+    <a class="vendor-chip{% if v.name == active_vendor %} active{% endif %}" href="/releases?vendor={{ v.name | urlencode }}{% if active_kind %}&amp;kind={{ active_kind }}{% endif %}">{{ v.name }}（{{ v.count }}）</a>
     {% endfor %}
+  </div>
+  <p class="vendor-nav-label">依類型看</p>
+  <div class="vendor-nav-row">
+    <a class="vendor-chip{% if not active_kind %} active{% endif %}" href="/releases{% if active_vendor %}?vendor={{ active_vendor | urlencode }}{% endif %}">全部</a>
+    {% for k in kinds %}
+    <a class="vendor-chip{% if k.id == active_kind %} active{% endif %}" href="/releases?kind={{ k.id }}{% if active_vendor %}&amp;vendor={{ active_vendor | urlencode }}{% endif %}">{{ k.name }}（{{ k.count }}）</a>
+    {% endfor %}
+    {# 排行榜入口：類型排最後一顆 chip，點進 /leaderboard 看完整榜
+       （2026-08-28 使用者定調，不做成獨立卡片也不放整組榜在頁面上）。 #}
+    <a class="vendor-chip lb-chip" href="/leaderboard">模型排行榜 →</a>
   </div>
 </nav>
 
 {% if entries %}
 <section class="timeline" aria-label="發佈時間軸">
   {% for e in entries %}
+  {% if loop.changed(e.published_date) %}
+  <p class="timeline-date">{{ e.published_date[5:7] | int }}/{{ e.published_date[8:10] | int }}</p>
+  {% endif %}
   <div class="entry">
     <a href="{{ e.url }}" target="_blank" rel="noopener">
       <div class="entry-meta">
-        <span>{{ e.published_date }}</span>
         {% if e.release_vendor %}<span class="vendor-badge">{{ e.release_vendor }}</span>{% endif %}
         {% if e.kind_name %}<span class="kind-badge">{{ e.kind_name }}</span>{% endif %}
       </div>
@@ -148,8 +126,13 @@ topic_module_list.html.jinja 共用同一套 Carnival 藍設計語彙，差別�
   {% endfor %}
 </section>
 {% else %}
-<div class="empty"><p>目前池裡還沒有判定為發佈的文章。新文章會在每天的 ingest 之後出現；
-歷史文章要先跑 python -m tools.backfill_release_check。</p></div>
+{# 空狀態只給讀者看的一句話，維運指令（backfill_release_check）不放頁面上
+   （2026-08-28 使用者要求，跟排行榜空狀態同一批改掉）。 #}
+{% if active_vendor or active_kind %}
+<div class="empty"><p>這個組合目前沒有發佈，換個篩選看看。</p></div>
+{% else %}
+<div class="empty"><p>最新發佈整理中，敬請期待。</p></div>
+{% endif %}
 {% endif %}
 
 <footer class="foot">

@@ -50,16 +50,14 @@
   .module-chip:hover { background: var(--color-accent); color: var(--color-accent-ink); }
   .module-chip.active { background: var(--color-ink); color: var(--color-paper); }
 
-  .timeline { max-width: var(--shell); margin: 0 auto; padding: 1rem var(--page-gutter) 4rem; display: flex; flex-direction: column; gap: 0.9rem; }
+  /* 兩欄格線：日期小標橫跨整列，同一天的文章在小標下面並排，多的往下折。 */
+  .timeline { max-width: var(--shell); margin: 0 auto; padding: 1rem var(--page-gutter) 4rem; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.9rem; }
+  @media (max-width: 40rem) { .timeline { grid-template-columns: 1fr; } }
+  .timeline-date { grid-column: 1 / -1; font-family: var(--font-label); font-size: 0.8rem; font-weight: 700; letter-spacing: 0.08em; color: var(--color-accent); margin: 1rem 0 -0.2rem; display: flex; align-items: center; gap: 0.7em; }
+  .timeline-date::after { content: ""; flex: 1; border-top: 2px solid var(--color-paper-3); }
+  .timeline-date:first-child { margin-top: 0.2rem; }
   .entry { display: block; background: var(--color-paper-2); border: 2px solid var(--color-ink); box-shadow: 3px 3px 0 var(--color-ink); padding: 1rem 1.2rem; transition: transform 120ms ease-out, box-shadow 120ms ease-out; }
   .entry:hover { transform: translate(-1px, -1px); box-shadow: 4px 4px 0 var(--color-ink); }
-  .entry-tags { margin-top: 0.55rem; display: flex; flex-wrap: wrap; gap: 0.35rem; align-items: baseline; }
-  .entry-tags-label { font-family: var(--font-label); font-size: 0.68rem; color: var(--color-muted); }
-  .entry-tag { font-family: var(--font-label); font-size: 0.68rem; border: 1.5px solid var(--color-ink); background: var(--color-paper); padding: 0.15em 0.5em; }
-  .entry-tag.domain { border-color: var(--color-accent); color: var(--color-accent); }
-  .entry-tag:hover { background: var(--color-accent); color: var(--color-accent-ink); border-color: var(--color-accent); }
-  .entry-meta { font-family: var(--font-label); font-size: 0.72rem; color: var(--color-muted); margin-bottom: 0.35rem; display: flex; gap: 0.9em; }
-  .entry-score { color: var(--color-accent); font-weight: 700; }
   .entry h2 { margin: 0 0 0.25rem; font-size: 1.05rem; line-height: 1.4; }
   .entry .subhead { margin: 0; font-size: 0.85rem; line-height: 1.55; color: var(--color-ink-2); }
 
@@ -72,21 +70,23 @@
 
 <header class="masthead">
   <div class="masthead-inner">
-    <a class="back-link" href="/">← 回出刊日曆</a>
+    <a class="back-link" href="/">← 回首頁</a>
     <p class="eyebrow">依領域瀏覽</p>
+    {# 這裡刻意不放 module.desc：那段是寫給打分 prompt 的模組定義
+       （「台達的○○人員。AI 在…的應用」這種第三人稱內部說明），
+       不是給讀者看的文案（2026-08-28 使用者反饋）。 #}
     <h1>{{ module.name }}</h1>
-    {% if module.desc %}<p>{{ module.desc }}</p>{% endif %}
   </div>
 </header>
 
 <nav class="module-nav" aria-label="領域切換">
-  <p class="module-nav-label">台達本業</p>
+  <p class="module-nav-label">事業領域</p>
   <div class="module-nav-row">
     {% for m in modules_by_group.domain %}
     <a class="module-chip{% if m.id == module.id %} active{% endif %}" href="/modules/{{ m.id }}">{{ m.name }}</a>
     {% endfor %}
   </div>
-  <p class="module-nav-label">職能</p>
+  <p class="module-nav-label">工作職能</p>
   <div class="module-nav-row">
     {% for m in modules_by_group.functional %}
     <a class="module-chip{% if m.id == module.id %} active{% endif %}" href="/modules/{{ m.id }}">{{ m.name }}</a>
@@ -97,21 +97,17 @@
 {% if entries %}
 <section class="timeline" aria-label="文章時間軸">
   {% for e in entries %}
+  {# entries 從 serve_topics 來就是日期新到舊，換日時插一條日期小標，
+     同一天的文章掛在同一條下面。相關度分數是選題內部指標，不給讀者看
+     （2026-08-28 使用者反饋，跟 module.desc 同一批拿掉）。 #}
+  {% if loop.changed(e.issue_date) %}
+  <p class="timeline-date">{{ e.issue_date[5:7] | int }}/{{ e.issue_date[8:10] | int }}</p>
+  {% endif %}
   <div class="entry">
     <a href="/issues/{{ e.issue_id }}/topics/{{ e.generated_id }}">
-      <div class="entry-meta">
-        <span>{{ e.issue_date }}</span>
-        <span class="entry-score">{{ module.name }}相關度 {{ e.score }}</span>
-      </div>
       <h2>{{ e.headline }}</h2>
       {% if e.subhead %}<p class="subhead">{{ e.subhead }}</p>{% endif %}
     </a>
-    {% if e.other_tags %}
-    <div class="entry-tags">
-      <span class="entry-tags-label">也屬於</span>
-      {% for t in e.other_tags %}<a class="entry-tag{% if t.is_domain %} domain{% endif %}" href="/modules/{{ t.id }}">{{ t.name }}</a>{% endfor %}
-    </div>
-    {% endif %}
   </div>
   {% endfor %}
 </section>
