@@ -28,3 +28,6 @@ docs/knowledge_graph.html
 # 建議直接搬到這個資料夾外面，留在這裡只會讓人以為它是專案的一部分。
 open-kritt/
 runs_*.log
+
+# 內部文件不進版控，留在本地
+docs/
