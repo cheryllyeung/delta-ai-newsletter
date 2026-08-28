@@ -13,8 +13,11 @@ Qwen 這類）或模型的重大版本更新、開發工具或框架、AI 硬體
 
 vendor 填發佈方的常用名稱（OpenAI、Google、Meta、NVIDIA、Anthropic、
 Alibaba、Mistral、Microsoft、DeepSeek、xAI、Hugging Face 這類），
-不在名單裡就照文章裡的稱呼填。拿不定主意時判 false：這個標記餵的是
-「最新發佈」清單，混進評測跟傳聞會讓清單失去意義。
+不在名單裡就照文章裡的稱呼填。vendor 只填一個名字：多家聯名發佈時填
+最主要的那一家（產品掛誰的名下就填誰），不要用逗號並列。arXiv 論文
+沒有明確機構掛名時一律填「arXiv」，不要寫 arXiv authors 這類變體，
+同一個發佈方要用同一個名字，這個欄位會拿去做篩選分組。拿不定主意時判
+false：這個標記餵的是「最新發佈」清單，混進評測跟傳聞會讓清單失去意義。
 只輸出 JSON，不要任何其他文字。
 </system>
 
