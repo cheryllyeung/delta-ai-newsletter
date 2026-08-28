@@ -1,8 +1,9 @@
 # Delta AI 趨勢日報
 
-替台達同仁做 AI 趨勢情報的自動化系統。每天從 39 個公開來源抓 AI 相關內容，
+每天從 39 個公開來源抓 AI 相關內容，
 把同一件事的多篇報導聚成「話題」，依台達各單位對應的 18 個模組打分，過門檻
-的寫成中文短文出日報，每週一挑最重要的 10 則出週報，文章裡的實體關係同步
+的寫成中文短文出日報，每週一挑最重要的 10 則出週報。寫作素材只用話題自己
+的文章、出刊前經過自檢，兩道限制都是為了擋模型瞎掰。文章裡的實體關係同步
 累積成 Neo4j 知識圖譜。
 
 三個入口對應三個階段，彼此完全脫鉤，各自可以獨立重跑：
@@ -11,7 +12,7 @@
 |---|---|
 | `scripts/ingest_topics.py` | 建池：抓取、收錄判定、聚類、標籤、發佈判定、建圖、打分 |
 | `scripts/compose_topic_issue.py` | 出刊：選題、生成、自檢、存檔 |
-| `scripts/serve_topics.py` | 網頁：日報、週報、領域頁、發佈頁、知識圖譜、選題帳 |
+| `scripts/serve_topics.py` | 網頁：日報、週報、領域頁、發佈頁、排行榜、知識圖譜、選題帳 |
 
 ## 系統流程
 
@@ -19,7 +20,7 @@
 %%{init: {"flowchart": {"nodeSpacing": 55, "rankSpacing": 65}}}%%
 flowchart TD
     subgraph ingest["　建池：scripts.ingest_topics　"]
-        SRC(["26 個來源抓取<br/>RSS、arXiv、HN、Reddit<br/>GitHub、StackExchange"])
+        SRC(["39 個來源抓取<br/>RSS、arXiv、HN、Reddit<br/>GitHub、StackExchange"])
         SRC --> DEDUP(["依 URL 去重入池"])
         DEDUP --> G1{"Gate 1<br/>收錄判定"}
         G1 -->|"太舊、非 AI"| EXC(["excluded<br/>留在池裡但什麼都不做"])
@@ -84,8 +85,9 @@ flowchart TD
 
 ## 判斷機制與門檻
 
-門檻值全部集中在 `config/topics.yaml`，程式裡只有判斷邏輯，每個值都有實測
-依據，不憑感覺調。目前的主要數值：
+門檻值全部集中在 `config/topics.yaml`，程式裡只有判斷邏輯。每個值都是拿
+池裡的真實資料量出來的，調整過的值在設定檔註解留有當時的依據。目前的
+主要數值：
 
 | 機制 | 門檻 | 邏輯 |
 |---|---|---|
@@ -100,9 +102,10 @@ flowchart TD
 
 1. 冪等是底線。每一步只處理「還沒做過那一步」的資料，任何一步中斷重跑
    會自動接續
-2. 拒絕不等於刪除。被擋掉、落選的都留著理由碼跟數值，選題帳頁面直接讀
-3. 灰色地帶模式。聚類跟實體解析都是便宜計算先分流、模型只判中間地帶，
-   LLM 失敗時一律往保守方向判
+2. 拒絕不等於刪除。被擋掉、落選的都留著理由碼跟數值，選題帳頁面直接讀，
+   「為什麼這篇沒上」要答得出來
+3. 灰色地帶模式。聚類跟實體解析都是便宜計算先分流、LLM 只判中間地帶，
+   模型失敗時一律往保守方向判
 
 ## 目錄結構
 
@@ -122,7 +125,7 @@ flowchart TD
 
 資料落點（都不進版控）：SQLite 在 `data/topics.db`，語意向量在 `data/qdrant`
 （Qdrant embedded 模式，不用起伺服器），知識圖譜在 Neo4j，LLM 呼叫全紀錄在
-`llm_logs/`，排程紀錄在 `runs/`。
+`llm_logs/`（除錯時對 prompt 與回應用），排程紀錄在 `runs/`。
 
 ## 快速開始
 
@@ -141,5 +144,6 @@ python -m scripts.serve_topics    # 網頁：http://localhost:8001
 |---|---|---|
 | DeltaAI-DailyIssue | 每天 12:00 | `run_daily.ps1`：起 Neo4j、建池含建圖、出前一天日報 |
 | DeltaAI-WeeklyIssue | 每週一 12:10 | `run_weekly.ps1`：出上週的週報，含台達專欄與大標題 |
+| DeltaAI-Leaderboard | 每小時 | `run_leaderboard.ps1`：抓 LMArena 分類排行榜快照 |
 
 內容僅供台達內部參考，請勿外流。
