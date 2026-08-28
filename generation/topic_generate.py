@@ -29,7 +29,7 @@ _CONTENT_CHARS_PER_SOURCE = 1500
 # 出在這支的巢狀結構，不是模型不會輸出 JSON。
 #
 # 一次解析失敗原本會讓整個話題被跳過（compose_topic_issue 接住例外後
-# continue），連帶讓那一期少一篇——8/8 那期只出 1 篇、連配額下限 2 篇都
+# continue），連帶讓那一期少一篇：8/8 那期只出 1 篇、連配額下限 2 篇都
 # 沒守住，就是這樣來的。temperature 是 0.7，重擲一次得到合法 JSON 的機率
 # 很高，所以重試比放棄划算太多。
 _JSON_RETRIES = 2

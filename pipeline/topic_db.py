@@ -204,7 +204,7 @@ def insert_article_if_new(conn: sqlite3.Connection, item) -> int | None:
     engagement_raw/engagement_source 只有來源本身有真實熱度數字時才寫值
     （item.extra["engagement_metric"] 由 scripts/ingest_topics.py 依
     item.source 判斷，只給 hn/reddit/github/stackexchange 這幾個訊號層
-    來源設），其他來源這兩欄位維持 NULL，不是 0——0 跟「這個來源沒有
+    來源設），其他來源這兩欄位維持 NULL，不是 0。0 跟「這個來源沒有
     熱度這個概念」是不同意思，不能混用。
     """
     engagement_source = item.extra.get("engagement_metric")
@@ -340,7 +340,7 @@ def get_untagged_articles(conn: sqlite3.Connection, week_start: str) -> list[sql
     錯誤卡住、後來才修好重試邏輯的那批）排在佇列前面，把當天的標籤額度佔
     光，導致當天新抓進來的文章反而標不完。窗口外的文章應該先呼叫
     discard_stale_untagged_articles() 主動標記捨棄，這裡的 fetched_at
-    篩選只是雙保險，即使忘記呼叫捨棄流程也不會捞到舊文章。
+    篩選只是雙保險，即使忘記呼叫捨棄流程也不會撈到舊文章。
 
     沒通過 Gate 1a 的文章（只有標題的 signal_only、超出窗口的 excluded）
     不在這裡回傳：標籤每篇要打一次 gateway，池裡有 43% 是只有標題的殘缺

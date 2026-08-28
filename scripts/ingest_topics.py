@@ -196,7 +196,7 @@ def _fetch_source_items(source: dict, fetch_cfg: dict) -> list[RawItem]:
 # 全公司共用的資源，從 8 開始比較有分寸，不夠快再往上調。
 _DEFAULT_CONCURRENCY = 8
 
-# 重試間隔（秒）。長度即重試次數，之後仍失敗就讓這一筆失敗——單筆失敗不
+# 重試間隔（秒）。長度即重試次數，之後仍失敗就讓這一筆失敗：單筆失敗不
 # 影響整批，而且下次重跑會自動重試（沒寫進 DB 的就還在待處理清單裡）。
 _RETRY_BACKOFF_SECONDS = (2.0, 8.0)
 
@@ -228,7 +228,7 @@ def _run_llm_concurrently(rows, work, handle, describe, concurrency: int, label:
     """把 rows 併發送進 thread pool 做 LLM 呼叫，結果回到主執行緒才寫 DB。
 
     work(row) 只做 LLM 呼叫、絕對不能碰 conn：sqlite3 的 connection 預設不
-    允許跨執行緒使用，而且併發寫入這裡也沒有好處——瓶頸是等 gateway 回應，
+    允許跨執行緒使用，而且併發寫入這裡也沒有好處，瓶頸是等 gateway 回應，
     不是寫檔。handle(row, result) 由主執行緒逐一呼叫，負責寫入。
 
     回傳 (成功數, 失敗數)。
@@ -422,7 +422,7 @@ def main() -> None:
         # 連線本身也要能降級。原本只處理「NEO4J_URI 沒設」，但「有設卻連不上」
         # 會讓 get_driver/ensure_constraints 直接拋例外、整支程式當掉，連後面
         # 的打分都不會跑到。Neo4j 是手動開的背景行程，重開機就沒了，排程跑
-        # 的時候這等於當天日報整個不會產出——建圖只是加值，不該有這種權力。
+        # 的時候這等於當天日報整個不會產出。建圖只是加值，不該有這種權力。
         try:
             driver = graph_store.get_driver(
                 neo4j_uri, os.environ.get("NEO4J_USER", "neo4j"), os.environ.get("NEO4J_PASSWORD", "")

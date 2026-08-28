@@ -74,7 +74,7 @@ def main() -> None:
 
     # 只有 extract_triples（純 LLM 呼叫、無共用狀態）平行跑。圖寫入這一段
     # 留在主執行緒依序處理，不是保守，是正確性要求：
-    #   * EntityResolver 是有狀態且順序相關的——先 resolve A 再 resolve B，
+    #   * EntityResolver 是有狀態且順序相關的：先 resolve A 再 resolve B，
     #     跟反過來可能選出不同的 canonical，平行化會讓結果不可重現
     #   * sqlite connection 預設不能跨執行緒共用
     # 而抽取本來就是整批耗時的絕大部分（實測單篇 5.3 秒，圖寫入是毫秒級），

@@ -15,7 +15,7 @@ Article 節點的 id 直接沿用 pipeline/topic_db.py 裡 articles 表的自增
 
 Schema：(Source)-[:PUBLISHED]->(Article)-[:MENTIONS]->(Entity)。tier（核心層/
 訊號層/深度層/垂直/case）是來源的屬性，放在 Source 節點上，不冗餘複製到
-MENTIONS 邊上——tier 定義之後如果改，只要動 Source 節點，不用回填所有邊。
+MENTIONS 邊上。tier 定義之後如果改，只要動 Source 節點，不用回填所有邊。
 engagement_raw/engagement_source 是單篇文章的快照數字（例如某篇 HN 貼文
 當時的 points），放在 Article 節點上，跟 tier 這種來源層級的屬性分開存。
 """

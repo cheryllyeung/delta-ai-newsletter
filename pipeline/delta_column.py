@@ -13,7 +13,7 @@
 另外每期週報有一個主題大標題（write_weekly_headline()），從當週專欄的
 主打話題提煉，風格照使用者給的歷史專題範本（見 prompts/weekly_headline.md）。
 
-短評刻意一格一格各寫各的，不把九件事湊成一篇長文——「把不相干素材硬湊
+短評刻意一格一格各寫各的，不把九件事湊成一篇長文。「把不相干素材硬湊
 成一篇」的教訓見 config/topics.yaml 的 sources_for_writing 註解。
 """
 from __future__ import annotations
