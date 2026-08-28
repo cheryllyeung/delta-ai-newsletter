@@ -69,6 +69,29 @@ def _parse_json_object(raw_text: str) -> dict:
         raise
 
 
+def drop_section_duplicating_insight(parsed: dict) -> dict:
+    """模型偶爾把 delta_insight 的內容同時塞一份進 sections 的最後一節
+    （同小標同段落），模板兩邊都渲染，讀者就看到同一段出現兩次
+    （2026-08-28 第 23 期實際發生）。小標相同或段落完全相同都算重複，
+    把 sections 裡那節丟掉，delta_insight 保留。"""
+    insight = parsed.get("delta_insight")
+    sections = parsed.get("sections")
+    if not isinstance(insight, dict) or not isinstance(sections, list):
+        return parsed
+    heading = (insight.get("heading") or "").strip()
+    paragraphs = insight.get("paragraphs") or []
+    parsed["sections"] = [
+        s
+        for s in sections
+        if not isinstance(s, dict)
+        or not (
+            (heading and (s.get("heading") or "").strip() == heading)
+            or (paragraphs and s.get("paragraphs") == paragraphs)
+        )
+    ]
+    return parsed
+
+
 def build_sources_text(source_rows: list[sqlite3.Row]) -> str:
     """比照 sources_text 給寫作 prompt 用的格式，組出來源全文區塊。
     review/topic_selfcheck.py 的自檢也重用這支，確保審核跟寫作看到的
@@ -152,5 +175,6 @@ def generate_topic_article(
             continue
         # 保險絲：LLM 偶爾會在繁體輸出裡夾雜簡體字，這裡逐字元修正掉。
         parsed = fix_stray_simplified_in(parsed)
+        parsed = drop_section_duplicating_insight(parsed)
         log_call("topic_generate", system, user, raw_text, parsed)
         return parsed
