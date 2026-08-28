@@ -487,8 +487,24 @@ sources:
     type: arxiv
     tier: depth
     categories: ["cs.AI", "cs.CL", "cs.LG"]
-    keywords: ["enterprise", "production", "deployment", "industry", "benchmark"]
+    # 2026-08-28 擴充：原本只有 enterprise 那組偏企業的詞，LLM/RAG/agent
+    # 這些主題的論文都拿 0 分。keywords 只影響 score 排序，不影響是否抓到。
+    keywords: ["enterprise", "production", "deployment", "industry", "benchmark",
+               "llm", "large language model", "rag", "retrieval", "agent",
+               "fine-tuning", "reasoning", "multimodal", "inference"]
     weight: 0.6
+
+  # 2026-08-28 擴充：arXiv 的熱門面。arXiv 官方 API 沒有流量／熱門排序，
+  # 用 Hugging Face Daily Papers 當代理（每天社群投票的熱門 arXiv 論文，
+  # 公開 API 不需金鑰，upvote 當 score）。跟 arxiv_ai（最新投稿）互補。
+  # 同一篇論文兩邊都抓到時 URL 不同（arXiv API 帶 v1 版本號），入池去重
+  # 擋不住，靠聚類把它們併成同一話題，效果反而是「兩個來源都在看」的熱度。
+  - id: hf_daily_papers
+    name: "HF Daily Papers (熱門 arXiv)"
+    type: hf_papers
+    tier: depth
+    min_upvotes: 5
+    weight: 0.8
 
   # 訊號層：Hacker News，透過 Algolia 公開搜尋 API，免費、不需金鑰。
   # min_points 過濾掉討論度太低的貼文，降低雜訊。
@@ -617,4 +633,46 @@ sources:
     type: rss
     tier: core
     url: "https://www.qbitai.com/feed"
+    weight: 0.8
+
+  # 2026-08-28 擴充：補「元件／電源散熱／顯示供應鏈」的缺口。消費性產品
+  # 模組收窄定義後全池最高只有 4 分，原因之一是來源池裡沒有媒體在寫元件
+  # 規格與供應鏈（使用者決定補來源）。一樣全部驗證過 feed 可用；
+  # TrendForce（集邦）沒有公開 RSS（404），沒收。EE Times 與 Display Daily
+  # 的 feed 只有短摘要，多數會落在 signal_only，當熱度訊號用。
+  - id: toms_hardware
+    name: "Tom's Hardware"
+    type: rss
+    tier: vertical
+    url: "https://www.tomshardware.com/feeds/all"
+    weight: 0.7
+  - id: servethehome
+    name: "ServeTheHome"
+    type: rss
+    tier: vertical
+    url: "https://www.servethehome.com/feed/"
+    weight: 0.8
+  - id: eetimes
+    name: "EE Times"
+    type: rss
+    tier: vertical
+    url: "https://www.eetimes.com/feed/"
+    weight: 0.8
+  - id: semiconductor_engineering
+    name: "Semiconductor Engineering"
+    type: rss
+    tier: vertical
+    url: "https://semiengineering.com/feed/"
+    weight: 0.8
+  - id: semianalysis
+    name: "SemiAnalysis"
+    type: rss
+    tier: vertical
+    url: "https://semianalysis.com/feed/"
+    weight: 0.9
+  - id: display_daily
+    name: "Display Daily"
+    type: rss
+    tier: vertical
+    url: "https://displaydaily.com/feed/"
     weight: 0.8

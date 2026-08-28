@@ -49,6 +49,7 @@ from ingestion.arxiv_source import fetch_arxiv_items
 from ingestion.base import RawItem
 from ingestion.case_source import fetch_case_study_items
 from ingestion.github_source import fetch_github_items
+from ingestion.hf_papers_source import fetch_hf_daily_papers
 from ingestion.hn_source import fetch_hn_items
 from ingestion.reddit_source import fetch_reddit_items
 from ingestion.stackexchange_source import fetch_stackexchange_items
@@ -87,6 +88,7 @@ _ENGAGEMENT_METRIC_BY_SOURCE = {
     "reddit": "reddit_score",
     "github": "github_stars",
     "stackexchange": "stackexchange_score",
+    "hf_papers": "hf_upvotes",
 }
 
 CONFIG_PATH = Path(__file__).resolve().parent.parent / "config" / "topics.yaml"
@@ -139,6 +141,16 @@ def _fetch_source_items(source: dict, fetch_cfg: dict) -> list[RawItem]:
             item.extra.setdefault("source_name", source["name"])
             item.extra.setdefault("source_weight", source["weight"])
         return items
+
+    if source_type == "hf_papers":
+        return fetch_hf_daily_papers(
+            source_id=source["id"],
+            source_name=source["name"],
+            weight=source["weight"],
+            limit=fetch_cfg["max_items_per_source"],
+            days_back=fetch_cfg["days_back"],
+            min_upvotes=source.get("min_upvotes", 0),
+        )
 
     if source_type == "hn":
         return fetch_hn_items(
