@@ -16,51 +16,46 @@
 ## 系統流程
 
 ```mermaid
+%%{init: {"flowchart": {"nodeSpacing": 55, "rankSpacing": 65}}}%%
 flowchart TD
     subgraph ingest["　建池：scripts.ingest_topics　"]
-        direction TB
-        SRC(["26 個來源抓取<br/>RSS、arXiv、HN、Reddit、GitHub、StackExchange"])
-        SRC --> DEDUP(["依 URL 去重入池<br/>（articles 表）"])
-        DEDUP --> G1{"Gate 1 收錄判定<br/>pipeline/gates.py"}
-        G1 -->|"超過 30 天、非 AI 內容"| EXC(["excluded<br/>留在池裡但什麼都不做"])
-        G1 -->|"內文不到 200 字"| SIG(["signal_only<br/>只當熱度訊號：聚類、算報導家數<br/>不標籤、不打分、不當寫作素材"])
+        SRC(["26 個來源抓取<br/>RSS、arXiv、HN、Reddit<br/>GitHub、StackExchange"])
+        SRC --> DEDUP(["依 URL 去重入池"])
+        DEDUP --> G1{"Gate 1<br/>收錄判定"}
+        G1 -->|"太舊、非 AI"| EXC(["excluded<br/>留在池裡但什麼都不做"])
+        G1 -->|"內文不到 200 字"| SIG(["signal_only<br/>只當熱度訊號<br/>不標籤、不打分"])
         G1 -->|"通過"| INC(["included 正常收錄"])
 
-        INC --> CL{"話題聚類<br/>embedding + Qdrant 找 top 5 鄰居"}
+        INC --> CL{"話題聚類<br/>Qdrant 找 top 5 鄰居"}
         SIG --> CL
-        CL -->|"相似度過門檻"| MERGE(["併入既有話題<br/>鄰居分屬多個話題就把話題合併"])
-        CL -->|"title-only 配對落在灰色地帶"| LLMCHK{"問 LLM：<br/>是不是同一件事？"}
+        CL -->|"過門檻"| MERGE(["併入既有話題<br/>跨話題時觸發合併"])
+        CL -->|"灰色地帶"| LLMCHK{"問 LLM<br/>同一件事？"}
         LLMCHK -->|"是"| MERGE
-        LLMCHK -->|"不是、或呼叫失敗"| NEW(["自成新話題<br/>假合併比漏合併嚴重"])
-        CL -->|"都不夠像"| NEW
+        LLMCHK -->|"否、失敗"| NEW(["自成新話題"])
+        CL -->|"不夠像"| NEW
 
-        MERGE --> TAG(["標籤抽取（LLM）<br/>多維關鍵詞、content_mode、案例標記"])
+        MERGE --> TAG(["標籤抽取（LLM）<br/>關鍵詞、content_mode、案例標記"])
         NEW --> TAG
-        TAG --> KG[("知識圖譜（可跳過）<br/>三元組抽取、實體解析、Neo4j")]
-        TAG --> SCORE(["18 模組打分（LLM）<br/>輸入是標籤與摘要，不是全文"])
+        TAG --> KG[("知識圖譜（可跳過）<br/>三元組、實體解析、Neo4j")]
+        TAG --> SCORE(["18 模組打分（LLM）<br/>輸入是標籤與摘要"])
     end
 
     subgraph compose["　出刊：scripts.compose_topic_issue　"]
-        direction TB
-        SCORE --> G2{"Gate 2 候選判定"}
-        G2 -->|"沒有夠長內文的文章、還沒打分"| DROP(["不進候選"])
+        SCORE --> G2{"Gate 2<br/>候選判定"}
+        G2 -->|"沒素材、沒打分"| DROP(["不進候選"])
         G2 -->|"通過"| HOT(["算熱門度<br/>報導家數 × 來源權重 × 時間衰減"])
-        HOT --> SEL{"Gate 3 選題三輪<br/>pipeline/topic_selection.py"}
-        SEL -->|"第一輪：模組輪動<br/>18 模組各挑分數最高的"| PICK(["入選"])
-        SEL -->|"第二輪：版位沒滿<br/>用 18 模組總分遞補"| PICK
-        SEL -->|"第三輪：不到下限才放寬配額<br/>但分數低於門檻絕不硬選"| PICK
-        SEL -->|"分數不夠、配額滿、版位滿"| TRACE[("落選<br/>理由與數值寫進 selection_trace")]
+        HOT --> SEL{"Gate 3 選題三輪<br/>模組輪動、總分遞補、保底"}
+        SEL -->|"入選"| GEN(["文章生成（LLM）<br/>素材只用話題自己的文章"])
+        SEL -->|"分數不夠、配額滿、版位滿"| TRACE[("落選<br/>理由寫進 selection_trace")]
 
-        PICK --> GEN(["文章生成（LLM）<br/>素材只用話題自己的文章"])
         GEN --> CHK{"出刊前自檢"}
         CHK -->|"沒過"| TRACE
-        CHK -->|"過"| ISSUE[("存檔成期數<br/>同天同頻率已出過就跳過")]
+        CHK -->|"過"| ISSUE[("存檔成期數<br/>同天同頻率不出兩份")]
     end
 
     subgraph serve["　網頁：scripts.serve_topics　"]
-        direction TB
         ISSUE --> WEB(["FastAPI + Basic Auth<br/>日報、週報、領域頁"])
-        TRACE --> WEB2(["選題帳頁面<br/>每一篇為什麼選、為什麼沒選"])
+        TRACE --> WEB2(["選題帳頁面<br/>為什麼選、為什麼沒選"])
         KG --> WEB3(["知識圖譜頁面"])
     end
 
@@ -72,7 +67,7 @@ flowchart TD
     classDef drop fill:#e2e8f0,stroke:#64748b,stroke-width:1.5px,color:#334155
     classDef store fill:#cffafe,stroke:#0891b2,stroke-width:1.5px,color:#155e75
 
-    class SRC,DEDUP,INC,MERGE,NEW,HOT,PICK step
+    class SRC,DEDUP,INC,MERGE,NEW,HOT step
     class G1,CL,G2,SEL,CHK gate
     class LLMCHK,TAG,SCORE,GEN llm
     class EXC,SIG,DROP drop
