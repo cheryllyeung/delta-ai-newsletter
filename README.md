@@ -1,107 +1,115 @@
 # Delta AI Newsletter
 
-幫台達同仁做 AI 趨勢情報彙整的自動化系統。每天從公開來源抓 AI 相關內容，
-把同一件事的多篇報導聚成「話題」，依台達 25+ 個單位對應的 18 個模組打分，
-選出真的跟業務有關的幾則，寫成中文短文出刊。
+幫台達同仁做 AI 趨勢情報的自動化系統。每天從 26 個公開來源抓 AI 相關內容，
+把同一件事的多篇報導聚成「話題」，依台達 25 個以上單位對應的 18 個模組打分，
+過門檻的寫成中文短文出日報，每週一挑最重要的 10 則出週報，文章裡的實體關係
+同步累積成 Neo4j 知識圖譜。
 
-重點在準，不在多。
+這份 README 給工程師看：怎麼跑起來、程式擺哪、資料長什麼樣、改東西要注意
+什麼。整條 pipeline 的邏輯脈絡在 **[`docs/PIPELINE.md`](docs/PIPELINE.md)**，
+每個門檻值怎麼定的在 **[`docs/DECISIONS.md`](docs/DECISIONS.md)**。
 
-## 三十秒看懂流程
-
-```
-建池（每天排程）   抓 18 個來源 → 收錄判定 → 聚成話題 → 貼標籤 → 18 模組打分
-出刊（要出刊時）   篩當天候選 → 選題 → 取素材 → 寫作＋自檢 → 存檔
-看                 本機網頁：期數列表、單期內容、選題帳
-```
+## 快速開始
 
 ```bash
-python -m scripts.ingest_topics          # 建池
-python -m scripts.compose_topic_issue    # 出刊
-python -m scripts.serve_topics           # 看：http://localhost:8001
+pip install -r requirements.txt          # 套件目前裝在全域 Python（待補 venv）
+cp .env.example .env                     # 填 LLM_API_KEY、LLM_BASE_URL、NEWSLETTER_MODEL
+
+python -m scripts.ingest_topics          # 建池：抓取 → 聚類 → 標籤 → 打分
+python -m scripts.compose_topic_issue    # 出刊：選題 → 生成 → 自檢 → 存檔
+python -m scripts.serve_topics           # 網頁：http://localhost:8001
 ```
 
-完整的階段契約、每一步吃什麼吐什麼、失敗會怎樣，寫在
-**[`docs/PIPELINE.md`](docs/PIPELINE.md)**。
-
-每個門檻值怎麼定的、依據什麼資料、哪些還沒驗證，寫在
-**[`docs/DECISIONS.md`](docs/DECISIONS.md)**。
-
-## 核心概念
-
-**話題，不是文章。** 打分、選題、寫作的單位都是話題不是單篇文章。多篇講
-同一件事的報導會先用語意相似度聚成一個話題。目前來源特性使然，多數話題底下
-只有一篇文章，這在 DECISIONS 裡有誠實交代。
-
-**18 個模組，不是部門。** 台達橫跨零組件、能源、自動化、資通訊等事業群，
-加上法務財會人資等後勤職能，超過 25 個單位。每個話題被這 18 個角度各打一次
-分，選題時依配額輪流挑，避免整期偏向同一類。
-
-| 群組 | 模組 |
-|---|---|
-| 職能（10） | 法務合規、財會稽核、人資、行銷品牌、資訊資安、營運物流、策略投資、研發工程、知識管理、EHS |
-| 領域（8） | 能源電力、樓宇自動化、電動車車用、網通基礎設施、製造廠務、消費性產品、軟體平台、永續節能 |
-
-**收錄有明確的關卡，落選有明確的理由。** 三道 gate 判定文章能不能用、話題
-有沒有東西可寫、這篇能不能出刊。每個候選的去向都寫進資料庫，網頁的
-`/issues/<id>/trace` 直接看得到「這一期從幾個候選裡選了幾則、其餘各是被哪
-一關擋掉的」。「不夠格」跟「版位滿」分開統計，因為處理方式完全相反。
-
-## 目錄
-
-```
-config/topics.yaml   唯一設定檔：來源、模組、配額、所有門檻值
-prompts/             8 支 prompt，跟程式碼分離
-ingestion/           抓取：6 種來源，共同輸出 RawItem
-pipeline/            聚類、標籤、打分、收錄判定、選題、取素材、翻譯、圖譜
-generation/          寫作
-review/              自檢
-scripts/             3 個入口 + run_daily.ps1（排程）
-tools/               一次性補資料與匯出
-tests/               離線 smoke test
-docs/                PIPELINE.md、DECISIONS.md、prd/、status/
-legacy/              已凍結的前兩條 pipeline，見 legacy/README.md
-```
-
-`pipeline/` 每支檔案對應哪一階段，見 [`docs/PIPELINE.md`](docs/PIPELINE.md)
-最後那張表。
-
-## 環境
+常用參數：
 
 ```bash
-pip install -r requirements.txt
-cp .env.example .env    # 填 LLM_API_KEY / LLM_BASE_URL，其餘選填
-python -m tests.smoke_test_topic_pipeline   # 離線驗證，不打 LLM
+python -m scripts.ingest_topics --concurrency 8 --build-graph   # 併發打標打分＋建圖
+python -m scripts.ingest_topics --limit 8                        # 小樣本驗品質
+python -m scripts.compose_topic_issue --date 2026-08-25 --cadence daily
+python -m scripts.compose_topic_issue --date 2026-08-31 --cadence weekly
+python -m scripts.serve_topics --host 0.0.0.0                    # 對內網開放（必須先設 NEWSLETTER_WEB_PASSWORD）
 ```
 
-LLM 全部走台達內網的 gateway，資料不離開公司。embedding、聚類、reranker
-跑在本機，不需要 API key。
+## 目錄結構
 
-知識圖譜（Neo4j）是選配：`NEO4J_URI` 沒設或連不上會自動跳過，不影響出刊。
-建圖預設不做，要補圖用 `python -m tools.backfill_graph_extraction`。
-
-## 目前的真實進度
-
-**跑得起來的**：整條流程從抓取到出刊可以全自動跑完，每天清晨排程觸發。
-已產出 9 期日報。embedding、Qdrant 聚類、reranker、實體解析都在本機驗證過。
-
-**已知的洞**（優先順序與細節見 [DECISIONS](docs/DECISIONS.md) 最後一節）：
-
-| # | 洞 |
+| 目錄 | 內容 |
 |---|---|
-| 1 | 人工審核只有一個布林旗標，沒有核准／退回流程 |
-| 2 | 沒有評測集，改參數沒有 before/after 指標（打分 rubric 已加，但證明不了有沒有變好） |
-| 3 | `is_ai_related` 判定的欄位 8/14 才修好，全池要重跑標籤才生效，誤判率未量 |
-| 4 | 自檢是同一個模型查自己 |
-| 5 | 聚類門檻（0.72／title-only 0.80）沒做過正式評測（要先有多家報導的題材才驗得起來） |
+| `ingestion/` | 各來源的抓取器（RSS、arXiv、HN、Reddit、GitHub、StackExchange）。共通資料契約是 `base.py` 的 `RawItem` |
+| `pipeline/` | 核心邏輯：收錄關卡（gates）、聚類（topic_clustering）、標籤（article_tagging）、打分（module_scoring）、選題（topic_selection）、資料層（topic_db）、翻譯、專欄（delta_column）、圖譜（triple_extraction／entity_resolution／graph_store） |
+| `generation/` | 文章生成（topic_generate） |
+| `review/` | 出刊前自檢（topic_selfcheck） |
+| `scripts/` | 入口：ingest_topics、compose_topic_issue、serve_topics、排程用的 run_daily.ps1／run_weekly.ps1／start_neo4j.ps1 |
+| `prompts/` | 所有 LLM 指令（`<system>`／`<user>` 兩段式，prompt_loader 讀） |
+| `config/topics.yaml` | 唯一的設定檔：來源清單、模組定義、門檻、配額 |
+| `templates/` | 網頁模板（Jinja2） |
+| `tools/` | 補資料與評測工具（backfill_*、eval_*、export_*、repair_*） |
+| `tests/` | 冒煙測試與固定測資（`tests/data/clustering_pairs.yaml` 是聚類評測集） |
+| `legacy/` | 已凍結的前兩條產品線，不再維護，import 路徑是舊的、跑不起來是刻意的 |
 
-**幾個來源只有標題沒有內文**：DIGITIMES、Hacker News、InsideEVs 這三個來源
-的 RSS 只給標題或圖說，我們沒有、也沒有試圖取得付費牆後的內容。這些條目
-現在標成「只當熱度訊號」，會算進「幾家在報導這件事」，但不會被拿去當寫作
-素材。詳細數字見 [DECISIONS](docs/DECISIONS.md)。
+## 資料落點
 
-## 安全考量
+| 位置 | 內容 | 進版控？ |
+|---|---|---|
+| `data/topics.db` | SQLite：articles／topics／issues／generated_topics／selection_trace | 否 |
+| `data/qdrant` | 文章語意向量（Qdrant embedded 模式，不用起伺服器） | 否 |
+| Neo4j（bolt://localhost:7687） | 知識圖譜。zip 版免安裝，`scripts/start_neo4j.ps1` 自動起 | 否 |
+| `llm_logs/` | 每次 LLM 呼叫的完整輸入輸出，除錯與回溯用 | 否 |
+| `runs/` | 排程執行紀錄（runs/daily/、runs/weekly/） | 否 |
 
-- 只把公開來源的內容送進 LLM，走公司內網 gateway，不傳遞任何台達內部資訊
-- 憑證與資料庫不進版控（見 `.gitignore`）
-- 網頁預設只綁 `127.0.0.1`；要內網分享得自己加 `--host 0.0.0.0`，那樣沒有
-  任何登入保護，任何連得到這台的人都看得到全部內容
+資料表的欄位語意都寫在 `pipeline/topic_db.py` 的 `_SCHEMA` 註解裡。
+migration 走「ALTER TABLE 加欄位、失敗就當已存在」的模式，見
+`get_connection()`。
+
+## 環境變數（.env）
+
+必填：`LLM_API_KEY`、`LLM_BASE_URL`（公司內網 gateway）、`NEWSLETTER_MODEL`。
+選填：`NEWSLETTER_WRITING_MODEL`（寫作／翻譯單獨用一顆）、
+`NEWSLETTER_REVIEW_MODEL`（自檢換一顆審查模型）、`NEO4J_*`（沒設就跳過建圖）、
+`NEWSLETTER_WEB_USER`／`NEWSLETTER_WEB_PASSWORD`（網頁 Basic Auth，
+對內網開放時必填，沒設會拒絕啟動）、`REDDIT_*`。完整說明見 `.env.example`。
+
+## 排程（Windows 工作排程器）
+
+| 工作 | 時間 | 做什麼 |
+|---|---|---|
+| DeltaAI-DailyIssue | 每天 12:00 | `run_daily.ps1`：起 Neo4j → ingest（含建圖）→ 出前一天的日報 |
+| DeltaAI-WeeklyIssue | 每週一 12:10 | `run_weekly.ps1`：出上週日到週六的週報（含台達專欄與大標題） |
+
+兩個都設了錯過補跑。**注意：.ps1 檔必須存成 UTF-8 with BOM**，無 BOM 的
+中文註解會讓 Windows PowerShell 5.1 解析失敗、排程整個不跑（發生過，
+排程連續失敗十幾天沒人發現）。
+
+## 改東西之前要知道的
+
+1. **冪等是底線**。每一步只處理「還沒做過那一步」的資料，任何一步中斷，
+   重跑會自動接續。新增步驟時維持這個性質
+2. **出刊有防重複**：同一天同頻率已有期數就跳過，補跑不會出兩份
+3. **LLM 呼叫一律走 `pipeline/llm_client.py`** 的 `create_chat_completion`
+   （帶重試）＋ `llm_logging.log_call`（留檔）。不要自己 new client
+4. **prompt 改了要想清楚影響範圍**：打分 prompt 改了，新舊分數不可比，
+   通常要全池重打（把 `module_scores_json` 清成 NULL，ingest 會自動撿）
+5. **聚類、實體解析都是「三段式灰色地帶」模式**：便宜計算先分流、模型只
+   判中間地帶。要調門檻先跑 `tools/eval_clustering_pairs.py` 看 before/after
+6. **已出刊的期數不改**。修正錯誤的做法是修規則＋全池回溯重建，不是改
+   單篇歷史
+7. 門檻值不要憑感覺調。每個值在 `docs/DECISIONS.md` 都有依據跟驗證狀態，
+   調整前先量、調整後把帳補上
+
+## 測試與評測
+
+```bash
+python -m tests.smoke_test_topic_pipeline      # 全流程冒煙（會打 LLM）
+python -m tests.smoke_test_entity_resolution   # 實體解析回歸
+python -m tools.eval_clustering_pairs          # 聚類 19 組固定測資
+python -m tools.eval_scoring_variance          # 打分重複性
+python -m tools.repair_false_merges --dry-run  # 掃假合併（只印不動資料）
+```
+
+## 文件地圖
+
+| 文件 | 給誰 | 內容 |
+|---|---|---|
+| `docs/PIPELINE.md` | 主管、新進者 | 整條邏輯脈絡，白話＋技術 |
+| `docs/DECISIONS.md` | 工程師 | 每個門檻值的依據與驗證狀態 |
+| `docs/status/` | 追進度的人 | 各日期的狀態報告與 QA |
+| `README.md`（本檔） | 工程師 | 怎麼跑、擺哪、注意什麼 |
