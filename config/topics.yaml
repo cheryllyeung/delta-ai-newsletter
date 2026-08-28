@@ -261,6 +261,9 @@ selection:
     min_module_score_to_select: 6.0
     tier_cap:
       case: 4
+      # 官方發佈來源（2026-08-28 加）。發佈頁照收全部，這個上限只管
+      # 日報／週報版位，避免廠商發佈文吃掉趨勢內容。
+      release: 2
     # 週度潛力分的三個訊號權重（2026-08-25 加，見 pipeline/topic_selection.py
     # 的 annotate_weekly_potential()）。合成前各訊號先換成名次分位，所以權重
     # 是「訊號之間的相對重要性」不受量綱影響。數字是拍的起始值，沒有評測
@@ -308,6 +311,7 @@ selection:
     min_module_score_to_select: 6.0
     tier_cap:
       case: 2
+      release: 2
 
 # 熱門度評分 = 報導家數 × 來源權重 × 時間衰減。
 # time_decay 用半衰期參數化：half_life_days 天後熱度打對折。
@@ -375,6 +379,48 @@ sources:
     tier: case
     url: "https://cloudblog.withgoogle.com/rss/"
     weight: 0.7
+
+  # 發佈快訊來源：廠商官方發佈管道，2026-08-28 加（網頁的「模型與工具
+  # 發佈」頁）。tier 標 release：選題時受 tier_cap.release 上限保護，
+  # 官方發佈不會吃光日報版位；發佈頁不看 tier，照收全部。
+  # 注意：加入當天外網 DNS 剛好掛掉，這批 URL 還沒有實測過，第一次跑
+  # 要看掛零名單，抓不到的再換 URL（Anthropic 沒有公開 RSS，先缺著）。
+  - id: openai_news
+    name: "OpenAI News"
+    type: rss
+    tier: release
+    url: "https://openai.com/news/rss.xml"
+    weight: 1.0
+  - id: deepmind_blog
+    name: "Google DeepMind Blog"
+    type: rss
+    tier: release
+    url: "https://deepmind.google/blog/rss.xml"
+    weight: 1.0
+  - id: meta_ai_blog
+    name: "Meta AI Blog"
+    type: rss
+    tier: release
+    url: "https://ai.meta.com/blog/rss/"
+    weight: 1.0
+  - id: nvidia_blog
+    name: "NVIDIA Blog"
+    type: rss
+    tier: release
+    url: "https://blogs.nvidia.com/feed/"
+    weight: 0.9
+  - id: huggingface_blog
+    name: "Hugging Face Blog"
+    type: rss
+    tier: release
+    url: "https://huggingface.co/blog/feed.xml"
+    weight: 0.9
+  - id: qwen_blog
+    name: "Qwen Blog"
+    type: rss
+    tier: release
+    url: "https://qwenlm.github.io/blog/index.xml"
+    weight: 0.9
 
   # 核心層：頂級科技媒體，2026-07-29 加入，各來源已用 curl 驗證過確實
   # 抓得到文章（The Verge、Wired 的 RSS 測起來是空的或太稀疏，先不加）

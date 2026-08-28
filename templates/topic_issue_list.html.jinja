@@ -153,6 +153,16 @@
     </a>
     {% endfor %}
   </div>
+  {% if release_overview %}
+  <p class="board-group-label">特輯</p>
+  <div class="module-card-grid">
+    <a class="module-card domain" href="/releases">
+      <span class="module-card-name">模型與工具發佈</span>
+      <span class="module-card-count">{{ release_overview.count }} 則</span>
+      {% if release_overview.latest %}<span class="module-card-latest">{{ release_overview.latest.date }}｜{% if release_overview.latest.vendor %}{{ release_overview.latest.vendor }}：{% endif %}{{ release_overview.latest.title }}</span>{% endif %}
+    </a>
+  </div>
+  {% endif %}
 </section>
 {% endif %}
 

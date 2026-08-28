@@ -59,5 +59,12 @@ Write-Log "--- compose_topic_issue $IssueDate ---"
 $composeCode = $LASTEXITCODE
 Write-Log "compose_topic_issue 結束，exit code $composeCode"
 
+# 步驟三：模型排行榜快照（發佈頁用）。抓不到就算了，頁面會繼續顯示上一份，
+# 不影響出刊，所以結束碼照樣用 compose 的。
+Write-Log "--- fetch_leaderboard ---"
+& python -X utf8 -u -m tools.fetch_leaderboard 2>&1 |
+    ForEach-Object { Add-Content -Path $log -Value $_ -Encoding utf8 }
+Write-Log "fetch_leaderboard 結束，exit code $LASTEXITCODE"
+
 Write-Log "=== 完成 ==="
 exit $composeCode

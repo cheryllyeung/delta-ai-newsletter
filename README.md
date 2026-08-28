@@ -1,6 +1,6 @@
 # Delta AI 趨勢日報
 
-替台達同仁做 AI 趨勢情報的自動化系統。每天從 26 個公開來源抓 AI 相關內容，
+替台達同仁做 AI 趨勢情報的自動化系統。每天從 32 個公開來源抓 AI 相關內容，
 把同一件事的多篇報導聚成「話題」，依台達各單位對應的 18 個模組打分，過門檻
 的寫成中文短文出日報，每週一挑最重要的 10 則出週報，文章裡的實體關係同步
 累積成 Neo4j 知識圖譜。
@@ -9,9 +9,9 @@
 
 | 入口 | 做什麼 |
 |---|---|
-| `scripts/ingest_topics.py` | 建池：抓取、收錄判定、聚類、標籤、建圖、打分 |
+| `scripts/ingest_topics.py` | 建池：抓取、收錄判定、聚類、標籤、發佈判定、建圖、打分 |
 | `scripts/compose_topic_issue.py` | 出刊：選題、生成、自檢、存檔 |
-| `scripts/serve_topics.py` | 網頁：日報、週報、領域頁、知識圖譜、選題帳 |
+| `scripts/serve_topics.py` | 網頁：日報、週報、領域頁、發佈頁、知識圖譜、選題帳 |
 
 ## 系統流程
 
@@ -109,7 +109,7 @@ flowchart TD
 | 目錄 | 內容 |
 |---|---|
 | `ingestion/` | 各來源抓取器。共通資料契約是 `base.py` 的 `RawItem` |
-| `pipeline/` | 核心邏輯：收錄關卡（gates）、聚類（topic_clustering）、標籤（article_tagging）、打分（module_scoring）、選題（topic_selection）、資料層（topic_db）、向量庫（vector_store）、翻譯、週報專欄（delta_column）、圖譜（triple_extraction、entity_resolution、graph_store） |
+| `pipeline/` | 核心邏輯：收錄關卡（gates）、聚類（topic_clustering）、標籤（article_tagging）、發佈判定（release_check）、打分（module_scoring）、選題（topic_selection）、資料層（topic_db）、向量庫（vector_store）、翻譯、週報專欄（delta_column）、圖譜（triple_extraction、entity_resolution、graph_store） |
 | `generation/` | 文章生成 |
 | `review/` | 出刊前自檢 |
 | `scripts/` | 三個入口＋排程用的 run_daily.ps1、run_weekly.ps1、start_neo4j.ps1 |

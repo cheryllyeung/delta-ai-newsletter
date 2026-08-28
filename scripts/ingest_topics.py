@@ -11,6 +11,8 @@
    （這一步跑在本機，不需要 LLM_API_KEY）
 3. 標籤抽取：每篇「已聚類但還沒標籤」的文章跑 Prompt（多維關鍵詞、
    content_mode、案例標記）
+3.2. 發佈判定：每篇「已標籤但還沒判過」的文章跑 Prompt，標記是不是
+   模型/工具的官方發佈（網頁 /releases 頁用）
 3.5. 知識圖譜抽取：每篇「已標籤但還沒建圖」的文章跑三元組抽取 Prompt，
    經 EntityResolver 解析實體後寫進 Neo4j（NEO4J_URI 沒設就跳過這一步）
 4. 18 模組打分：每個「話題內所有文章都已標籤」的話題跑 Prompt
@@ -60,16 +62,19 @@ from pipeline.topic_db import (
     discard_stale_untagged_articles,
     get_articles_for_topic,
     get_connection,
+    get_release_unchecked_articles,
     get_ungraphed_articles,
     get_untagged_articles,
     get_unscored_topics,
     insert_article_if_new,
     mark_article_graphed,
     save_article_gate,
+    save_article_release,
     save_article_tags,
     save_module_scores,
     week_start_date,
 )
+from pipeline.release_check import check_release
 from pipeline.triple_extraction import extract_triples
 
 # item.source（RawItem 的來源平台字串，見 ingestion/base.py）→ 這個平台的
@@ -407,6 +412,23 @@ def main() -> None:
         label="標籤",
     )
     print(f"[ingest_topics] 標籤完成：成功 {tagged_count} 篇，失敗 {failed_tag_count} 篇。")
+
+    # 步驟 3.2：發佈判定（這篇是不是模型/工具的官方發佈，餵網頁的發佈頁）。
+    # 跟標籤同一套本週窗口邏輯；窗口外的舊池子用 tools/backfill_release_check.py 補。
+    to_check = get_release_unchecked_articles(conn, week_start)
+    print(f"[ingest_topics] 待發佈判定文章：{len(to_check)} 篇")
+    if args.limit is not None and len(to_check) > args.limit:
+        print(f"[ingest_topics]   --limit {args.limit}：這次只判前 {args.limit} 篇，其餘留給下次重跑。")
+        to_check = to_check[: args.limit]
+    checked_count, failed_check_count = _run_llm_concurrently(
+        to_check,
+        work=lambda row: check_release(_row_to_raw_item(row)),
+        handle=lambda row, parsed: save_article_release(conn, row["id"], parsed),
+        describe=lambda row: row["title"][:60],
+        concurrency=args.concurrency,
+        label="發佈判定",
+    )
+    print(f"[ingest_topics] 發佈判定完成：成功 {checked_count} 篇，失敗 {failed_check_count} 篇。")
 
     # 知識圖譜的連線準備（實際建圖在步驟五，打分之後）。連線先建起來是為了
     # 讓「Neo4j 連不上」這件事在打分之前就印出來，不要跑完二十分鐘才發現。

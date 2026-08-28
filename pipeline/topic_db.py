@@ -121,6 +121,16 @@ CREATE TABLE IF NOT EXISTS selection_trace (
 );
 CREATE INDEX IF NOT EXISTS idx_trace_issue ON selection_trace(issue_id);
 CREATE INDEX IF NOT EXISTS idx_trace_date ON selection_trace(issue_date);
+
+-- 模型排行榜快照（tools/fetch_leaderboard.py 抓，/releases 頁顯示）。
+-- data_json 是整份名次列表 [{"rank": 1, "model": ..., "org": ..., "score": ...}]，
+-- 每次抓都存新的一列，升降是顯示時拿最近兩份快照比出來的，不另外存 delta。
+CREATE TABLE IF NOT EXISTS leaderboard_snapshots (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    source TEXT NOT NULL,
+    fetched_at TEXT NOT NULL,
+    data_json TEXT NOT NULL
+);
 """
 
 
@@ -151,6 +161,13 @@ def get_connection(db_path: str) -> sqlite3.Connection:
         "gate_reason TEXT",
         "gate_detail_json TEXT",
         "gate_checked_at TEXT",
+        # 發佈判定，2026-08-28 加（pipeline/release_check.py）。舊資料維持
+        # NULL，用 tools/backfill_release_check.py 補跑。
+        "is_release INTEGER",
+        "release_vendor TEXT",
+        "release_product TEXT",
+        "release_kind TEXT",
+        "release_checked_at TEXT",
     ):
         try:
             conn.execute(f"ALTER TABLE articles ADD COLUMN {column_def}")
@@ -471,6 +488,104 @@ def save_article_gate(conn: sqlite3.Connection, article_id: int, result) -> None
         ),
     )
     conn.commit()
+
+
+def get_release_unchecked_articles(
+    conn: sqlite3.Connection, week_start: str | None = None
+) -> list[sqlite3.Row]:
+    """已標籤但還沒跑過發佈判定的文章（release_checked_at IS NULL）。
+
+    ingest 帶本週窗口（跟標籤同一套「舊積壓不佔當天額度」的邏輯）；
+    tools/backfill_release_check.py 不帶窗口，補整個池。只判 included 的
+    文章：signal_only 只有一行標題，判出來也沒有摘要可以顯示。
+    """
+    sql = """SELECT * FROM articles
+             WHERE content_mode IS NOT NULL AND release_checked_at IS NULL
+               AND discarded_at IS NULL
+               AND COALESCE(gate_status, 'included') = 'included'"""
+    params: tuple = ()
+    if week_start is not None:
+        sql += " AND fetched_at >= ?"
+        params = (week_start,)
+    return conn.execute(sql + " ORDER BY id", params).fetchall()
+
+
+# 同一家公司模型會給不同稱呼（實測 20 篇裡 AWS 跟 Amazon 混用），發佈頁的
+# 廠商篩選會因此裂成兩個 chip。在寫入端收斂而不是改 prompt：prompt 管不住
+# 每一次輸出，這裡管得住。鍵一律小寫比對。
+_VENDOR_ALIASES = {
+    "amazon": "AWS",
+    "amazon web services": "AWS",
+    "google deepmind": "Google",
+    "google cloud": "Google",
+    "meta ai": "Meta",
+    "microsoft azure": "Microsoft",
+    "alibaba cloud": "Alibaba",
+    "qwen": "Alibaba",
+}
+
+
+def _canonical_vendor(vendor: str | None) -> str | None:
+    if not vendor:
+        return None
+    return _VENDOR_ALIASES.get(vendor.strip().lower(), vendor.strip())
+
+
+def save_article_release(conn: sqlite3.Connection, article_id: int, parsed: dict) -> None:
+    """把發佈判定的結果寫回文章列（parsed 是 release_check prompt 的輸出）。
+
+    不是發佈時三個描述欄位一律歸 NULL，不留模型順手填的雜訊；
+    release_checked_at 一律寫，這是「判過了」的依據，跟結果無關。
+    """
+    is_release = bool(parsed.get("is_release"))
+    conn.execute(
+        """UPDATE articles SET is_release = ?, release_vendor = ?,
+             release_product = ?, release_kind = ?, release_checked_at = ?
+           WHERE id = ?""",
+        (
+            int(is_release),
+            _canonical_vendor(parsed.get("vendor")) if is_release else None,
+            parsed.get("product") if is_release else None,
+            parsed.get("release_kind") if is_release else None,
+            datetime.now().isoformat(),
+            article_id,
+        ),
+    )
+    conn.commit()
+
+
+def list_release_articles(conn: sqlite3.Connection) -> list[sqlite3.Row]:
+    """發佈頁（/releases）的資料：所有判定為發佈的文章，發佈時間新到舊。
+
+    列的是池裡的文章不是出刊文章：發佈快訊的價值是快與全，不用等它寫成
+    文章才看得到，連結直接指向原文。
+    """
+    return conn.execute(
+        """SELECT id, source_name, title, url, published_at,
+                  release_vendor, release_product, release_kind, one_line_summary
+           FROM articles
+           WHERE is_release = 1 AND discarded_at IS NULL
+           ORDER BY published_at DESC"""
+    ).fetchall()
+
+
+def save_leaderboard_snapshot(conn: sqlite3.Connection, source: str, data: list[dict]) -> None:
+    conn.execute(
+        "INSERT INTO leaderboard_snapshots (source, fetched_at, data_json) VALUES (?, ?, ?)",
+        (source, datetime.now().isoformat(), json.dumps(data, ensure_ascii=False)),
+    )
+    conn.commit()
+
+
+def get_recent_leaderboard_snapshots(
+    conn: sqlite3.Connection, source: str, limit: int = 2
+) -> list[sqlite3.Row]:
+    """最近幾份榜單快照，新的在前。顯示端拿前兩份比名次升降。"""
+    return conn.execute(
+        """SELECT * FROM leaderboard_snapshots WHERE source = ?
+           ORDER BY id DESC LIMIT ?""",
+        (source, limit),
+    ).fetchall()
 
 
 def get_ungated_articles(conn: sqlite3.Connection) -> list[sqlite3.Row]:

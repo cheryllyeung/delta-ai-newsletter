@@ -1,0 +1,160 @@
+<!--
+模型與工具發佈頁（scripts/serve_topics.py 的 /releases）。跟
+topic_module_list.html.jinja 共用同一套 Carnival 藍設計語彙，差別在：
+列的是池裡的文章不是出刊文章（標題直接連原文、開新分頁），上方多一個
+排行榜區塊。2026-08-28 加。
+-->
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>模型與工具發佈｜{{ newsletter_name }}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800&family=Noto+Sans+TC:wght@700;900&family=IBM+Plex+Sans:wght@400;500&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --color-paper:   oklch(93% 0.020 240);
+    --color-paper-2: oklch(89% 0.024 238);
+    --color-paper-3: oklch(83% 0.028 235);
+    --color-ink:     oklch(16% 0.030 250);
+    --color-ink-2:   oklch(28% 0.028 248);
+    --color-muted:   oklch(46% 0.020 245);
+    --color-accent:      oklch(58% 0.160 247);
+    --color-accent-ink:  oklch(97% 0.010 240);
+    --color-accent-2:    oklch(76% 0.150  75);
+    --font-display: "Big Shoulders Display", "Noto Sans TC", sans-serif;
+    --font-body:    "IBM Plex Sans", ui-sans-serif, "PingFang TC", "Noto Sans TC", sans-serif;
+    --font-label:   "JetBrains Mono", ui-monospace, monospace;
+    --page-gutter: clamp(1.25rem, 4vw, 3rem);
+    --shell: 46rem;
+  }
+  * { box-sizing: border-box; }
+  html, body { overflow-x: clip; margin: 0; padding: 0; }
+  body { background: var(--color-paper); color: var(--color-ink); font-family: var(--font-body); }
+  a { color: inherit; text-decoration: none; }
+  h1 { font-family: var(--font-display); font-weight: 800; text-transform: uppercase; line-height: 0.96; }
+
+  .masthead { background: var(--color-accent); color: var(--color-accent-ink); padding: 2.5rem var(--page-gutter) 2rem; }
+  .masthead-inner { max-width: var(--shell); margin: 0 auto; }
+  .back-link { font-family: var(--font-label); font-size: 0.78rem; display: inline-block; margin-bottom: 0.8rem; opacity: 0.85; }
+  .back-link:hover { opacity: 1; text-decoration: underline; }
+  .masthead .eyebrow { font-family: var(--font-label); font-size: 0.75rem; letter-spacing: 0.1em; margin: 0 0 0.5rem; }
+  .masthead h1 { margin: 0; font-size: clamp(1.8rem, 3.4vw + 1rem, 2.8rem); }
+  .masthead p { margin: 0.8rem 0 0; font-size: 0.88rem; line-height: 1.6; max-width: 56ch; color: color-mix(in oklch, var(--color-accent-ink) 85%, transparent); }
+
+  .leaderboard { max-width: var(--shell); margin: 1.2rem auto 0; padding: 0 var(--page-gutter); }
+  .leaderboard-box { background: var(--color-paper-2); border: 2px solid var(--color-ink); box-shadow: 3px 3px 0 var(--color-ink); padding: 1rem 1.2rem; }
+  .leaderboard-title { font-family: var(--font-label); font-size: 0.78rem; margin: 0 0 0.6rem; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 0.5em; }
+  .leaderboard-title .stamp { color: var(--color-muted); }
+  .leaderboard table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+  .leaderboard th { font-family: var(--font-label); font-size: 0.68rem; text-align: left; color: var(--color-muted); padding: 0.25em 0.5em; border-bottom: 1.5px solid var(--color-ink); }
+  .leaderboard td { padding: 0.35em 0.5em; border-bottom: 1px solid var(--color-paper-3); }
+  .leaderboard .rank { font-family: var(--font-label); }
+  .leaderboard .delta-up { color: oklch(55% 0.15 150); font-family: var(--font-label); font-size: 0.75rem; }
+  .leaderboard .delta-down { color: oklch(55% 0.19 25); font-family: var(--font-label); font-size: 0.75rem; }
+  .leaderboard .delta-flat { color: var(--color-muted); font-family: var(--font-label); font-size: 0.75rem; }
+  .leaderboard-empty { font-size: 0.82rem; color: var(--color-muted); margin: 0; }
+
+  .vendor-nav { max-width: var(--shell); margin: 0 auto; padding: 1.2rem var(--page-gutter) 0.4rem; }
+  .vendor-nav-label { font-family: var(--font-label); font-size: 0.72rem; color: var(--color-muted); margin: 0 0 0.4rem; }
+  .vendor-nav-row { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 0.7rem; }
+  .vendor-chip { font-family: var(--font-label); font-size: 0.72rem; border: 1.5px solid var(--color-ink); background: var(--color-paper-2); padding: 0.25em 0.6em; }
+  .vendor-chip:hover { background: var(--color-accent); color: var(--color-accent-ink); }
+  .vendor-chip.active { background: var(--color-ink); color: var(--color-paper); }
+
+  .timeline { max-width: var(--shell); margin: 0 auto; padding: 1rem var(--page-gutter) 4rem; display: flex; flex-direction: column; gap: 0.9rem; }
+  .entry { display: block; background: var(--color-paper-2); border: 2px solid var(--color-ink); box-shadow: 3px 3px 0 var(--color-ink); padding: 1rem 1.2rem; transition: transform 120ms ease-out, box-shadow 120ms ease-out; }
+  .entry:hover { transform: translate(-1px, -1px); box-shadow: 4px 4px 0 var(--color-ink); }
+  .entry-meta { font-family: var(--font-label); font-size: 0.72rem; color: var(--color-muted); margin-bottom: 0.35rem; display: flex; gap: 0.9em; flex-wrap: wrap; align-items: baseline; }
+  .vendor-badge { border: 1.5px solid var(--color-accent); color: var(--color-accent); padding: 0.1em 0.5em; font-weight: 700; }
+  .kind-badge { border: 1.5px solid var(--color-ink); background: var(--color-paper); padding: 0.1em 0.5em; }
+  .entry h2 { margin: 0 0 0.25rem; font-size: 1.05rem; line-height: 1.4; }
+  .entry .subhead { margin: 0; font-size: 0.85rem; line-height: 1.55; color: var(--color-ink-2); }
+  .entry .source-note { margin: 0.4rem 0 0; font-family: var(--font-label); font-size: 0.68rem; color: var(--color-muted); }
+
+  .empty { max-width: var(--shell); margin: 0 auto; padding: 3rem var(--page-gutter); color: var(--color-muted); }
+  .foot { background: var(--color-ink); color: var(--color-accent-ink); padding: 1.5rem var(--page-gutter) 2.5rem; }
+  .foot-inner { max-width: var(--shell); margin: 0 auto; font-size: 0.8rem; opacity: 0.85; }
+</style>
+</head>
+<body>
+
+<header class="masthead">
+  <div class="masthead-inner">
+    <a class="back-link" href="/">← 回出刊日曆</a>
+    <p class="eyebrow">特輯</p>
+    <h1>模型與工具發佈</h1>
+    <p>各家廠商最新發佈的模型、工具、硬體與資料集，發佈時間新到舊。
+       這裡列的是來源池裡的原始快訊，點標題直接看原文，不用等它寫成日報文章。</p>
+  </div>
+</header>
+
+<section class="leaderboard" aria-label="模型排行榜">
+  <div class="leaderboard-box">
+    {% if leaderboard %}
+    <p class="leaderboard-title"><span>LMArena 排行榜 TOP {{ leaderboard.rows | length }}</span><span class="stamp">快照時間 {{ leaderboard.fetched_at }}</span></p>
+    <table>
+      <thead><tr><th>名次</th><th>模型</th><th>開發者</th><th>分數</th><th>升降</th></tr></thead>
+      <tbody>
+        {% for r in leaderboard.rows %}
+        <tr>
+          <td class="rank">{{ r.rank }}</td>
+          <td>{{ r.model }}</td>
+          <td>{{ r.org or "" }}</td>
+          <td class="rank">{{ r.score or "" }}</td>
+          <td>
+            {% if r.delta is none %}<span class="delta-flat">新進榜</span>
+            {% elif r.delta > 0 %}<span class="delta-up">▲ {{ r.delta }}</span>
+            {% elif r.delta < 0 %}<span class="delta-down">▼ {{ -r.delta }}</span>
+            {% else %}<span class="delta-flat">─</span>{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="leaderboard-empty">還沒有榜單資料。跑一次 python -m tools.fetch_leaderboard 就會出現。</p>
+    {% endif %}
+  </div>
+</section>
+
+<nav class="vendor-nav" aria-label="廠商篩選">
+  <p class="vendor-nav-label">依廠商看</p>
+  <div class="vendor-nav-row">
+    <a class="vendor-chip{% if not active_vendor %} active{% endif %}" href="/releases">全部</a>
+    {% for v in vendors %}
+    <a class="vendor-chip{% if v.name == active_vendor %} active{% endif %}" href="/releases?vendor={{ v.name | urlencode }}">{{ v.name }}（{{ v.count }}）</a>
+    {% endfor %}
+  </div>
+</nav>
+
+{% if entries %}
+<section class="timeline" aria-label="發佈時間軸">
+  {% for e in entries %}
+  <div class="entry">
+    <a href="{{ e.url }}" target="_blank" rel="noopener">
+      <div class="entry-meta">
+        <span>{{ e.published_date }}</span>
+        {% if e.release_vendor %}<span class="vendor-badge">{{ e.release_vendor }}</span>{% endif %}
+        {% if e.kind_name %}<span class="kind-badge">{{ e.kind_name }}</span>{% endif %}
+      </div>
+      <h2>{% if e.release_product %}{{ e.release_product }}：{% endif %}{{ e.title }}</h2>
+      {% if e.one_line_summary %}<p class="subhead">{{ e.one_line_summary }}</p>{% endif %}
+      <p class="source-note">{{ e.source_name }}｜點開看原文 ↗</p>
+    </a>
+  </div>
+  {% endfor %}
+</section>
+{% else %}
+<div class="empty"><p>目前池裡還沒有判定為發佈的文章。新文章會在每天的 ingest 之後出現；
+歷史文章要先跑 python -m tools.backfill_release_check。</p></div>
+{% endif %}
+
+<footer class="foot">
+  <div class="foot-inner"><p>{{ newsletter_name }}．僅供台達內部參考。</p></div>
+</footer>
+
+</body>
+</html>

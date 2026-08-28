@@ -13,6 +13,7 @@ import json
 import os
 import secrets
 import sys
+from collections import Counter
 from pathlib import Path
 
 import yaml
@@ -36,7 +37,9 @@ from pipeline.topic_db import (
     get_connection,
     get_generated_topic,
     get_issue_detail,
+    get_recent_leaderboard_snapshots,
     list_issues,
+    list_release_articles,
 )
 from pipeline.translate import SUPPORTED as SUPPORTED_LANGS
 from pipeline.translate import get_article_in
@@ -228,6 +231,78 @@ def module_timeline(request: Request, module_id: str, lang: str | None = None):
     )
 
 
+_RELEASE_KIND_NAMES = {
+    "model": "模型",
+    "tool": "工具",
+    "hardware": "硬體",
+    "dataset": "資料集",
+    "benchmark": "評測榜單",
+}
+
+
+def _leaderboard_context(conn) -> dict | None:
+    """發佈頁頂部的排行榜區塊：最新一份快照，跟上一份比名次升降。
+    還沒抓過（tools/fetch_leaderboard.py 沒跑過或一直失敗）就回 None，
+    頁面顯示提示而不是空表。"""
+    snaps = get_recent_leaderboard_snapshots(conn, "lmarena", limit=2)
+    if not snaps:
+        return None
+    latest = json.loads(snaps[0]["data_json"])
+    prev_rank: dict[str, int] = {}
+    if len(snaps) > 1:
+        prev_rank = {row["model"]: row["rank"] for row in json.loads(snaps[1]["data_json"])}
+    rows = []
+    for row in latest[:15]:
+        old = prev_rank.get(row["model"])
+        rows.append({**row, "delta": (old - row["rank"]) if old is not None else None})
+    return {"fetched_at": snaps[0]["fetched_at"][:16].replace("T", " "), "rows": rows}
+
+
+def _release_overview(conn) -> dict:
+    """首頁「模型與工具發佈」卡片的資料：則數跟最新一則。"""
+    rows = list_release_articles(conn)
+    latest = None
+    if rows:
+        r = rows[0]
+        latest = {
+            "title": r["title"],
+            "date": r["published_at"][:10],
+            "vendor": r["release_vendor"],
+        }
+    return {"count": len(rows), "latest": latest}
+
+
+@app.get("/releases", response_class=HTMLResponse)
+def release_timeline(request: Request, vendor: str | None = None):
+    """模型與工具發佈頁：池裡所有判定為官方發佈的文章，發佈時間新到舊。
+
+    跟領域頁（/modules/*）不同，這裡列的是池裡的文章、不是出刊文章：
+    發佈快訊的價值是快與全，不用等它被選題寫成文章才看得到，標題直接連
+    到原文。判定邏輯在 pipeline/release_check.py。2026-08-28 加（主管
+    需求：要能看 NVIDIA、OpenAI、Google、Qwen 這些廠商最新出了什麼）。
+    """
+    conn = _get_conn()
+    rows = [dict(r) for r in list_release_articles(conn)]
+    vendor_counts: Counter[str] = Counter(r["release_vendor"] or "其他" for r in rows)
+    vendors = [{"name": name, "count": count} for name, count in vendor_counts.most_common()]
+    if vendor:
+        rows = [r for r in rows if (r["release_vendor"] or "其他") == vendor]
+    for r in rows:
+        r["kind_name"] = _RELEASE_KIND_NAMES.get(r["release_kind"], r["release_kind"] or "")
+        r["published_date"] = r["published_at"][:10]
+    return templates.TemplateResponse(
+        request,
+        "topic_release_list.html.jinja",
+        {
+            "newsletter_name": _config["newsletter"]["name"],
+            "entries": rows,
+            "vendors": vendors,
+            "active_vendor": vendor,
+            "leaderboard": _leaderboard_context(conn),
+        },
+    )
+
+
 @app.get("/graph", response_class=HTMLResponse)
 def knowledge_graph():
     """知識圖譜的互動頁（tools/export_graph_html.py 產出的靜態檔）。
@@ -380,6 +455,7 @@ def issue_list(request: Request, lang: str | None = None):
             "issues": issues,
             "months": _build_calendar_months(conn, issues),
             "module_overview": _module_overview(conn),
+            "release_overview": _release_overview(conn),
             "lang": _normalise_lang(lang),
         },
     )
