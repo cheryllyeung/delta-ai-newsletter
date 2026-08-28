@@ -580,12 +580,14 @@ def save_leaderboard_snapshot(conn: sqlite3.Connection, source: str, data: list[
 def get_recent_leaderboard_snapshots(
     conn: sqlite3.Connection, source: str, limit: int = 2
 ) -> list[sqlite3.Row]:
-    """最近幾份榜單快照，新的在前。顯示端拿前兩份比名次升降。"""
+    """最近幾份榜單快照，新的在前。"""
     return conn.execute(
         """SELECT * FROM leaderboard_snapshots WHERE source = ?
            ORDER BY id DESC LIMIT ?""",
         (source, limit),
     ).fetchall()
+
+
 
 
 def get_ungated_articles(conn: sqlite3.Connection) -> list[sqlite3.Row]:

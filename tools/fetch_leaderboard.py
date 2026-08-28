@@ -1,28 +1,28 @@
-"""抓 LMArena 模型排行榜快照，存進 SQLite 給發佈頁（/releases）顯示。
+"""抓 LMArena 各分類排行榜快照，存進 SQLite 給發佈頁（/releases）顯示。
 
-輕量版（2026-08-28）：只存「當期快照」，升降是顯示時拿最近兩份快照比出來
-的，不存歷史走勢。每天跑一次就有昨天跟今天可以比；抓失敗就什麼都不寫，
-頁面繼續顯示上一份快照，不會開天窗。
+2026-08-28 改版：原本只抓一份總榜，而且寫的當天外網掛掉、兩個端點都沒
+實測過（lmarena.ai/api/leaderboard 實測回 403，從來沒成功過）。使用者要
+的是「各個功能（文字、程式、視覺、圖像生成）哪個模型排最前面」，改成
+抓 lmarena.ai 的分類榜。
 
-資料來源按順序嘗試，第一個成功的就用：
-1. LMArena 官方 API（lmarena.ai）
-2. Hugging Face space（lmarena-ai/chatbot-arena-leaderboard）裡的
-   leaderboard_table CSV，檔名帶日期，抓最新一份
+lmarena.ai 沒有公開 API，但每個分類頁的 HTML 內嵌完整榜單（Next.js
+flight payload 裡的 \"leaderboard\":{...\"entries\":[...]}，含 rank／
+rating／votes／開發者），直接把那段 JSON 挖出來。頁面改版欄位變了會解析
+失敗：抓不到的分類就不寫入，頁面繼續顯示上一份快照，不會開天窗。
 
-注意：寫這支的當天外網 DNS 剛好掛掉，兩個端點都沒實測過。第一次跑如果
-兩個都失敗，開瀏覽器看一下現在的資料長怎樣再回來調 _CANDIDATES。
+每個分類存成獨立 source（lmarena-text、lmarena-webdev…），升降照舊由
+顯示端拿最近兩份快照比。輕量設計不變：只存當期快照，不存歷史走勢。
 
 用法：
-    python -m tools.fetch_leaderboard            # 抓一次，存快照
-    python -m tools.fetch_leaderboard --dry-run  # 抓但不寫入，印前 10 名
+    python -m tools.fetch_leaderboard            # 全部分類各抓一次
+    python -m tools.fetch_leaderboard --dry-run  # 抓但不寫入，各印前 5 名
 """
 from __future__ import annotations
 
 import argparse
-import csv
-import io
 import json
 import sys
+import time
 from pathlib import Path
 
 import requests
@@ -35,122 +35,113 @@ from pipeline.topic_db import get_connection, save_leaderboard_snapshot
 CONFIG_PATH = Path(__file__).resolve().parent.parent / "config" / "topics.yaml"
 
 _TIMEOUT = 30
-_TOP_N = 30  # 快照只留前 30 名，夠頁面顯示，不用整份幾百列都存
+_TOP_N = 15  # 每個分類留前 15 名，夠頁面顯示
+_UA = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
+
+# (存進 DB 的 key, lmarena.ai/leaderboard/ 底下的路徑, 顯示名)。
+# 程式開發用 text 榜的 coding 子分類：webdev arena 的榜單是前端載入的、
+# 頁面沒內嵌資料（實測只有殘缺的 rankByModality，缺前段名次還有重複），
+# text/coding 有完整的內嵌榜單跟分數。
+CATEGORIES = [
+    ("text", "text", "文字對話"),
+    ("coding", "text/coding", "程式開發"),
+    ("vision", "vision", "視覺理解"),
+    ("text-to-image", "text-to-image", "圖像生成"),
+    ("search", "search", "搜尋"),
+]
 
 
-def _fetch_lmarena_api() -> list[dict]:
-    """LMArena 官方端點。回傳格式沒有文件，抓到什麼就寬鬆解析什麼。"""
-    resp = requests.get("https://lmarena.ai/api/leaderboard", timeout=_TIMEOUT)
-    resp.raise_for_status()
-    data = resp.json()
-    # 常見包法：直接是 list，或包在 data/models/leaderboard 這類鍵底下
-    if isinstance(data, dict):
-        for key in ("data", "models", "leaderboard", "entries"):
-            if isinstance(data.get(key), list):
-                data = data[key]
+def _extract_entries(html: str) -> list[dict]:
+    """從分類頁 HTML 挖出第一份 leaderboard 的 entries 陣列。
+
+    資料在 <script>self.__next_f.push([1,"..."]) 的 JS 字串裡，引號都是
+    跳脫過的（\\"）。先定位 \\"entries\\":[ ，用中括號深度走到對應的 ]，
+    再把這段當 JS 字串解跳脫、最後當 JSON 解析。
+    """
+    anchor = '\\"leaderboard\\":{'
+    i = html.find(anchor)
+    if i == -1:
+        raise ValueError("頁面裡找不到 leaderboard 資料（改版了？）")
+    j = html.find('\\"entries\\":[', i)
+    if j == -1:
+        raise ValueError("leaderboard 裡找不到 entries（改版了？）")
+    start = html.index("[", j)
+    depth = 0
+    end = None
+    for pos in range(start, min(start + 2_000_000, len(html))):
+        ch = html[pos]
+        if ch == "[":
+            depth += 1
+        elif ch == "]":
+            depth -= 1
+            if depth == 0:
+                end = pos
                 break
-    if not isinstance(data, list) or not data:
-        raise ValueError("回應不是名次列表")
-    return _normalise_rows(data)
+    if end is None:
+        raise ValueError("entries 陣列沒有閉合")
+    unescaped = json.loads(f'"{html[start : end + 1]}"')  # JS 字串解跳脫
+    return json.loads(unescaped)
 
 
-def _fetch_hf_space_csv() -> list[dict]:
-    """HF space 裡的 leaderboard_table_<日期>.csv，檔名取字典序最大的就是最新。"""
-    tree = requests.get(
-        "https://huggingface.co/api/spaces/lmarena-ai/chatbot-arena-leaderboard/tree/main",
-        timeout=_TIMEOUT,
-    )
-    tree.raise_for_status()
-    names = [
-        entry["path"]
-        for entry in tree.json()
-        if entry.get("path", "").startswith("leaderboard_table_") and entry["path"].endswith(".csv")
-    ]
-    if not names:
-        raise ValueError("space 裡找不到 leaderboard_table_*.csv")
-    latest = sorted(names)[-1]
-    resp = requests.get(
-        f"https://huggingface.co/spaces/lmarena-ai/chatbot-arena-leaderboard/resolve/main/{latest}",
-        timeout=_TIMEOUT,
-    )
+def fetch_category(path: str) -> list[dict]:
+    resp = requests.get(f"https://lmarena.ai/leaderboard/{path}", headers=_UA, timeout=_TIMEOUT)
     resp.raise_for_status()
-    rows = list(csv.DictReader(io.StringIO(resp.text)))
-    if not rows:
-        raise ValueError(f"{latest} 是空的")
-    return _normalise_rows(rows)
-
-
-def _pick(row: dict, *keywords: str):
-    """從一列資料裡挑出欄位名（不分大小寫）含任一關鍵字的值。
-    兩個來源的欄位名都不受我們控制，用關鍵字對而不是寫死名字。"""
-    for key, value in row.items():
-        lowered = str(key).lower()
-        if any(kw in lowered for kw in keywords):
-            return value
-    return None
-
-
-def _normalise_rows(raw_rows: list[dict]) -> list[dict]:
-    """把來源各自的欄位名整理成固定的 rank/model/org/score，依分數新排名次。"""
+    entries = _extract_entries(resp.text)
     rows = []
-    for raw in raw_rows:
-        model = _pick(raw, "model", "name")
-        score = _pick(raw, "elo", "rating", "score", "arena")
-        if model is None or score is None:
+    for e in entries:
+        model = e.get("modelDisplayName") or e.get("modelKey")
+        if not model or e.get("rank") is None:
             continue
-        try:
-            score = round(float(score), 1)
-        except (TypeError, ValueError):
-            continue
+        rating = e.get("rating")
         rows.append(
             {
+                "rank": e.get("rank"),
                 "model": str(model),
-                "org": _pick(raw, "organization", "org", "developer"),
-                "score": score,
+                "org": e.get("modelOrganization"),
+                "score": round(float(rating), 1) if rating is not None else None,
+                "votes": e.get("votes"),
             }
         )
     if not rows:
         raise ValueError("解析不出任何一列（欄位名可能又改了）")
-    rows.sort(key=lambda r: -r["score"])
-    return [{"rank": i, **row} for i, row in enumerate(rows[:_TOP_N], start=1)]
-
-
-_CANDIDATES = [
-    ("lmarena.ai API", _fetch_lmarena_api),
-    ("HF space CSV", _fetch_hf_space_csv),
-]
+    rows.sort(key=lambda r: (r["rank"] is None, r["rank"]))
+    return rows[:_TOP_N]
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--dry-run", action="store_true", help="抓但不寫入，印前 10 名")
+    parser.add_argument("--dry-run", action="store_true", help="抓但不寫入，各印前 5 名")
     args = parser.parse_args()
 
-    rows = None
-    for label, fetch in _CANDIDATES:
+    conn = None
+    if not args.dry_run:
+        with open(CONFIG_PATH, encoding="utf-8") as f:
+            config = yaml.safe_load(f)
+        conn = get_connection(config["database"]["path"])
+
+    ok = 0
+    for key, path, title in CATEGORIES:
         try:
-            rows = fetch()
-            print(f"[fetch_leaderboard] 用「{label}」抓到 {len(rows)} 名。")
-            break
-        except Exception as exc:  # noqa: BLE001 -- 換下一個來源試，全失敗才放棄
-            print(f"[fetch_leaderboard] {label} 失敗：{exc}")
+            rows = fetch_category(path)
+        except Exception as exc:  # noqa: BLE001 -- 單一分類失敗不影響其他分類
+            print(f"[fetch_leaderboard] {title}（{path}）失敗：{exc}")
+            continue
+        ok += 1
+        print(f"[fetch_leaderboard] {title}：{len(rows)} 名")
+        for row in rows[:5]:
+            score_text = row["score"] if row["score"] is not None else "—"
+            print(f"  {row['rank']:>2}. {row['model']}（{row.get('org') or '?'}）{score_text}")
+        if conn is not None:
+            save_leaderboard_snapshot(conn, f"lmarena-{key}", rows)
+        time.sleep(1)  # 對站方客氣一點
 
-    if rows is None:
-        print("[fetch_leaderboard] 全部來源都失敗，這次不寫入（頁面會繼續用上一份快照）。")
+    if ok == 0:
+        print("[fetch_leaderboard] 全部分類都失敗，這次不寫入（頁面繼續用上一份快照）。")
         sys.exit(1)
-
-    for row in rows[:10]:
-        print(f"  {row['rank']:>2}. {row['model']}（{row.get('org') or '?'}）{row['score']}")
-
     if args.dry_run:
         print("[fetch_leaderboard] --dry-run：沒有寫入。")
-        return
-
-    with open(CONFIG_PATH, encoding="utf-8") as f:
-        config = yaml.safe_load(f)
-    conn = get_connection(config["database"]["path"])
-    save_leaderboard_snapshot(conn, "lmarena", rows)
-    print(f"[fetch_leaderboard] 已存成快照（source=lmarena，共 {len(rows)} 名）。")
+    else:
+        print(f"[fetch_leaderboard] 完成，寫入 {ok} 個分類的快照。")
 
 
 if __name__ == "__main__":
