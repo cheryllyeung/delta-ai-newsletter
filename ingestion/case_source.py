@@ -72,7 +72,9 @@ def fetch_case_study_items(
             continue
 
         text = _html_to_text(_entry_html(entry))
-        title = entry.get("title", "").strip()
+        # 有的來源連 title 欄位都塞 HTML（實測 Fierce Biotech 的 title 是
+        # 整個 <a href=...> 標籤），一律過一次轉純文字。
+        title = _html_to_text(entry.get("title", "")).replace("\n", " ").strip()
         link = entry.get("link", "").strip()
         if not text or not link:
             continue

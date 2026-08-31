@@ -9,17 +9,17 @@
 # 每一道收錄判定的門檻集中在下面的 gates 區塊，判定邏輯在 pipeline/gates.py。
 
 newsletter:
-  name: "Delta AI 趨勢日報"
+  name: "Delta 基因檢測日報"
   issue_day: thursday
 
 database:
-  path: "data/topics.db"
+  path: "data/genomics.db"
 
 # 向量庫與聚類：Qdrant 本機 embedded 模式（不需另外跑伺服器），
 # collection 存放路徑跟 SQLite pool 分開管理。
 vector_store:
-  path: "data/qdrant"
-  collection: "articles"
+  path: "data/qdrant_genomics"
+  collection: "genomics_articles"
 
 embedding:
   model: "Qwen/Qwen3-Embedding-0.6B"
@@ -104,71 +104,32 @@ graph_store:
     min_entities: 500           # 密度門檻，精神對應 0731 PRD「graph 資料達到密度門檻才納入」的判斷
     min_edges: 1000
 
-# 18 個模組：10 個職能模組 + 8 個領域模組（PRD §2 原文列表）。
-# 每個話題會被 LLM 對這 18 個模組各打 0-10 分並附一句理由。
-#
-# desc 是打分 prompt 實際會看到的模組說明（2026-08-25 加）。在這之前
-# prompt 只拿到四個字的模組名，模型只能按字面理解：「消費性產品」被當成
-# 「消費性電子新聞」，Dr. Dre 用 AI 做歌拿了 6 分、Meta 智慧眼鏡拿了 9 分，
-# 全部從 domain 名額上刊。desc 要寫的是「台達在這塊的事業是什麼、讀者是
-# 誰」，讓分數量的是對事業有沒有用，不是主題沾不沾邊。
+# 6 個模組（genomics-prototype，2026-08-31 整批換掉台達的 18 模組）：
+# 4 個主題模組對應 NBDMD 現行日報的四大分類，2 個關注模組對應
+# 重點廠商與台灣配額需求。desc 是打分 prompt 實際會看到的說明，
+# 寫的是「行動基因在這塊關心什麼、讀者是誰」，讓分數量的是對事業
+# 有沒有用，不是主題沾不沾邊（這個教訓來自主線，見 main 分支的註解）。
 modules:
   functional:
-    - id: legal_compliance
-      name: 法務合規
-      desc: 台達法務與法遵人員。AI 相關法規（AI Act、資料保護）、合約與智財、生成內容的授權風險，也包含法務工作本身怎麼用 AI（合約審閱、法遵科技、legal tech 平台動態）
-    - id: finance_audit
-      name: 財會稽核
-      desc: 財務、會計與稽核。AI 在財報、費用審核、風險偵測的應用，AI 投資的財務影響
-    - id: hr
-      name: 人資
-      desc: 招募、訓練、績效。AI 在人才流程的應用與勞動法規影響
-    - id: marketing_brand
-      name: 行銷品牌
-      desc: B2B 行銷與品牌。AI 生成內容、市場分析工具，工業品牌的數位溝通
-    - id: it_security
-      name: 資訊資安
-      desc: 企業 IT 與資安。AI 帶來的攻擊面、內部 AI 工具的治理、資料外洩風險
-    - id: ops_logistics
-      name: 營運物流
-      desc: 供應鏈、採購、倉儲物流。AI 在需求預測、供應鏈風險、物流優化的應用
-    - id: strategy_investment
-      name: 策略投資
-      desc: 集團策略與投資。AI 產業的併購、供應鏈變動、競爭格局，對台達本業的機會與威脅
-    - id: rd_engineering
-      name: 研發工程
-      desc: 台達的硬體與韌體研發工程師。AI 輔助設計（EDA、模擬、程式開發）、工程工作流程的 AI 工具
-    - id: knowledge_management
-      name: 知識管理
-      desc: 內部知識庫與文件管理。RAG、企業搜尋、技術文件的 AI 應用
-    - id: ehs
-      name: EHS
-      desc: 環境、職業安全與衛生。AI 在工安監測、危害預防、法規遵循的應用
+    - id: vendor_watch
+      name: 重點廠商動態
+      desc: 26 家重點關注廠商的實質動作（Illumina、Guardant Health、Foundation Medicine、Thermo Fisher、Natera、Freenome、Tempus、Grail、BillionToOne、PacBio、Element Biosciences、Quest、LabCorp、Myriad、Caris、Qiagen、Centogene、Sophia Genetics、Oxford Nanopore、BGI 華大基因、Gene Solutions、Macrogen、基龍米克斯、慧智基因、訊聯基因、金萬林）。這些是行動基因 benchmark 的對象，產品發表、策略調整、財務事件都算；文章主角不在名單上就不高分
+    - id: taiwan_industry
+      name: 台灣廠商
+      desc: 台灣的基因檢測與生技業者動態、台灣主管機關的相關政策。日報每天想保留一到兩則台灣內容，這個模組的分數就是那個配額的依據；跟台灣無關的內容一律低分
   domain:
-    - id: energy_power
-      name: 能源電力
-      desc: 台達的電源供應器、資料中心電源與散熱、UPS、儲能系統、太陽能變流器、微電網事業。讀者做電力電子產品與能源基礎設施方案。資料中心用電、電網、儲能相關的 AI 議題是核心
-    - id: building_automation
-      name: 樓宇自動化
-      desc: 台達的樓宇管理系統、空調與 HVAC 控制、廠辦節能事業。智慧建築、樓控系統的 AI 應用是核心
-    - id: ev_automotive
-      name: 電動車車用
-      desc: 台達的電動車動力系統（車載充電器、DC-DC、馬達驅動）、充電樁與車用電子事業。電動車產業動態、充電基礎設施、車用 AI 是核心
-    - id: network_infra
-      name: 網通基礎設施
-      desc: 台達的網通設備、資料中心基礎設施、電信電源事業。AI 算力建設帶動的基礎設施需求是核心
-    - id: manufacturing
-      name: 製造廠務
-      desc: 台達自己的工廠與工業自動化事業。智慧製造、產線自動化、機器視覺檢測、預測性維護、廠務系統的 AI 應用是核心，也包含製造現場用的 AI 硬體與新型技術元件（工業機器人、感測器、邊緣運算裝置）跟用 AI 改善工作流程的做法
-    - id: consumer_products
-      name: 消費性產品
-      desc: 台達的零組件與元件事業（散熱風扇、電源元件、顯示與投影）。量的是對台達產品線的影響。終端裝置的發表、評測、市場故事（穿戴裝置、AI 玩具、手機這類）不屬於這裡，除非內容直接談到電源、散熱、顯示元件的規格或供應鏈
-    - id: software_platform
-      name: 軟體平台
-      desc: 台達自己開發與銷售的工業軟體、物聯網平台、能源管理軟體。量的是對台達軟體產品策略的影響，一般開發者工具或 AI 服務的例行更新不屬於這裡
-    - id: sustainability
-      name: 永續節能
-      desc: 台達的碳管理、ESG、能源效率解決方案事業。AI 資料中心的能耗與減碳、碳盤查工具是核心
+    - id: corp_market
+      name: 企業財務與市場動態
+      desc: 基因檢測與多體學廠商的財報、募資、併購、市場擴張、通路合作。讀者是行動基因與新事業開發團隊，量的是對市場格局與競爭態勢的影響；一般生技製藥的財務新聞若與檢測無關不算
+    - id: tech_breakthrough
+      name: 檢測技術與研究突破
+      desc: NGS 定序平台、液態活檢、多體學方法、試劑與耗材的技術發表跟研究成果。量的是技術路線對行動基因產品與服務的參考價值；純學術而無產業化跡象的給中低分
+    - id: policy_regulation
+      name: 政策及法規
+      desc: 各國主管機關對檢測的審批與監管（FDA、LDT、CLIA、IVDR）、健保與商保給付、基因資料隱私規範。量的是對檢測服務落地與商業模式的影響
+    - id: clinical_application
+      name: 臨床應用
+      desc: 檢測在腫瘤、生殖醫學、罕病、感染症等臨床場景的應用進展與實證（MRD 監測、早篩、伴隨式診斷）。量的是對行動基因臨床產品線的參考價值
 
 content_types:
   - id: insight
@@ -340,339 +301,59 @@ fetch:
   # 比照 legacy/config/pulse.yaml 對同一批來源已驗證過的規模。
   max_items_per_source: 15
 
-# 來源清單：先沿用 legacy/config/pulse.yaml 裡已實測過的 5 個企業案例來源。
-# tier 欄位為 PRD 的三層來源分級（核心層/訊號層/深度層）+ 專門來源類型
-# 預留擴充點，目前全部標成 case（企業案例來源），之後要接核心層一般新聞
-# 來源或垂直產業來源，補進來源清單並標對 tier 即可，不用改程式碼。
+# 來源清單（genomics-prototype，2026-08-31 整批換掉）：基因檢測／多體學
+# 領域來源，每一個都實測過 feed 可抓（驗證過程見 docs/genomics_prototype_plan.md）。
+# NBDMD 給的清單裡：付費牆三站（GenomeWeb、360Dx、Precision Medicine
+# Online）v1 不接；環球生技、Genet 觀點的網站沒有公開 RSS，抓不到；
+# 廠商官網逐一探過，只有 Illumina（投資人網站）跟 PacBio（blog）有 feed，
+# 其餘廠商的動態靠 PR Newswire 新聞稿管道涵蓋（新聞稿本來就發那裡）。
+# Fierce Biotech 與 BioSpace 的 feed 只有短摘要，會被收錄關卡降成熱度訊號。
 sources:
-  # 注意：這個 tag 頁面更新頻率很低（2026-08-10 實測 feed 健康、18 筆解析
-  # 正常，但最新一篇是 2026-06-29，往前直接跳到 2025 年），常態性會被
-  # fetch.days_back=30 全部濾掉而回傳 0 筆。這是來源特性不是故障，查來源
-  # 掛零時不用再查這一個。
-  - id: nvidia_customer_stories
-    name: "NVIDIA Blog - Customer Stories"
+  - id: geneonline
+    name: "GeneOnline 基因線上"
     type: rss
-    tier: case
-    url: "https://blogs.nvidia.com/blog/tag/customer-stories/feed/"
-    weight: 1.0
-  - id: ms_ai_customer_stories
-    name: "Microsoft AI Blog - Customer Stories"
-    type: rss
-    tier: case
-    url: "https://www.microsoft.com/en-us/ai/blog/content-type/customer-stories/feed/"
-    weight: 1.0
-  - id: azure_customer_stories
-    name: "Azure Blog - Customer Stories"
-    type: rss
-    tier: case
-    url: "https://azure.microsoft.com/en-us/blog/content-type/customer-stories/feed/"
+    tier: core
+    url: "https://geneonline.news/feed/"
     weight: 0.9
-  - id: aws_ml_blog
-    name: "AWS Machine Learning Blog"
+  - id: fierce_biotech
+    name: "Fierce Biotech"
     type: rss
-    tier: case
-    url: "https://aws.amazon.com/blogs/machine-learning/feed/"
+    tier: core
+    url: "https://www.fiercebiotech.com/rss/xml"
+    weight: 0.9
+  - id: medtech_dive
+    name: "MedTech Dive"
+    type: rss
+    tier: vertical
+    url: "https://www.medtechdive.com/feeds/news/"
     weight: 0.8
-  - id: google_cloud_blog
-    name: "Google Cloud Blog"
+  - id: biospace
+    name: "BioSpace"
     type: rss
-    tier: case
-    url: "https://cloudblog.withgoogle.com/rss/"
-    weight: 0.7
-
-  # 發佈快訊來源：廠商官方發佈管道，2026-08-28 加（網頁的「模型與工具
-  # 發佈」頁）。tier 標 release：選題時受 tier_cap.release 上限保護，
-  # 官方發佈不會吃光日報版位；發佈頁不看 tier，照收全部。
-  # 注意：加入當天外網 DNS 剛好掛掉，這批 URL 還沒有實測過，第一次跑
-  # 要看掛零名單，抓不到的再換 URL（Anthropic 沒有公開 RSS，先缺著）。
-  - id: openai_news
-    name: "OpenAI News"
-    type: rss
-    tier: release
-    url: "https://openai.com/news/rss.xml"
-    weight: 1.0
-  - id: deepmind_blog
-    name: "Google DeepMind Blog"
-    type: rss
-    tier: release
-    url: "https://deepmind.google/blog/rss.xml"
-    weight: 1.0
-  - id: meta_ai_blog
-    name: "Meta AI Blog"
-    type: rss
-    tier: release
-    url: "https://ai.meta.com/blog/rss/"
-    weight: 1.0
-  - id: nvidia_blog
-    name: "NVIDIA Blog"
-    type: rss
-    tier: release
-    url: "https://blogs.nvidia.com/feed/"
-    weight: 0.9
-  - id: huggingface_blog
-    name: "Hugging Face Blog"
-    type: rss
-    tier: release
-    url: "https://huggingface.co/blog/feed.xml"
-    weight: 0.9
-  - id: qwen_blog
-    name: "Qwen Blog"
-    type: rss
-    tier: release
-    url: "https://qwenlm.github.io/blog/index.xml"
-    weight: 0.9
-
-  # 核心層：頂級科技媒體，2026-07-29 加入，各來源已用 curl 驗證過確實
-  # 抓得到文章（The Verge、Wired 的 RSS 測起來是空的或太稀疏，先不加）
-  - id: techcrunch_ai
-    name: "TechCrunch - AI"
-    type: rss
-    tier: core
-    url: "https://techcrunch.com/category/artificial-intelligence/feed/"
-    weight: 1.0
-  - id: mit_tech_review_ai
-    name: "MIT Technology Review - AI"
-    type: rss
-    tier: core
-    url: "https://www.technologyreview.com/topic/artificial-intelligence/feed"
-    weight: 1.0
-  - id: ars_technica_ai
-    name: "Ars Technica - AI"
-    type: rss
-    tier: core
-    url: "https://arstechnica.com/ai/feed/"
-    weight: 0.9
-  # 2026-08-10：原本用的 /category/ai/feed/ 已經失效。HTTP 200、XML 也解析
-  # 得出來，但整個 feed 只有 7 筆、最新一篇停在 2026-05-19（近三個月前），
-  # 不是 VentureBeat 沒發文而是這個分類 feed 被凍住了，所以會安靜地回 0 筆。
-  # 改用站台主 feed（實測 7 筆全在 30 天內，最新 2026-08-07）。代價是它不是
-  # AI 分類專屬，但實測回傳的 7 篇全部是 AI 題材，VentureBeat 現在的產出本來
-  # 就幾乎全是 AI，先接受這個代價；之後若混進太多非 AI 內容再考慮加關鍵字過濾。
-  # feeds.feedburner.com/venturebeat/SZYF 實測內容與主 feed 完全相同，不另外加。
-  - id: venturebeat_ai
-    name: "VentureBeat - AI"
-    type: rss
-    tier: core
-    url: "https://venturebeat.com/feed/"
-    weight: 0.9
-
-  # 垂直產業來源：2026-07-29 加入，服務事業單位的產業視角需求，同樣
-  # 已用 curl 驗證過（McKinsey、Gartner、Siemens、Schneider Electric、
-  # ABB、pv-magazine、Automotive News、Commercial Property Executive
-  # 都測過，RSS 不是 404 就是 403，免費路線走不通，先不加）
-  - id: digitimes_daily
-    name: "DIGITIMES"
-    type: rss
-    tier: vertical
-    url: "https://www.digitimes.com/rss/daily.xml"
-    weight: 0.8
-  - id: utility_dive
-    name: "Utility Dive"
-    type: rss
-    tier: vertical
-    url: "https://www.utilitydive.com/feeds/news/"
-    weight: 0.7
-  - id: insideevs
-    name: "InsideEVs"
-    type: rss
-    tier: vertical
-    url: "https://insideevs.com/rss/articles/all/"
-    weight: 0.7
-
-  # 深度層：arXiv 官方 API，免費、不需金鑰，抓取程式本來就已經存在
-  # （ingestion/arxiv_source.py，原本給趨勢彙整那條 pipeline 用），這裡是
-  # 第一次接進話題式週報。keywords 只影響 score 排序，不影響是否抓到。
-  - id: arxiv_ai
-    name: "arXiv (cs.AI / cs.CL / cs.LG)"
-    type: arxiv
-    tier: depth
-    categories: ["cs.AI", "cs.CL", "cs.LG"]
-    # 2026-08-28 擴充：原本只有 enterprise 那組偏企業的詞，LLM/RAG/agent
-    # 這些主題的論文都拿 0 分。keywords 只影響 score 排序，不影響是否抓到。
-    keywords: ["enterprise", "production", "deployment", "industry", "benchmark",
-               "llm", "large language model", "rag", "retrieval", "agent",
-               "fine-tuning", "reasoning", "multimodal", "inference"]
+    tier: signal
+    url: "https://www.biospace.com/index.rss"
     weight: 0.6
-
-  # 2026-08-28 擴充：arXiv 的熱門面。arXiv 官方 API 沒有流量／熱門排序，
-  # 用 Hugging Face Daily Papers 當代理（每天社群投票的熱門 arXiv 論文，
-  # 公開 API 不需金鑰，upvote 當 score）。跟 arxiv_ai（最新投稿）互補。
-  # 同一篇論文兩邊都抓到時 URL 不同（arXiv API 帶 v1 版本號），入池去重
-  # 擋不住，靠聚類把它們併成同一話題，效果反而是「兩個來源都在看」的熱度。
-  - id: hf_daily_papers
-    name: "HF Daily Papers (熱門 arXiv)"
-    type: hf_papers
-    tier: depth
-    min_upvotes: 5
-    weight: 0.8
-
-  # 訊號層：Hacker News，透過 Algolia 公開搜尋 API，免費、不需金鑰。
-  # min_points 過濾掉討論度太低的貼文，降低雜訊。
-  - id: hn_ai
-    name: "Hacker News"
-    type: hn
-    tier: signal
-    # Algolia 的 query 是全文比對不是布林查詢，要涵蓋多個關鍵字要分開列，
-    # 不能塞 "A OR B" 這種字串（詳見 ingestion/hn_source.py 的說明）
-    queries: ["AI", "LLM", "artificial intelligence"]
-    min_points: 20
+  - id: prnewswire_health
+    name: "PR Newswire (Health)"
+    type: rss
+    tier: vertical
+    url: "https://www.prnewswire.com/rss/health-latest-news/health-latest-news-list.rss"
     weight: 0.6
-
-  # 訊號層：Reddit，走官方 OAuth（PRAW），需要 .env 裡的 REDDIT_CLIENT_ID /
-  # REDDIT_CLIENT_SECRET / REDDIT_USER_AGENT，目前這三個環境變數是空的，
-  # 沒填之前 fetch_reddit_items() 會印警告並回傳空列表，不會讓整批中斷。
-  - id: reddit_ai
-    name: "Reddit (r/artificial, r/MachineLearning, r/mcp)"
-    type: reddit
-    tier: signal
-    # r/mcp 是 2026-07-29 加的，社群討論 MCP（Model Context Protocol）跟
-    # skill 實際怎麼用/踩什麼雷，比 HN 對這個主題的搜尋量高很多（HN 30 天
-    # 內查 "MCP model context protocol" 幾乎是 0 篇，已測過，先不加 HN 查詢）
-    subreddits: ["artificial", "MachineLearning", "mcp"]
-    weight: 0.5
-
-  # 訊號層：Slashdot，老牌科技社群新聞聚合站，RSS 格式是 RDF（跟一般
-  # RSS 2.0 長得不太一樣），feedparser 可以正常處理，已驗證抓得到內容。
-  - id: slashdot
-    name: "Slashdot"
-    type: rss
-    tier: signal
-    url: "https://rss.slashdot.org/Slashdot/slashdotMain"
-    weight: 0.5
-
-  # 訊號層：Stack Overflow，官方 API 不需金鑰，用來看開發者實際踩到的
-  # AI/LLM 相關技術問題，是「怎麼用、踩什麼雷」最直接的訊號來源之一。
-  #
-  # 2026-08-10 修過一輪，起因是這個來源穩定回傳 0 筆但不報錯。查下去發現
-  # 兩個獨立問題，程式面那個修在 ingestion/stackexchange_source.py（sort 用
-  # activity 但 cutoff 比 creation_date，欄位不一致）；設定面就是下面這兩項：
-  #
-  # tags：原本三個 tag 近 30 天的發問量實測是 2 / 0 / 0 筆，光修 sort 救不
-  # 回來。量過十四個候選 tag 後換成下面這組，近 30 天發問量分別是
-  # pytorch 5、machine-learning 4、rag 3、langchain 3、large-language-model 2、
-  # huggingface-transformers 2、vector-database 2。openai-api（最新發問停在
-  # 2026-06-25）、artificial-intelligence（2026-07-07）、chatgpt-api
-  # （2025-12-18）、llama（2026-04-07）、embedding（2026-07-06）都已經沒量，
-  # anthropic-claude 這個 tag 根本不存在，全部拿掉。
-  #
-  # min_score：從 1 降到 0。Stack Overflow 的分數是慢慢累積的，新問題幾乎
-  # 都還是 0 分，用 >=1 篩等於把「近期」跟「有分數」這兩個互斥條件疊在一起，
-  # 實測會把上面那組 tag 的 21 筆再砍到只剩 6 筆。改成 >=0 的語意是「只擋掉
-  # 被倒讚的問題」，這才是原本想要的雜訊過濾。
-  #
-  # 即使兩項都改完，這個來源的預期產出仍然只有個位數（LLM 普及之後 Stack
-  # Overflow 的發問量本來就大幅萎縮），定位當補充訊號、不要期待它撐版位。
-  - id: stackoverflow_ai
-    name: "Stack Overflow (AI/LLM tags)"
-    type: stackexchange
-    tier: signal
-    site: stackoverflow
-    tags: ["rag", "langchain", "large-language-model", "huggingface-transformers", "vector-database", "pytorch", "machine-learning"]
-    min_score: 0
-    weight: 0.5
-
-  # 訊號層：GitHub，官方 Search API 不需金鑰，抓近期建立、star 數成長快的
-  # repo，用來偵測「開發者實際在用什麼工具/框架」的早期訊號，跟今天想追蹤
-  # 的 MCP 討論也對得上（query 直接搜 "mcp" topic）。
-  - id: github_trending_ai
-    name: "GitHub (trending AI/MCP repos)"
-    type: github
-    tier: signal
-    queries: ["topic:llm", "topic:mcp", "topic:agent"]
-    min_stars: 20
-    weight: 0.5
-
-  # 2026-08-26 擴充：補主管點名的缺口（製造硬體、法務科技、台灣、中國）。
-  # 全部走同一套收錄關卡，非 AI 內容會被 is_ai_related 判定濾掉，所以綜合
-  # 媒體可以放心收。候選裡 Robot Report 擋爬蟲(403)、機器之心與 36氪的
-  # feed 非標準格式，驗證過不可用，沒收。
-  - id: ieee_spectrum_robotics
-    name: "IEEE Spectrum (Robotics)"
+  - id: prnewswire_biotech
+    name: "PR Newswire (Biotech)"
     type: rss
     tier: vertical
-    url: "https://spectrum.ieee.org/feeds/topic/robotics.rss"
-    weight: 0.9
-  - id: hackaday
-    name: "Hackaday"
+    url: "https://www.prnewswire.com/rss/health/biotechnology-list.rss"
+    weight: 0.6
+  - id: illumina_investor
+    name: "Illumina (投資人新聞)"
     type: rss
-    tier: signal
-    url: "https://hackaday.com/feed/"
+    tier: vertical
+    url: "https://investor.illumina.com/rss/news-releases.xml"
+    weight: 0.8
+  - id: pacbio_blog
+    name: "PacBio Blog"
+    type: rss
+    tier: depth
+    url: "https://www.pacb.com/blog/feed/"
     weight: 0.7
-  - id: artificial_lawyer
-    name: "Artificial Lawyer"
-    type: rss
-    tier: vertical
-    url: "https://www.artificiallawyer.com/feed/"
-    weight: 0.9
-  - id: lawsites
-    name: "LawSites"
-    type: rss
-    tier: vertical
-    url: "https://www.lawsitesblog.com/feed/"
-    weight: 0.8
-  - id: ithome_tw
-    name: "iThome"
-    type: rss
-    tier: core
-    url: "https://www.ithome.com.tw/rss"
-    weight: 0.9
-  - id: technews_tw
-    name: "TechNews 科技新報"
-    type: rss
-    tier: core
-    url: "https://technews.tw/feed/"
-    weight: 0.9
-  - id: inside_tw
-    name: "INSIDE"
-    type: rss
-    tier: core
-    url: "https://www.inside.com.tw/feed/rss"
-    weight: 0.9
-  - id: qbitai
-    name: "量子位"
-    type: rss
-    tier: core
-    url: "https://www.qbitai.com/feed"
-    weight: 0.8
-
-  # 2026-08-28 擴充：補「元件／電源散熱／顯示供應鏈」的缺口。消費性產品
-  # 模組收窄定義後全池最高只有 4 分，原因之一是來源池裡沒有媒體在寫元件
-  # 規格與供應鏈（使用者決定補來源）。一樣全部驗證過 feed 可用；
-  # TrendForce（集邦）沒有公開 RSS（404），沒收。EE Times 與 Display Daily
-  # 的 feed 只有短摘要，多數會落在 signal_only，當熱度訊號用。
-  - id: toms_hardware
-    name: "Tom's Hardware"
-    type: rss
-    tier: vertical
-    url: "https://www.tomshardware.com/feeds/all"
-    weight: 0.7
-  - id: servethehome
-    name: "ServeTheHome"
-    type: rss
-    tier: vertical
-    url: "https://www.servethehome.com/feed/"
-    weight: 0.8
-  - id: eetimes
-    name: "EE Times"
-    type: rss
-    tier: vertical
-    url: "https://www.eetimes.com/feed/"
-    weight: 0.8
-  - id: semiconductor_engineering
-    name: "Semiconductor Engineering"
-    type: rss
-    tier: vertical
-    url: "https://semiengineering.com/feed/"
-    weight: 0.8
-  - id: semianalysis
-    name: "SemiAnalysis"
-    type: rss
-    tier: vertical
-    url: "https://semianalysis.com/feed/"
-    weight: 0.9
-  - id: display_daily
-    name: "Display Daily"
-    type: rss
-    tier: vertical
-    url: "https://displaydaily.com/feed/"
-    weight: 0.8

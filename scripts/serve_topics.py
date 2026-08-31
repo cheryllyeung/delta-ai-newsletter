@@ -614,7 +614,8 @@ if __name__ == "__main__":
             "都看得到全部內容，只適合內網分享。"
         ),
     )
-    parser.add_argument("--port", type=int, default=8001)
+    # genomics-prototype 預設 8002，跟主線的 8001 在同一台機器並行不打架。
+    parser.add_argument("--port", type=int, default=8002)
     args = parser.parse_args()
 
     if args.host == "0.0.0.0" and not os.environ.get("NEWSLETTER_WEB_PASSWORD"):  # noqa: S104

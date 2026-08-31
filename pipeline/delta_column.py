@@ -25,18 +25,13 @@ from pipeline.llm_client import create_chat_completion, get_client, get_model, r
 from pipeline.llm_logging import log_call
 from pipeline.prompt_loader import load_prompt_parts
 
-# 專欄的九個欄位。前八個是 domain 模組（台達事業群），研發工程是 functional
-# 模組裡唯一入欄的：使用者定義的專欄範圍是「事業群以及開發事業」。
+# genomics-prototype：專欄欄位改成四個主題模組（週報 v1 未啟用，先對齊
+# config 免得跑起來炸 KeyError）。
 COLUMN_MODULE_IDS = [
-    "energy_power",
-    "building_automation",
-    "ev_automotive",
-    "network_infra",
-    "manufacturing",
-    "consumer_products",
-    "software_platform",
-    "sustainability",
-    "rd_engineering",
+    "corp_market",
+    "tech_breakthrough",
+    "policy_regulation",
+    "clinical_application",
 ]
 
 # minor 狀態的下限。featured 的下限直接沿用 selection.weekly 的選題門檻，
