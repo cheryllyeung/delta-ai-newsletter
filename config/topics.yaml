@@ -104,11 +104,15 @@ graph_store:
     min_entities: 500           # 密度門檻，精神對應 0731 PRD「graph 資料達到密度門檻才納入」的判斷
     min_edges: 1000
 
-# 6 個模組（genomics-prototype，2026-08-31 整批換掉台達的 18 模組）：
-# 4 個主題模組對應 NBDMD 現行日報的四大分類，2 個關注模組對應
-# 重點廠商與台灣配額需求。desc 是打分 prompt 實際會看到的說明，
-# 寫的是「行動基因在這塊關心什麼、讀者是誰」，讓分數量的是對事業
-# 有沒有用，不是主題沾不沾邊（這個教訓來自主線，見 main 分支的註解）。
+# 7 個模組（genomics-prototype）：4 個主題模組對應 NBDMD 現行日報的四大
+# 分類，3 個關注模組對應重點廠商、台灣配額與資安。desc 是打分 prompt
+# 實際會看到的說明，寫的是「行動基因在這塊關心什麼、讀者是誰」，讓分數
+# 量的是對事業有沒有用，不是主題沾不沾邊（教訓來自主線）。
+#
+# 2026-08-31 對照 NBDMD 8/18 實際發出的 8 則新聞校準過一輪：補了資安
+# 模組（Baylor Genetics 外洩那類會整個漏接）、tech 補上游耗材、policy
+# 補數位健康基建、clinical 補 AI 輔助診斷，收錄判定同步放寬（見
+# prompts/article_tagging.md）。
 modules:
   functional:
     - id: vendor_watch
@@ -116,20 +120,23 @@ modules:
       desc: 26 家重點關注廠商的實質動作（Illumina、Guardant Health、Foundation Medicine、Thermo Fisher、Natera、Freenome、Tempus、Grail、BillionToOne、PacBio、Element Biosciences、Quest、LabCorp、Myriad、Caris、Qiagen、Centogene、Sophia Genetics、Oxford Nanopore、BGI 華大基因、Gene Solutions、Macrogen、基龍米克斯、慧智基因、訊聯基因、金萬林）。這些是行動基因 benchmark 的對象，產品發表、策略調整、財務事件都算；文章主角不在名單上就不高分
     - id: taiwan_industry
       name: 台灣廠商
-      desc: 台灣的基因檢測與生技業者動態、台灣主管機關的相關政策。日報每天想保留一到兩則台灣內容，這個模組的分數就是那個配額的依據；跟台灣無關的內容一律低分
+      desc: 台灣的基因檢測與生技業者動態、台灣主管機關的相關政策（含衛福部的數位健康與醫療資訊政策）。日報每天想保留一到兩則台灣內容，這個模組的分數就是那個配額的依據；跟台灣無關的內容一律低分
+    - id: security_privacy
+      name: 資安與資料隱私
+      desc: 檢測機構與基因資料庫的資安事件（駭入、外洩）、基因資料隱私的法遵與爭議。檢測業手上是最敏感的個人資料，同業出事就是自家要檢查的清單；與檢測業無關的一般資安新聞不算
   domain:
     - id: corp_market
       name: 企業財務與市場動態
-      desc: 基因檢測與多體學廠商的財報、募資、併購、市場擴張、通路合作。讀者是行動基因與新事業開發團隊，量的是對市場格局與競爭態勢的影響；一般生技製藥的財務新聞若與檢測無關不算
+      desc: 基因檢測與多體學廠商的財報、募資、併購、市場擴張、通路合作，也包含基金會與公部門對檢測領域的資助計畫。讀者是行動基因與新事業開發團隊，量的是對市場格局與競爭態勢的影響；一般生技製藥的財務新聞若與檢測無關不算
     - id: tech_breakthrough
       name: 檢測技術與研究突破
-      desc: NGS 定序平台、液態活檢、多體學方法、試劑與耗材的技術發表跟研究成果。量的是技術路線對行動基因產品與服務的參考價值；純學術而無產業化跡象的給中低分
+      desc: NGS 定序平台、液態活檢、多體學方法的技術發表跟研究成果，也包含上游供應鏈（儀器、試劑、耗材、自動化設備）的新品。量的是技術路線對行動基因產品與服務的參考價值；純學術而無產業化跡象的給中低分
     - id: policy_regulation
       name: 政策及法規
-      desc: 各國主管機關對檢測的審批與監管（FDA、LDT、CLIA、IVDR）、健保與商保給付、基因資料隱私規範。量的是對檢測服務落地與商業模式的影響
+      desc: 各國主管機關對檢測的審批與監管（FDA、LDT、CLIA、IVDR）、健保與商保給付、基因資料隱私規範，也包含影響檢測服務的數位健康基礎建設政策（醫療資訊互通、AI 醫材監管）。量的是對檢測服務落地與商業模式的影響
     - id: clinical_application
       name: 臨床應用
-      desc: 檢測在腫瘤、生殖醫學、罕病、感染症等臨床場景的應用進展與實證（MRD 監測、早篩、伴隨式診斷）。量的是對行動基因臨床產品線的參考價值
+      desc: 檢測在腫瘤、生殖醫學、罕病、感染症等臨床場景的應用進展與實證（MRD 監測、早篩、伴隨式診斷），也包含數位病理與 AI 輔助診斷跟檢測結合的應用。量的是對行動基因臨床產品線的參考價值
 
 content_types:
   - id: insight

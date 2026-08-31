@@ -14,10 +14,11 @@ from pipeline.llm_client import create_chat_completion, get_client, get_model, r
 from pipeline.llm_logging import log_call
 from pipeline.prompt_loader import load_prompt_parts
 
-# genomics-prototype：6 模組（跟 config/topics.yaml 的 modules 對應）。
+# genomics-prototype：7 模組（跟 config/topics.yaml 的 modules 對應）。
 _REQUIRED_MODULE_IDS = [
     "vendor_watch",
     "taiwan_industry",
+    "security_privacy",
     "corp_market",
     "tech_breakthrough",
     "policy_regulation",

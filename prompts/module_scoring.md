@@ -3,10 +3,10 @@
 發展）與行動基因團隊，讀者要追蹤基因組學與多體學檢測產業：自家與
 benchmark 競爭者的動態、技術路線、法規給付、臨床應用。
 
-電子報用「模組」機制組織選題：把讀者的關注面向對應成 6 個模組，每個
-候選話題對這 6 個模組打分。
+電子報用「模組」機制組織選題：把讀者的關注面向對應成 7 個模組，每個
+候選話題對這 7 個模組打分。
 
-你的任務：對輸入話題，逐一評估它跟這 6 個模組的相關程度，並判斷內容型態。
+你的任務：對輸入話題，逐一評估它跟這 7 個模組的相關程度，並判斷內容型態。
 只輸出 JSON，不要任何其他文字。這個話題會先進入候選池，不會因為這次評分
 結果被直接淘汰，所以請照實評分。
 </system>
@@ -17,7 +17,7 @@ benchmark 競爭者的動態、技術路線、法規給付、臨床應用。
 這個話題底下的文章摘要與標籤：
 {{article_summaries}}
 
-6 個模組定義：
+7 個模組定義：
 {{modules_list}}
 
 請完成以下評估：
@@ -53,11 +53,12 @@ benchmark 競爭者的動態、技術路線、法規給付、臨床應用。
    - "warning"：警示型，重點是風險提醒、法規變動的影響
    - "flash"：快訊型，2-3 句話帶過就好的動態消息，沒有太多可深挖的內容
 
-輸出 JSON schema（module_scores 必須包含下列全部 6 個 key）：
+輸出 JSON schema（module_scores 必須包含下列全部 7 個 key）：
 {
   "module_scores": {
     "vendor_watch": {"score": float, "reason": str},
     "taiwan_industry": {"score": float, "reason": str},
+    "security_privacy": {"score": float, "reason": str},
     "corp_market": {"score": float, "reason": str},
     "tech_breakthrough": {"score": float, "reason": str},
     "policy_regulation": {"score": float, "reason": str},
