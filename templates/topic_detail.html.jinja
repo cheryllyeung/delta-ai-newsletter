@@ -1,325 +1,102 @@
 <!--
-/* Hallmark · macrostructure: single-column long-form · genre: editorial (loud) · theme: Carnival custom drop "Delta Blue" */
-話題式週報：單篇話題全文頁（/issues/{issue_id}/topics/{topic_id}）。
-跟 topic_issue.html.jinja（導讀頁）、topic_issue_list.html.jinja 共用同一套
-Carnival 藍設計系統。內容是從原本整期塞成一頁的手風琴版型拆出來的單篇版，
-拆頁理由見 topic_issue.html.jinja 開頭註解。
-
-語言切換器會連內文一起換（2026-08-13 起）：選單帶著 ?lang= 重新載入，簡中
-在伺服器端用 opencc 做詞彙級轉換、英文打 LLM 翻譯後存進資料庫快取，兩件事
-都不適合放在瀏覽器裡做，所以不是純前端切換。
+單篇全文頁（genomics-prototype，2026-09-01 整頁改寫）。定位是「EDM 的
+延伸頁」：讀者從信件點「閱讀全文」進來，看到的要跟信件同一套版型
+（640 寬白卡、藍刊頭、同字體同色），讀完就走，不把人帶進網站的領域
+首頁。所以刻意沒有：回首頁連結、語言切換、意見回饋、領域導覽。
+歷史期數與領域瀏覽的入口只在信尾，不在這頁。
 -->
 <!DOCTYPE html>
-<html lang="{{ lang | default('zh-Hant') }}" data-lang="{{ lang | default('zh-Hant') }}">
+<html lang="zh-Hant">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>{{ topic.chosen_headline }}｜{{ issue_title }}</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800&family=Noto+Sans+TC:wght@700;900&family=IBM+Plex+Sans:wght@400;500&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<title>{{ topic.chosen_headline }}｜{{ newsletter_name }}</title>
 <style>
-  :root {
-    --color-paper:   #eef1f4;
-    --color-paper-2: #ffffff;
-    --color-paper-3: #dde4ea;
-    --color-ink:     #1c2b38;
-    --color-ink-2:   #33424f;
-    --color-muted:   #5a6672;
-    --color-accent:      #1f4e8c;
-    --color-accent-ink:  #ffffff;
-    --color-accent-2:    #c07a2a;
-    --color-focus:   #1f4e8c;
-    --font-display: "Noto Sans TC", "Microsoft JhengHei", sans-serif;
-    --font-body:    "IBM Plex Sans", ui-sans-serif, "PingFang TC", "Noto Sans TC", "Noto Sans SC", sans-serif;
-    --font-label:   "JetBrains Mono", ui-monospace, monospace;
-    --page-gutter: clamp(1.25rem, 4vw, 3rem);
-    --shell: 46rem;
-  }
   * { box-sizing: border-box; }
-  html, body { overflow-x: clip; margin: 0; padding: 0; }
-  body { background: var(--color-paper); color: var(--color-ink); font-family: var(--font-body); }
-  .shell { max-width: var(--shell); margin-inline: auto; padding-inline: var(--page-gutter); }
-  a { color: var(--color-ink); }
-  a:focus-visible, button:focus-visible { outline: 3px solid var(--color-focus); outline-offset: 2px; }
-  h1 { font-family: var(--font-display); font-weight: 800; font-variation-settings: "wdth" 110, "wght" 800; letter-spacing: 0.01em; line-height: 0.96;  }
+  body { margin: 0; padding: 24px 12px; background-color: #eef1f4;
+         font-family: "Microsoft JhengHei", "PingFang TC", Arial, sans-serif; }
+  .card { max-width: 640px; margin: 0 auto; background: #ffffff; border: 1px solid #d8dee4; }
 
-  .lang-switcher { position: absolute; top: 1.1rem; right: var(--page-gutter); z-index: 5; }
-  .lang-btn { display: inline-flex; align-items: center; gap: 0.4em; background: var(--color-ink); color: var(--color-accent-ink); border: none; padding: 0.5em 0.9em; font-family: var(--font-label); font-size: 0.72rem; letter-spacing: 0.04em; cursor: pointer; }
-  .lang-menu { position: absolute; top: calc(100% + 0.3rem); right: 0; z-index: 30; background: var(--color-paper); border: 1px solid #d8dee4; box-shadow: 0 2px 8px rgba(28,43,56,0.14); padding: 0.3rem; min-width: 9rem; display: none; }
-  .lang-menu.is-open { display: block; }
-  .lang-option { display: block; width: 100%; text-align: left; background: none; border: none; padding: 0.5em 0.7em; font-family: var(--font-body); font-size: 0.85rem; color: var(--color-ink); cursor: pointer; }
-  .lang-option:hover { background: var(--color-paper-2); }
-  .lang-option[aria-checked="true"] { font-weight: 700; color: var(--color-accent); }
-  .lang-note { display: none; max-width: var(--shell); margin: 1.5rem auto 0; padding: 0.7em 1em; background: var(--color-paper-2); border: 1px solid #d8dee4; font-size: 0.85rem; }
-  html[data-lang="zh-Hans"] .lang-note, html[data-lang="en"] .lang-note { display: block; }
+  .head { background-color: #1f4e8c; padding: 28px 32px; }
+  .head .eyebrow { font-size: 12px; letter-spacing: 2px; color: #bcd0e8; margin: 0 0 6px; }
+  .head .brand { font-size: 20px; font-weight: bold; color: #ffffff; margin: 0; }
+  .head .meta { font-size: 13px; color: #bcd0e8; margin: 8px 0 0; }
 
-  .halftone { display: none; height: 14px; background-image: radial-gradient(var(--color-ink) 1.5px, transparent 1.5px); background-size: 10px 10px; opacity: 0.5; }
+  .body { padding: 24px 32px 8px; }
+  .chips { margin: 0 0 10px; }
+  .chip { display: inline-block; background: #eef3fa; border: 1px solid #c5d4e8; padding: 2px 8px;
+          font-size: 11px; color: #1f4e8c; margin-right: 6px; }
+  .chip--review { background: #f6f7f9; border-color: #ccd3da; color: #5a6672; }
+  h1 { font-size: 22px; line-height: 1.5; color: #173a66; margin: 0; }
+  .subhead { font-size: 15px; line-height: 1.6; color: #1f4e8c; margin: 6px 0 0; }
 
-  .masthead { background: var(--color-accent); color: var(--color-accent-ink); padding: 2.5rem var(--page-gutter) 2.25rem; }
-  .masthead-inner { max-width: var(--shell); margin: 0 auto; position: relative; }
-  .back-link { display: inline-flex; align-items: center; gap: 0.4em; font-family: var(--font-label); font-size: 0.75rem; letter-spacing: 0.04em; color: var(--color-accent-ink); opacity: 0.85; margin-bottom: 1rem; }
-  .back-link:hover { opacity: 1; }
-  .masthead .eyebrow { font-family: var(--font-label); font-size: 0.75rem; letter-spacing: 0.1em; margin: 0 0 0.6rem; }
-  .masthead h1 { margin: 0 9rem 0.4rem 0; font-size: clamp(1.7rem, 3.2vw + 1rem, 2.6rem); overflow-wrap: anywhere; }
-  .masthead .subhead { margin: 0 9rem 1rem 0; font-size: 1.05rem; line-height: 1.5; font-weight: 600; color: color-mix(in oklch, var(--color-accent-ink) 90%, transparent); overflow-wrap: anywhere; }
-  .masthead-meta { font-family: var(--font-label); font-size: 0.78rem; letter-spacing: 0.04em; display: flex; gap: 1.1rem; flex-wrap: wrap; opacity: 0.9; }
+  .stats { margin: 18px 0 0; padding: 12px 16px; background: #f6f7f9; border: 1px solid #e6ebf0; }
+  .stat { display: inline-block; margin-right: 24px; }
+  .stat b { font-size: 18px; color: #173a66; }
+  .stat span { font-size: 12px; color: #5a6672; margin-left: 6px; }
 
-  .chip-row { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.9rem; }
-  .chip { display: inline-block; font-family: var(--font-label); font-size: 0.68rem; letter-spacing: 0.04em; padding: 0.2em 0.6em; border: 2px solid var(--color-accent-ink); color: var(--color-accent-ink); }
-  .chip--domain { background: var(--color-accent-2); color: var(--color-ink); border-color: var(--color-accent-2); font-weight: 700; }
+  .section-heading { font-size: 16px; font-weight: bold; color: #1c2b38; margin: 22px 0 0; }
+  p { font-size: 15px; line-height: 1.95; color: #3a4652; margin: 12px 0 0; }
 
-  .ornament-row { display: none; text-align: center; color: var(--color-accent-2); letter-spacing: 0.6em; padding: 1.5rem 0; font-size: 0.9rem; }
+  .insight { margin: 22px 0 0; padding: 14px 18px; background: #f2f6fb; border-left: 3px solid #1f4e8c; }
+  .insight .heading { font-size: 14px; font-weight: bold; color: #1f4e8c; margin: 0; }
+  .insight p { font-size: 14px; line-height: 1.85; }
 
-  .stats-line { display: flex; flex-wrap: wrap; gap: 0.9rem; margin: 1.5rem 0; }
-  .stat-tile { background: var(--color-paper-2); border: 1px solid #d8dee4; padding: 0.6rem 0.9rem; box-shadow: 0 2px 8px rgba(28,43,56,0.14); }
-  .stat-value { display: block; font-family: var(--font-display); font-weight: 800; font-size: 1.35rem; font-variant-numeric: tabular-nums; }
-  .stat-label { display: block; margin-top: 0.2rem; font-family: var(--font-label); font-size: 0.62rem; letter-spacing: 0.04em; color: var(--color-muted); }
+  .sources { margin: 24px 0 0; padding: 14px 0 20px; border-top: 1px solid #e6ebf0; }
+  .sources a { font-size: 13px; color: #5a6672; text-decoration: underline; display: block; margin-top: 6px; }
+  .sources .label { font-size: 12px; color: #9aa5b0; }
 
-  .topic-body { background: var(--color-paper-2); border: 1px solid #d8dee4; box-shadow: 0 3px 10px rgba(28,43,56,0.14); padding: 1.6rem 1.9rem; margin: 1.5rem 0; }
-  .topic-section { margin-bottom: 1.1rem; }
-  .topic-section:last-of-type { margin-bottom: 0; }
-  .topic-section .run-in { display: block; font-family: var(--font-label); font-size: 0.7rem; letter-spacing: 0.08em; color: var(--color-accent); margin-bottom: 0.5em; }
-  .topic-section p { margin: 0 0 0.7rem; line-height: 1.7; }
-  .topic-section p:last-child { margin-bottom: 0; }
-
-  .delta-insight { margin-top: 1.2rem; padding: 1.1rem 1.3rem; background: var(--color-accent); color: var(--color-accent-ink); }
-  .delta-insight .run-in { color: var(--color-accent-ink); opacity: 0.85; }
-  .delta-insight p { margin: 0 0 0.7rem; line-height: 1.7; }
-  .delta-insight p:last-child { margin-bottom: 0; }
-
-  /* 來源按鈕原本只顯示平台名稱（例如「GITHUB (TRENDING AI/MCP REPOS)」），
-     但連結指向的是那個平台上被抓到的那一篇文章，點下去會跳到某個具體的
-     repo，跟按鈕上的字對不起來。改成平台名稱當小標、文章標題當主體，
-     讀者點之前就知道會去哪裡。標題比平台名稱長很多，所以改成直排。 */
-  .source-row { display: flex; flex-direction: column; gap: 0.6rem; margin: 1.5rem 0 3rem; align-items: flex-start; }
-  .source-link { flex-direction: column; align-items: flex-start; gap: 0.25em; max-width: 100%; text-align: left; }
-  .source-link__name { font-size: 0.64rem; letter-spacing: 0.08em; opacity: 0.75; }
-  .source-link__title { font-family: var(--font-body); font-size: 0.82rem; letter-spacing: 0; line-height: 1.35; overflow-wrap: anywhere; }
-  .btn { display: inline-flex; align-items: center; gap: 0.4em; font-family: var(--font-label); font-size: 0.72rem; letter-spacing: 0.04em; text-decoration: none; color: var(--color-accent-ink); background: var(--color-accent); padding: 0.5em 0.9em; border: 1px solid #d8dee4; box-shadow: 0 1px 4px rgba(28,43,56,0.10); transition: transform 120ms ease-out, box-shadow 120ms ease-out; }
-  .btn:hover { transform: translate(-1px, -1px); box-shadow: 0 2px 8px rgba(28,43,56,0.14); }
-  .btn:active { transform: translate(2px, 2px); box-shadow: 0 1px 2px rgba(28,43,56,0.10); }
-
-  .foot { background: var(--color-ink); color: var(--color-accent-ink); padding: 1.5rem var(--page-gutter) 2.5rem; }
-  .foot-inner { max-width: var(--shell); margin: 0 auto; font-size: 0.8rem; line-height: 1.7; opacity: 0.85; }
-
-  .feedback-fab {
-    position: fixed; right: 1.5rem; bottom: 1.5rem; z-index: 50;
-    display: inline-flex; align-items: center; gap: 0.5em;
-    background: var(--color-accent-2); color: var(--color-ink);
-    border: 1px solid #d8dee4; border-radius: 999px;
-    padding: 0.75em 1.1em; font-family: var(--font-label); font-size: 0.78rem; font-weight: 700; letter-spacing: 0.03em;
-    cursor: pointer; box-shadow: 0 2px 8px rgba(28,43,56,0.14);
-    transition: transform 140ms ease-out, box-shadow 140ms ease-out;
-  }
-  .feedback-fab:hover { transform: translate(-1px, -1px); box-shadow: 0 2px 8px rgba(28,43,56,0.10); }
-  .feedback-fab:active { transform: translate(2px, 2px); box-shadow: 0 1px 2px rgba(28,43,56,0.10); }
-
-  .feedback-overlay {
-    display: none; position: fixed; inset: 0; z-index: 60;
-    background: color-mix(in oklch, var(--color-ink) 55%, transparent);
-    align-items: flex-end; justify-content: flex-end;
-    padding: 1.5rem;
-  }
-  .feedback-overlay.is-open { display: flex; }
-  .feedback-modal {
-    background: var(--color-paper); border: 1px solid #d8dee4;
-    box-shadow: 0 3px 10px rgba(28,43,56,0.14);
-    padding: 1.5rem; width: min(22rem, 100%);
-  }
-  .feedback-title { margin: 0 0 0.35rem; font-family: var(--font-display); font-weight: 800; font-size: 1.15rem;  letter-spacing: 0.01em; }
-  .feedback-desc { margin: 0 0 1rem; font-size: 0.85rem; color: var(--color-muted); line-height: 1.5; }
-  .feedback-textarea {
-    width: 100%; box-sizing: border-box; resize: vertical;
-    font-family: var(--font-body); font-size: 0.9rem; line-height: 1.5;
-    border: 1px solid #d8dee4; padding: 0.7em 0.8em; background: var(--color-paper-2); color: var(--color-ink);
-  }
-  .feedback-textarea:focus-visible { outline: 3px solid var(--color-focus); outline-offset: 2px; }
-  .feedback-actions { display: flex; justify-content: flex-end; gap: 0.6rem; margin-top: 1rem; }
-  .feedback-cancel { display: inline-flex; align-items: center; gap: 0.5em; background: none; border: 1px solid #d8dee4; padding: 0.5em 1em; font-family: var(--font-label); font-size: 0.75rem; letter-spacing: 0.05em; cursor: pointer; }
-  .feedback-submit { font-family: var(--font-label); font-size: 0.72rem; letter-spacing: 0.04em; color: var(--color-ink); background: var(--color-accent-2); font-weight: 700; padding: 0.5em 0.9em; border: 1px solid #d8dee4; box-shadow: 0 1px 4px rgba(28,43,56,0.10); cursor: pointer; }
-  .feedback-thanks { margin: 0.9rem 0 0; font-size: 0.85rem; font-weight: 700; color: var(--color-accent); display: none; }
-  .feedback-thanks.is-visible { display: block; }
-
-  @media (max-width: 30rem) {
-    .masthead { padding: 1.9rem var(--page-gutter) 1.75rem; }
-    .lang-switcher { position: static; margin-bottom: 1rem; }
-    .masthead h1, .masthead .subhead { margin-right: 0; }
-    .topic-body { padding: 1.2rem 1.3rem; }
-    .feedback-fab span { display: none; }
-    .feedback-fab { padding: 0.85em; }
-    .feedback-overlay { padding: 1rem; }
-  }
+  .foot { background: #f6f7f9; border-top: 1px solid #d8dee4; padding: 16px 32px;
+          font-size: 12px; line-height: 1.8; color: #5a6672; }
 </style>
 </head>
 <body>
 
-<div class="halftone" aria-hidden="true"></div>
+<div class="card">
+  <div class="head">
+    <p class="eyebrow">DELTA · NBDMD</p>
+    <p class="brand">{{ newsletter_name }}</p>
+    <p class="meta">第 {{ issue_no }} 期</p>
+  </div>
 
-<header class="masthead">
-  <div class="masthead-inner">
-    <div class="lang-switcher">
-      <button class="lang-btn" id="lang-btn" aria-haspopup="true" aria-expanded="false">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15 15 0 0 1 0 20 15 15 0 0 1 0-20z"/></svg>
-        <span id="lang-btn-label">繁體中文</span>
-      </button>
-      <div class="lang-menu" id="lang-menu" role="menu">
-        <button class="lang-option" role="menuitemradio" aria-checked="true" data-lang="zh-Hant">繁體中文</button>
-        <button class="lang-option" role="menuitemradio" aria-checked="false" data-lang="zh-Hans">简体中文</button>
-        <button class="lang-option" role="menuitemradio" aria-checked="false" data-lang="en">English</button>
-      </div>
-    </div>
-    <a class="back-link" href="/issues/{{ issue_id }}" data-i18n="backLink">← 回本期導讀</a>
-    <p class="eyebrow">{{ newsletter_name }} · 第 {{ issue_no if issue_no is defined else issue_id }} 期</p>
-    <div class="chip-row">
-      {# 同 topic_issue.html.jinja：needs_review 不顯示在讀者頁面上。
-         標籤列全部過門檻的領域（一篇文章可以同時屬於多個領域），每個都
-         可點、跳到該領域的跨期頁面（2026-08-26 改版）。 #}
-      {% if topic.module_tags %}
-        {% for t in topic.module_tags %}<a class="chip {{ 'chip--domain' if t.is_domain else '' }}" href="/modules/{{ t.id }}">{{ t.name }}</a>{% endfor %}
-      {% elif topic.top_module_name %}
-        <span class="chip {{ 'chip--domain' if topic.top_module_is_domain else '' }}">{{ topic.top_module_name }}</span>
-      {% endif %}
+  <div class="body">
+    <div class="chips">
       {% if topic.primary_tag %}<span class="chip">{{ topic.primary_tag }}</span>{% endif %}
+      {% if topic.needs_review %}<span class="chip chip--review">待人工確認</span>{% endif %}
     </div>
     <h1>{{ topic.chosen_headline }}</h1>
     {% if topic.chosen_subhead %}<p class="subhead">{{ topic.chosen_subhead }}</p>{% endif %}
-  </div>
-</header>
 
-<p class="lang-note" id="lang-note"></p>
-
-<div class="ornament-row" aria-hidden="true">✱ ✱ ✱ ✱</div>
-
-<div class="shell">
-  {% if topic.stats %}
-  <div class="stats-line">
-    {% for stat in topic.stats %}
-    <div class="stat-tile"><span class="stat-value">{{ stat.value }}</span><span class="stat-label">{{ stat.label }}</span></div>
-    {% endfor %}
-  </div>
-  {% endif %}
-
-  <div class="topic-body">
-    {% for section in topic.sections %}
-    <div class="topic-section">
-      <span class="run-in">{{ section.heading }}</span>
-      {% for para in section.paragraphs %}<p>{{ para }}</p>{% endfor %}
+    {% if topic.stats %}
+    <div class="stats">
+      {% for stat in topic.stats %}<span class="stat"><b>{{ stat.value }}</b><span>{{ stat.label }}</span></span>{% endfor %}
     </div>
+    {% endif %}
+
+    {% for section in topic.sections %}
+    {% if section.heading %}<div class="section-heading">{{ section.heading }}</div>{% endif %}
+    {% for para in section.paragraphs %}<p>{{ para }}</p>{% endfor %}
     {% endfor %}
+
     {% if topic.delta_insight %}
-    <div class="delta-insight">
-      <span class="run-in">{{ topic.delta_insight.heading or '這對我們意味著什麼' }}</span>
+    <div class="insight">
+      {% if topic.delta_insight.heading %}<p class="heading">{{ topic.delta_insight.heading }}</p>{% endif %}
       {% for para in topic.delta_insight.paragraphs %}<p>{{ para }}</p>{% endfor %}
     </div>
     {% endif %}
-  </div>
 
-  <div class="source-row">
-    {% for src in topic.sources %}<a class="btn source-link" href="{{ src.url }}" target="_blank" rel="noopener noreferrer"><span class="source-link__name">{{ src.source_name | upper }} ↗</span><span class="source-link__title">{{ src.title }}</span></a>{% endfor %}
-  </div>
-</div>
-
-<footer class="foot">
-  <div class="foot-inner"><p>僅供台達內部參考。</p></div>
-</footer>
-
-<button class="feedback-fab" id="feedback-fab" type="button">
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-  <span id="feedback-fab-label">意見回饋</span>
-</button>
-
-<div class="feedback-overlay" id="feedback-overlay">
-  <div class="feedback-modal" role="dialog" aria-modal="true" aria-labelledby="feedback-title">
-    <p class="feedback-title" id="feedback-title">下一期想看什麼？</p>
-    <p class="feedback-desc" id="feedback-desc">我們會精選更多不同產業的 AI 案例與議題，也歡迎跟我們分享更多你想看到的內容。</p>
-    <textarea class="feedback-textarea" id="feedback-textarea" rows="4" placeholder="例如：多一點能源產業案例，或想看 OpenAI 最新動態⋯⋯"></textarea>
-    <div class="feedback-actions">
-      <button class="feedback-cancel" type="button" id="feedback-cancel">取消</button>
-      <button class="feedback-submit" type="button" id="feedback-submit"><span id="feedback-submit-label">送出</span></button>
+    <div class="sources">
+      <span class="label">原文出處</span>
+      {% for src in topic.sources %}
+      <a href="{{ src.url }}" target="_blank" rel="noopener noreferrer">{{ src.source_name }}｜{{ src.title }}</a>
+      {% endfor %}
     </div>
-    <p class="feedback-thanks" id="feedback-thanks" aria-live="polite"></p>
+  </div>
+
+  <div class="foot">
+    本報由自動化系統產出，每則均附原文出處。僅供台達內部參考，請勿外流。
   </div>
 </div>
-
-<script>
-const I18N = {
-  "zh-Hant": { backLink: "← 回本期導讀", langNote: "", feedbackBtn: "意見回饋", feedbackTitle: "下一期想看什麼？", feedbackDesc: "我們會精選更多不同產業的 AI 案例與議題，也歡迎跟我們分享更多你想看到的內容。", feedbackPlaceholder: "例如：多一點能源產業案例，或想看 OpenAI 最新動態⋯⋯", feedbackSubmit: "送出", feedbackCancel: "取消", feedbackThanks: "收到了，謝謝你的想法！" },
-  "zh-Hans": { backLink: "← 回本期导读", langNote: "", feedbackBtn: "意见反馈", feedbackTitle: "下一期想看什么？", feedbackDesc: "我们会精选更多不同产业的 AI 案例与议题，也欢迎跟我们分享更多你想看到的内容。", feedbackPlaceholder: "例如：多一点能源产业案例，或想看 OpenAI 最新动态⋯⋯", feedbackSubmit: "送出", feedbackCancel: "取消", feedbackThanks: "收到了，谢谢你的想法！" },
-  "en": { backLink: "← Back to this issue", langNote: "", feedbackBtn: "Feedback", feedbackTitle: "What do you want to see next issue?", feedbackDesc: "We'll keep curating AI cases and topics across more industries, and we'd love to hear what else you want to see.", feedbackPlaceholder: "e.g. more energy-sector cases, or the latest from OpenAI...", feedbackSubmit: "Send", feedbackCancel: "Cancel", feedbackThanks: "Got it, thanks for the input!" }
-};
-const LANG_LABEL = { "zh-Hant": "繁體中文", "zh-Hans": "简体中文", "en": "English" };
-let currentLang = 'zh-Hant';
-
-function applyLang(lang) {
-  currentLang = lang;
-  document.documentElement.setAttribute('data-lang', lang);
-  document.documentElement.setAttribute('lang', lang);
-  document.getElementById('lang-btn-label').textContent = LANG_LABEL[lang];
-  document.querySelectorAll('.lang-option').forEach(opt => opt.setAttribute('aria-checked', opt.dataset.lang === lang));
-
-  const t = I18N[lang];
-  document.getElementById('lang-note').textContent = t.langNote;
-  document.querySelectorAll('[data-i18n="backLink"]').forEach(el => { el.textContent = t.backLink; });
-  document.getElementById('feedback-fab-label').textContent = t.feedbackBtn;
-  document.getElementById('feedback-title').textContent = t.feedbackTitle;
-  document.getElementById('feedback-desc').textContent = t.feedbackDesc;
-  document.getElementById('feedback-textarea').placeholder = t.feedbackPlaceholder;
-  document.getElementById('feedback-cancel').textContent = t.feedbackCancel;
-  document.getElementById('feedback-submit-label').textContent = t.feedbackSubmit;
-  document.getElementById('feedback-thanks').textContent = t.feedbackThanks;
-}
-applyLang({{ lang | default('zh-Hant') | tojson }});
-
-const langBtn = document.getElementById('lang-btn');
-const langMenu = document.getElementById('lang-menu');
-langBtn.addEventListener('click', () => {
-  const open = langMenu.classList.toggle('is-open');
-  langBtn.setAttribute('aria-expanded', String(open));
-});
-document.addEventListener('click', (e) => {
-  if (!e.target.closest('.lang-switcher')) { langMenu.classList.remove('is-open'); langBtn.setAttribute('aria-expanded', 'false'); }
-});
-langMenu.querySelectorAll('.lang-option').forEach(opt => {
-  // 切語言要重新跟伺服器要一次：簡體是 opencc 詞彙級轉換、英文要打 LLM 翻譯，
-  // 兩件事都在後端做，前端只負責帶著 ?lang= 重新載入。
-  opt.addEventListener('click', () => {
-    const url = new URL(window.location.href);
-    url.searchParams.set('lang', opt.dataset.lang);
-    window.location.href = url.toString();
-  });
-});
-
-/* feedback FAB: client-side only demo, storage is per-browser, not shared across readers */
-const fabBtn = document.getElementById('feedback-fab');
-const fbOverlay = document.getElementById('feedback-overlay');
-const fbTextarea = document.getElementById('feedback-textarea');
-const fbThanks = document.getElementById('feedback-thanks');
-const FEEDBACK_KEY = 'deltaTopicFeedback:{{ issue_id }}';
-
-function openFeedback() {
-  fbOverlay.classList.add('is-open');
-  fbThanks.classList.remove('is-visible');
-  fbTextarea.value = '';
-  fbTextarea.focus();
-}
-function closeFeedback() { fbOverlay.classList.remove('is-open'); }
-
-fabBtn.addEventListener('click', openFeedback);
-document.getElementById('feedback-cancel').addEventListener('click', closeFeedback);
-fbOverlay.addEventListener('click', (e) => { if (e.target === fbOverlay) closeFeedback(); });
-document.getElementById('feedback-submit').addEventListener('click', () => {
-  const text = fbTextarea.value.trim();
-  if (!text) { fbTextarea.focus(); return; }
-  let stored = [];
-  try { stored = JSON.parse(localStorage.getItem(FEEDBACK_KEY) || '[]'); } catch (e) {}
-  stored.push({ text, lang: currentLang, at: new Date().toISOString() });
-  localStorage.setItem(FEEDBACK_KEY, JSON.stringify(stored));
-  fbThanks.classList.add('is-visible');
-  fbTextarea.value = '';
-  setTimeout(closeFeedback, 1400);
-});
-</script>
 
 </body>
 </html>
