@@ -23,10 +23,10 @@
   .head .meta { font-size: 13px; color: #bcd0e8; margin: 8px 0 0; }
 
   .body { padding: 24px 32px 8px; }
+  .back { display: inline-block; font-size: 12px; color: #5a6672; text-decoration: underline; margin: 0 0 14px; }
   .chips { margin: 0 0 10px; }
   .chip { display: inline-block; background: #eef3fa; border: 1px solid #c5d4e8; padding: 2px 8px;
           font-size: 11px; color: #1f4e8c; margin-right: 6px; }
-  .chip--review { background: #f6f7f9; border-color: #ccd3da; color: #5a6672; }
   h1 { font-size: 22px; line-height: 1.5; color: #173a66; margin: 0; }
   .subhead { font-size: 15px; line-height: 1.6; color: #1f4e8c; margin: 6px 0 0; }
 
@@ -60,9 +60,9 @@
   </div>
 
   <div class="body">
+    <a class="back" href="/issues/{{ issue_id }}">← 回本期摘要</a>
     <div class="chips">
       {% if topic.primary_tag %}<span class="chip">{{ topic.primary_tag }}</span>{% endif %}
-      {% if topic.needs_review %}<span class="chip chip--review">待人工確認</span>{% endif %}
     </div>
     <h1>{{ topic.chosen_headline }}</h1>
     {% if topic.chosen_subhead %}<p class="subhead">{{ topic.chosen_subhead }}</p>{% endif %}

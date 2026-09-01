@@ -42,6 +42,7 @@ from pipeline.topic_db import (
     record_selection_trace,
     save_generated_topic,
 )
+from pipeline.issue_tldr import write_issue_tldr
 from pipeline.topic_selection import select_for_issue
 from pipeline.translate import pretranslate_issue
 from review.topic_selfcheck import is_coherent, self_check
@@ -397,6 +398,12 @@ def main() -> None:
 
     ok, failed = pretranslate_issue(conn, issue_id)
     print(f"[compose_topic_issue] 英文版預先翻譯：成功 {ok} 篇，失敗 {failed} 篇。")
+
+    # 本期 TLDR（趨勢／重點／觀察），餵摘要頁與 EDM 頂部。失敗不擋出刊。
+    tldr = write_issue_tldr(conn, issue_id)
+    if tldr:
+        print(f"[compose_topic_issue] TLDR 完成：趨勢 {len(tldr.get('trends', []))} 條、"
+              f"重點 {len(tldr.get('highlights', []))} 條、觀察 {len(tldr.get('observations', []))} 條。")
 
     pending = sum(1 for r in results if r["needs_review"])
     print(f"[compose_topic_issue] 第 {issue_id} 期已組成，{pending} 個待人工確認。")

@@ -553,6 +553,20 @@ def issue_overview(request: Request, issue_id: int, lang: str | None = None):
         column_topic_count = sum(1 for t in topics if t.get("topic_id") in column_topic_ids)
         topics = [t for t in topics if t.get("topic_id") not in column_topic_ids]
     issue_no = _issue_display_no(conn, issue)
+    # TLDR（趨勢／重點／觀察）與每則的原文連結，摘要頁的 EDM 版型用
+    # （genomics 2026-09-01）。舊期數沒有 tldr_json 就不渲染那塊。
+    tldr = None
+    try:
+        if issue["tldr_json"]:
+            tldr = json.loads(issue["tldr_json"])
+    except (KeyError, IndexError):
+        pass
+    for t in topics:
+        src = conn.execute(
+            "SELECT url FROM articles WHERE topic_id = ? AND discarded_at IS NULL ORDER BY published_at DESC LIMIT 1",
+            (t.get("topic_id"),),
+        ).fetchone()
+        t["source_url"] = src["url"] if src else None
     return templates.TemplateResponse(
         request,
         "topic_issue.html.jinja",
@@ -563,6 +577,7 @@ def issue_overview(request: Request, issue_id: int, lang: str | None = None):
             "issue_no": issue_no,
             "issue_date": issue["issue_date"],
             "issue_cadence": issue["cadence"],
+            "tldr": tldr,
             "topics": topics,
             "total_articles": column_topic_count + len(topics),
             "delta_column": delta_column,

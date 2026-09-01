@@ -72,8 +72,16 @@ def main() -> None:
             }
         )
 
+    tldr = None
+    try:
+        if issue["tldr_json"]:
+            tldr = json.loads(issue["tldr_json"])
+    except (KeyError, IndexError):
+        pass
+
     env = Environment(loader=FileSystemLoader(str(ROOT / "templates")))
     html = env.get_template("email_issue.html.jinja").render(
+        tldr=tldr,
         newsletter_name=config["newsletter"]["name"],
         issue_title=f"{config['newsletter']['name']}（{issue['issue_date']}）",
         issue_date=issue["issue_date"],

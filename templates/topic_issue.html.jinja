@@ -1,357 +1,100 @@
 <!--
-/* Hallmark · macrostructure: Index-First · genre: editorial (loud) · theme: Carnival custom drop "Delta Blue" */
-話題式週報：單期導讀頁。跟 topic_detail.html.jinja、topic_issue_list.html.jinja
-共用同一套 Carnival 藍設計系統（字體、色彩、硬邊陰影語彙）。
-
-這是「導讀頁」，只列本期每則話題的標題／副標／一句摘要／跟哪個台達業務模組
-最相關，卡片點進去才是單篇全文（見 topic_detail.html.jinja）。原本整期塞成
-一頁長文、用手風琴展開的版本已拆掉：讀者反映那樣讀起來像部落格文章，
-拆成「導讀頁 + 單篇頁」比較像正式電子報的目錄／內文結構。
+本期摘要頁（genomics-prototype，2026-09-01 整頁改寫成 EDM 版型）。
+讀者動線：摘要頁（TLDR＋每則標題副標摘要）→ 點「閱讀全文」進單篇頁
+（topic_detail，同版型）→ 單篇頁可退回這裡。跟 EDM 信件是同一套視覺，
+信件、摘要頁、全文頁三個地方看起來是同一份刊物。
 -->
 <!DOCTYPE html>
-<html lang="{{ lang | default('zh-Hant') }}" data-lang="{{ lang | default('zh-Hant') }}">
+<html lang="zh-Hant">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>{{ issue_title }}</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800&family=Noto+Sans+TC:wght@700;900&family=IBM+Plex+Sans:wght@400;500&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
 <style>
-  :root {
-    --color-paper:   #eef1f4;
-    --color-paper-2: #ffffff;
-    --color-paper-3: #dde4ea;
-    --color-ink:     #1c2b38;
-    --color-ink-2:   #33424f;
-    --color-muted:   #5a6672;
-    --color-accent:      #1f4e8c;
-    --color-accent-ink:  #ffffff;
-    --color-accent-2:    #c07a2a;
-    --color-focus:   #1f4e8c;
-    --font-display: "Noto Sans TC", "Microsoft JhengHei", sans-serif;
-    --font-body:    "IBM Plex Sans", ui-sans-serif, "PingFang TC", "Noto Sans TC", sans-serif;
-    --font-label:   "JetBrains Mono", ui-monospace, monospace;
-    --page-gutter: clamp(1.25rem, 4vw, 3rem);
-    --shell: 46rem;
-  }
   * { box-sizing: border-box; }
-  html, body { overflow-x: clip; margin: 0; padding: 0; }
-  body { background: var(--color-paper); color: var(--color-ink); font-family: var(--font-body); }
-  a { color: inherit; text-decoration: none; }
-  a:focus-visible, button:focus-visible { outline: 3px solid var(--color-focus); outline-offset: 2px; }
-  h1, h2 { font-family: var(--font-display); font-weight: 800; font-variation-settings: "wdth" 110, "wght" 800; letter-spacing: 0.01em; line-height: 0.96;  }
+  body { margin: 0; padding: 24px 12px; background-color: #eef1f4;
+         font-family: "Microsoft JhengHei", "PingFang TC", Arial, sans-serif; }
+  .card { max-width: 640px; margin: 0 auto; background: #ffffff; border: 1px solid #d8dee4; }
 
-  .lang-switcher { position: absolute; top: 1.1rem; right: var(--page-gutter); z-index: 5; }
-  .lang-btn { display: inline-flex; align-items: center; gap: 0.4em; background: var(--color-ink); color: var(--color-accent-ink); border: none; padding: 0.5em 0.9em; font-family: var(--font-label); font-size: 0.72rem; letter-spacing: 0.04em; cursor: pointer; }
-  .lang-menu { position: absolute; top: calc(100% + 0.3rem); right: 0; z-index: 30; background: var(--color-paper); border: 1px solid #d8dee4; box-shadow: 0 2px 8px rgba(28,43,56,0.14); padding: 0.3rem; min-width: 9rem; display: none; }
-  .lang-menu.is-open { display: block; }
-  .lang-option { display: block; width: 100%; text-align: left; background: none; border: none; padding: 0.5em 0.7em; font-family: var(--font-body); font-size: 0.85rem; color: var(--color-ink); cursor: pointer; }
-  .lang-option:hover { background: var(--color-paper-2); }
-  .lang-option[aria-checked="true"] { font-weight: 700; color: var(--color-accent); }
+  .head { background-color: #1f4e8c; padding: 28px 32px; }
+  .head .eyebrow { font-size: 12px; letter-spacing: 2px; color: #bcd0e8; margin: 0 0 6px; }
+  .head .brand { font-size: 26px; font-weight: bold; color: #ffffff; margin: 0; }
+  .head .meta { font-size: 13px; color: #bcd0e8; margin: 8px 0 0; }
 
-  .halftone { display: none; height: 14px; background-image: radial-gradient(var(--color-ink) 1.5px, transparent 1.5px); background-size: 10px 10px; opacity: 0.5; }
+  .tldr { margin: 24px 32px 0; padding: 16px 20px; background: #f2f6fb; border: 1px solid #d5e2f2; }
+  .tldr-title { font-size: 13px; font-weight: bold; letter-spacing: 1px; color: #1f4e8c; margin: 0; }
+  .tldr-group { font-size: 13px; font-weight: bold; color: #1c2b38; margin: 12px 0 0; }
+  .tldr ul { margin: 6px 0 0; padding-left: 18px; }
+  .tldr li { font-size: 13px; line-height: 1.8; color: #3a4652; }
 
-  .masthead { background: var(--color-accent); color: var(--color-accent-ink); padding: 3rem var(--page-gutter) 2.5rem; }
-  .masthead-inner { max-width: var(--shell); margin: 0 auto; position: relative; }
-  /* 跟 topic_detail.html.jinja 的 .back-link 同一組樣式：那頁能回本期導讀，
-     這頁要能回所有期數的列表，否則點進某一期之後就出不去了。 */
-  .back-link { display: inline-flex; align-items: center; gap: 0.4em; font-family: var(--font-label); font-size: 0.75rem; letter-spacing: 0.04em; color: var(--color-accent-ink); opacity: 0.85; margin-bottom: 1rem; }
-  .back-link:hover { opacity: 1; }
-  .masthead .eyebrow { font-family: var(--font-label); font-size: 0.75rem; letter-spacing: 0.1em; margin: 0 0 0.6rem; }
-  .masthead h1 { margin: 0 9rem 0 0; font-size: clamp(1.9rem, 3.6vw + 1rem, 3rem); overflow-wrap: anywhere; }
-  .masthead-meta { margin-top: 1rem; font-family: var(--font-label); font-size: 0.8rem; letter-spacing: 0.04em; display: flex; gap: 1.2rem; flex-wrap: wrap; opacity: 0.9; }
-  .masthead p.lede { margin: 1rem 0 0; font-size: 0.9rem; line-height: 1.6; color: color-mix(in oklch, var(--color-accent-ink) 85%, transparent); max-width: 56ch; }
+  .item { padding: 24px 32px 8px; }
+  .item + .item { border-top: 1px solid #e6ebf0; }
+  .chips { margin: 0 0 10px; }
+  .chip { display: inline-block; background: #eef3fa; border: 1px solid #c5d4e8; padding: 2px 8px;
+          font-size: 11px; color: #1f4e8c; margin-right: 6px; }
+  .item h2 { font-size: 18px; line-height: 1.5; margin: 0; }
+  .item h2 a { color: #173a66; text-decoration: none; }
+  .subhead { font-size: 14px; line-height: 1.6; color: #1f4e8c; margin: 4px 0 0; }
+  .teaser { font-size: 14px; line-height: 1.8; color: #3a4652; margin: 8px 0 0; }
+  .links { margin: 10px 0 16px; }
+  .links a { font-size: 12px; text-decoration: underline; }
+  .links .read { color: #1f4e8c; }
+  .links .src { color: #5a6672; }
+  .links .sep { color: #9aa5b0; font-size: 12px; }
 
-  .ornament-row { display: none; text-align: center; color: var(--color-accent-2); letter-spacing: 0.6em; padding: 1.5rem 0; font-size: 0.9rem; }
-
-  /* 報紙頭版式（2026-08-26 改）：原本五張大卡直排要滑很久，改成第一則
-     當頭條大卡（保留摘要），其餘收成兩欄小卡（只留標籤＋標題＋副標），
-     一屏到一屏半看完整期。週報頁因為上面已有專欄，全部用小卡。 */
-  .issue-index { max-width: 52rem; margin: 0 auto; padding: 0 var(--page-gutter) 4rem; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
-  @media (max-width: 40rem) { .issue-index { grid-template-columns: 1fr; } }
-
-  .topic-card {
-    display: block; background: var(--color-paper-2); border: 1px solid #d8dee4;
-    box-shadow: 0 2px 8px rgba(28,43,56,0.10); padding: 1.4rem 1.6rem;
-    transition: transform 120ms ease-out, box-shadow 120ms ease-out;
-  }
-  .topic-card.feature { grid-column: 1 / -1; }
-  .topic-card.compact { padding: 1rem 1.1rem; box-shadow: 0 1px 4px rgba(28,43,56,0.10); }
-  .topic-card.compact h2 { font-size: 1.02rem; line-height: 1.4; }
-  .topic-card.compact .subhead { font-size: 0.85rem; margin-bottom: 0.4rem; }
-  .topic-card.compact .teaser { display: none; }
-  .topic-card.compact .read-more { font-size: 0.7rem; }
-  .topic-card:hover { transform: translate(-1px, -1px); box-shadow: 0 3px 10px rgba(28,43,56,0.14); }
-  .topic-card:active { transform: translate(2px, 2px); box-shadow: 0 1px 2px rgba(28,43,56,0.10); }
-
-  .chip-row { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.7rem; }
-  .chip { display: inline-block; font-family: var(--font-label); font-size: 0.68rem; letter-spacing: 0.04em; padding: 0.2em 0.6em; border: 1px solid #d8dee4; background: var(--color-paper); }
-  .chip--domain { border-color: var(--color-accent); color: var(--color-accent); }
-  .chip--review { background: var(--color-paper); }
-
-  .topic-card h2 { margin: 0 0 0.3rem; font-size: clamp(1.15rem, 1.6vw + 0.7rem, 1.55rem); overflow-wrap: anywhere; }
-  .topic-card .subhead { margin: 0 0 0.6rem; font-size: 1rem; line-height: 1.5; color: var(--color-accent); font-weight: 600; overflow-wrap: anywhere; }
-  .topic-card .teaser { margin: 0 0 0.8rem; font-size: 0.92rem; line-height: 1.6; color: var(--color-ink-2); max-width: 56ch; }
-  .read-more { font-family: var(--font-label); font-size: 0.75rem; letter-spacing: 0.05em; color: var(--color-ink); }
-  .read-more::after { content: " →"; }
-
-  .empty { max-width: var(--shell); margin: 0 auto; padding: 3rem var(--page-gutter); color: var(--color-muted); }
-  .empty p { margin: 0 0 0.75rem; line-height: 1.6; }
-
-  .foot { background: var(--color-ink); color: var(--color-accent-ink); padding: 1.5rem var(--page-gutter) 2.5rem; }
-  .foot-inner { max-width: var(--shell); margin: 0 auto; font-size: 0.8rem; line-height: 1.7; opacity: 0.85; }
-
-  .feedback-fab {
-    position: fixed; right: 1.5rem; bottom: 1.5rem; z-index: 50;
-    display: inline-flex; align-items: center; gap: 0.5em;
-    background: var(--color-accent-2); color: var(--color-ink);
-    border: 1px solid #d8dee4; border-radius: 999px;
-    padding: 0.75em 1.1em; font-family: var(--font-label); font-size: 0.78rem; font-weight: 700; letter-spacing: 0.03em;
-    cursor: pointer; box-shadow: 0 2px 8px rgba(28,43,56,0.14);
-    transition: transform 140ms ease-out, box-shadow 140ms ease-out;
-  }
-  .feedback-fab:hover { transform: translate(-1px, -1px); box-shadow: 0 2px 8px rgba(28,43,56,0.10); }
-  .feedback-fab:active { transform: translate(2px, 2px); box-shadow: 0 1px 2px rgba(28,43,56,0.10); }
-
-  .feedback-overlay {
-    display: none; position: fixed; inset: 0; z-index: 60;
-    background: color-mix(in oklch, var(--color-ink) 55%, transparent);
-    align-items: flex-end; justify-content: flex-end;
-    padding: 1.5rem;
-  }
-  .feedback-overlay.is-open { display: flex; }
-  .feedback-modal {
-    background: var(--color-paper); border: 1px solid #d8dee4;
-    box-shadow: 0 3px 10px rgba(28,43,56,0.14);
-    padding: 1.5rem; width: min(22rem, 100%);
-  }
-  .feedback-title { margin: 0 0 0.35rem; font-family: var(--font-display); font-weight: 800; font-size: 1.15rem;  letter-spacing: 0.01em; }
-  .feedback-desc { margin: 0 0 1rem; font-size: 0.85rem; color: var(--color-muted); line-height: 1.5; }
-  .feedback-textarea {
-    width: 100%; box-sizing: border-box; resize: vertical;
-    font-family: var(--font-body); font-size: 0.9rem; line-height: 1.5;
-    border: 1px solid #d8dee4; padding: 0.7em 0.8em; background: var(--color-paper-2); color: var(--color-ink);
-  }
-  .feedback-textarea:focus-visible { outline: 3px solid var(--color-focus); outline-offset: 2px; }
-  .feedback-actions { display: flex; justify-content: flex-end; gap: 0.6rem; margin-top: 1rem; }
-  .feedback-cancel { display: inline-flex; align-items: center; gap: 0.5em; background: none; border: 1px solid #d8dee4; padding: 0.5em 1em; font-family: var(--font-label); font-size: 0.75rem; letter-spacing: 0.05em; cursor: pointer; }
-  .feedback-submit { font-family: var(--font-label); font-size: 0.72rem; letter-spacing: 0.04em; color: var(--color-ink); background: var(--color-accent-2); font-weight: 700; padding: 0.5em 0.9em; border: 1px solid #d8dee4; box-shadow: 0 1px 4px rgba(28,43,56,0.10); cursor: pointer; }
-  .feedback-thanks { margin: 0.9rem 0 0; font-size: 0.85rem; font-weight: 700; color: var(--color-accent); display: none; }
-  .feedback-thanks.is-visible { display: block; }
-
-  @media (max-width: 30rem) {
-    .masthead { padding: 2.25rem var(--page-gutter) 2rem; }
-    .lang-switcher { position: static; margin-bottom: 1rem; }
-    .masthead h1 { margin-right: 0; }
-    .feedback-fab span { display: none; }
-    .feedback-fab { padding: 0.85em; }
-    .feedback-overlay { padding: 1rem; }
-  }
-
-  .other-news-heading { max-width: var(--shell); margin: 2rem auto 0.2rem; padding: 0 var(--page-gutter); font-family: var(--font-label); font-size: 0.78rem; letter-spacing: 0.1em; color: var(--color-muted); }
-
-  /* 週報主題大標題：每期從當週內容提煉（pipeline/delta_column.py）。 */
-  .weekly-headline { margin: 1rem 0 0; font-family: var(--font-display); font-weight: 800; font-size: clamp(1.3rem, 2.2vw + 0.8rem, 1.9rem); line-height: 1.25; color: var(--color-accent-2); }
-
-  /* 台達專欄：亮底、跟文章卡片同一套硬邊語彙。原本是黑底金字，使用者
-     反映小字反白費眼（2026-08-26），改回紙色底＋深色字，用藍色只點綴
-     領域標籤，靠邊框陰影做區隔就夠了。 */
-  .delta-column { padding: 1.5rem var(--page-gutter) 2.5rem; }
-  .delta-column-inner { max-width: 52rem; margin: 0 auto; }
-  .delta-column-title { font-family: var(--font-display); font-weight: 800;  font-size: clamp(1.4rem, 2.4vw + 0.8rem, 2rem); margin: 0; color: var(--color-ink); border-bottom: 4px solid var(--color-accent); display: inline-block; padding-bottom: 0.15em; }
-  .delta-column-sub { font-family: var(--font-label); font-size: 0.78rem; margin: 0.6rem 0 1.2rem; color: var(--color-muted); }
-  .delta-column-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr)); gap: 1rem; }
-  .delta-cell { background: var(--color-paper-2); border: 1px solid #d8dee4; box-shadow: 0 1px 4px rgba(28,43,56,0.10); padding: 0.9rem 1rem; display: flex; flex-direction: column; gap: 0.5rem; }
-  .delta-cell-group { font-family: var(--font-label); font-size: 0.72rem; letter-spacing: 0.06em; color: var(--color-accent); font-weight: 700; display: flex; gap: 0.6em; align-items: baseline; }
-  .delta-cell-minor { font-style: normal; font-size: 0.65rem; border: 1px solid var(--color-muted); color: var(--color-muted); padding: 0 0.4em; }
-  .delta-cell-headline { font-family: var(--font-body); font-weight: 700; font-size: 0.95rem; line-height: 1.45; color: var(--color-ink); }
-  a.delta-cell-headline:hover { color: var(--color-accent); text-decoration: underline; }
-  .delta-cell-comment { margin: 0; font-size: 0.84rem; line-height: 1.7; color: var(--color-ink-2); }
+  .foot { background: #f6f7f9; border-top: 1px solid #d8dee4; padding: 16px 32px; margin-top: 16px;
+          font-size: 12px; line-height: 1.8; color: #5a6672; }
 </style>
 </head>
 <body>
 
-<div class="halftone" aria-hidden="true"></div>
-
-<header class="masthead">
-  <div class="masthead-inner">
-    <div class="lang-switcher">
-      <button class="lang-btn" id="lang-btn" aria-haspopup="true" aria-expanded="false">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15 15 0 0 1 0 20 15 15 0 0 1 0-20z"/></svg>
-        <span id="lang-btn-label">繁體中文</span>
-      </button>
-      <div class="lang-menu" id="lang-menu" role="menu">
-        <button class="lang-option" role="menuitemradio" aria-checked="true" data-lang="zh-Hant">繁體中文</button>
-        <button class="lang-option" role="menuitemradio" aria-checked="false" data-lang="zh-Hans">简体中文</button>
-        <button class="lang-option" role="menuitemradio" aria-checked="false" data-lang="en">English</button>
-      </div>
-    </div>
-    <a class="back-link" href="/" data-i18n="backLink">← 回所有期數</a>
-    <p class="eyebrow">DELTA AI TREND DAILY</p>
-    <h1>{{ newsletter_name }}</h1>
-    <div class="masthead-meta">
-      <span>第 {{ issue_no if issue_no is defined else issue_id }} 期 · {{ issue_date }}</span>
-      <span>{{ total_articles if total_articles is defined else topics | length }} 篇文章</span>
-    </div>
-    {% if weekly_headline %}<p class="weekly-headline">{{ weekly_headline }}</p>{% endif %}
-    <p class="lede" id="lede-text">本期導讀，點進標題看單篇全文。</p>
+<div class="card">
+  <div class="head">
+    <p class="eyebrow">DELTA · NBDMD</p>
+    <p class="brand">{{ newsletter_name }}</p>
+    <p class="meta">{{ issue_date }}｜第 {{ issue_no }} 期｜共 {{ total_articles }} 則</p>
   </div>
-</header>
 
-<div class="ornament-row" aria-hidden="true">✱ ✱ ✱ ✱</div>
-
-{% if delta_column %}
-{# 台達專欄：週報限定的固定欄目，九個事業領域各一格回顧當週最相關的一件事
-   （pipeline/delta_column.py）。empty 格照樣顯示，版面每週一致、內容如實。 #}
-<section class="delta-column" aria-label="台達專欄">
-  <div class="delta-column-inner">
-    <h2 class="delta-column-title">台達專欄</h2>
-    <p class="delta-column-sub">每週回顧：各事業領域當週最值得看的一件事</p>
-    <div class="delta-column-grid">
-      {% for cell in delta_column %}
-      <div class="delta-cell">
-        <span class="delta-cell-group">{{ cell.module_name }}{% if cell.state == 'minor' %}<em class="delta-cell-minor">次要動態</em>{% endif %}</span>
-        {% if cell.generated_id and cell.generated_issue_id %}
-        <a class="delta-cell-headline" href="/issues/{{ cell.generated_issue_id }}/topics/{{ cell.generated_id }}">{{ cell.topic_title }}</a>
-        {% else %}
-        <span class="delta-cell-headline">{{ cell.topic_title }}</span>
-        {% endif %}
-        {% if cell.comment %}<p class="delta-cell-comment">{{ cell.comment }}</p>{% endif %}
-      </div>
-      {% endfor %}
-    </div>
+  {% if tldr %}
+  <div class="tldr">
+    <p class="tldr-title">本期 TL;DR</p>
+    {% if tldr.trends %}
+    <p class="tldr-group">趨勢</p>
+    <ul>{% for item in tldr.trends %}<li>{{ item }}</li>{% endfor %}</ul>
+    {% endif %}
+    {% if tldr.highlights %}
+    <p class="tldr-group">重點</p>
+    <ul>{% for item in tldr.highlights %}<li>{{ item }}</li>{% endfor %}</ul>
+    {% endif %}
+    {% if tldr.observations %}
+    <p class="tldr-group">觀察</p>
+    <ul>{% for item in tldr.observations %}<li>{{ item }}</li>{% endfor %}</ul>
+    {% endif %}
   </div>
-</section>
-{% endif %}
+  {% endif %}
 
-{% if topics %}
-{% if delta_column %}<p class="other-news-heading">本週其他要聞</p>{% endif %}
-<nav class="issue-index" aria-label="本期話題列表">
   {% for topic in topics %}
-  {# 日報第一則是頭條大卡；週報頁上面已有專欄當重點區，全部用小卡。 #}
-  <a class="topic-card {{ 'feature' if loop.first and not delta_column else 'compact' }}" href="/issues/{{ issue_id }}/topics/{{ topic.id }}">
-    <div class="chip-row">
-      {# needs_review 只留在資料庫供內部追蹤，不顯示在頁面上：這頁同時是讀者
-         看的版面，掛「待人工確認」的標籤會讓內容看起來像半成品。 #}
-      {% if topic.top_module_name %}<span class="chip {{ 'chip--domain' if topic.top_module_is_domain else '' }}">{{ topic.top_module_name }}</span>{% endif %}
+  <div class="item">
+    <div class="chips">
       {% if topic.primary_tag %}<span class="chip">{{ topic.primary_tag }}</span>{% endif %}
     </div>
-    <h2>{{ topic.chosen_headline }}</h2>
+    <h2><a href="/issues/{{ issue_id }}/topics/{{ topic.id }}">{{ topic.chosen_headline }}</a></h2>
     {% if topic.chosen_subhead %}<p class="subhead">{{ topic.chosen_subhead }}</p>{% endif %}
     {% if topic.card_summary %}<p class="teaser">{{ topic.card_summary.text }}</p>{% endif %}
-    <span class="read-more" data-i18n="readMore">閱讀全文</span>
-  </a>
-  {% endfor %}
-</nav>
-{% elif not delta_column %}
-{# 週報的 10 篇可能全數都在專欄出現過，列表空著是正常的，不要顯示「還沒有話題」。 #}
-<div class="empty">
-  <p>這一期還沒有任何話題。</p>
-</div>
-{% endif %}
-
-<footer class="foot">
-  <div class="foot-inner">
-    <p>{{ newsletter_name }}．僅供台達內部參考。</p>
-  </div>
-</footer>
-
-<button class="feedback-fab" id="feedback-fab" type="button">
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-  <span id="feedback-fab-label">意見回饋</span>
-</button>
-
-<div class="feedback-overlay" id="feedback-overlay">
-  <div class="feedback-modal" role="dialog" aria-modal="true" aria-labelledby="feedback-title">
-    <p class="feedback-title" id="feedback-title">下一期想看什麼？</p>
-    <p class="feedback-desc" id="feedback-desc">我們會精選更多不同產業的 AI 案例與議題，也歡迎跟我們分享更多你想看到的內容。</p>
-    <textarea class="feedback-textarea" id="feedback-textarea" rows="4" placeholder="例如：多一點能源產業案例，或想看 OpenAI 最新動態⋯⋯"></textarea>
-    <div class="feedback-actions">
-      <button class="feedback-cancel" type="button" id="feedback-cancel">取消</button>
-      <button class="feedback-submit" type="button" id="feedback-submit"><span id="feedback-submit-label">送出</span></button>
+    <div class="links">
+      <a class="read" href="/issues/{{ issue_id }}/topics/{{ topic.id }}">閱讀全文</a>
+      {% if topic.source_url %}
+      <span class="sep">&nbsp;·&nbsp;</span>
+      <a class="src" href="{{ topic.source_url }}" target="_blank" rel="noopener noreferrer">原文出處</a>
+      {% endif %}
     </div>
-    <p class="feedback-thanks" id="feedback-thanks" aria-live="polite"></p>
+  </div>
+  {% endfor %}
+
+  <div class="foot">
+    本報由自動化系統產出，每則均附原文出處。僅供台達內部參考，請勿外流。
   </div>
 </div>
-
-<script>
-const I18N = {
-  "zh-Hant": { backLink: "← 回所有期數", lede: "本期導讀，點進標題看單篇全文。", readMore: "閱讀全文", feedbackBtn: "意見回饋", feedbackTitle: "下一期想看什麼？", feedbackDesc: "我們會精選更多不同產業的 AI 案例與議題，也歡迎跟我們分享更多你想看到的內容。", feedbackPlaceholder: "例如：多一點能源產業案例，或想看 OpenAI 最新動態⋯⋯", feedbackSubmit: "送出", feedbackCancel: "取消", feedbackThanks: "收到了，謝謝你的想法！" },
-  "zh-Hans": { backLink: "← 回所有期数", lede: "本期导读，点进标题看单篇全文。", readMore: "阅读全文", feedbackBtn: "意见反馈", feedbackTitle: "下一期想看什么？", feedbackDesc: "我们会精选更多不同产业的 AI 案例与议题，也欢迎跟我们分享更多你想看到的内容。", feedbackPlaceholder: "例如：多一点能源产业案例，或想看 OpenAI 最新动态⋯⋯", feedbackSubmit: "送出", feedbackCancel: "取消", feedbackThanks: "收到了，谢谢你的想法！" },
-  "en": { backLink: "← All issues", lede: "This issue's index — click a headline to read the full piece.", readMore: "Read full article", feedbackBtn: "Feedback", feedbackTitle: "What do you want to see next issue?", feedbackDesc: "We'll keep curating AI cases and topics across more industries, and we'd love to hear what else you want to see.", feedbackPlaceholder: "e.g. more energy-sector cases, or the latest from OpenAI...", feedbackSubmit: "Send", feedbackCancel: "Cancel", feedbackThanks: "Got it, thanks for the input!" }
-};
-const LANG_LABEL = { "zh-Hant": "繁體中文", "zh-Hans": "简体中文", "en": "English" };
-let currentLang = 'zh-Hant';
-
-function applyLang(lang) {
-  currentLang = lang;
-  document.documentElement.setAttribute('data-lang', lang);
-  document.documentElement.setAttribute('lang', lang);
-  document.getElementById('lang-btn-label').textContent = LANG_LABEL[lang];
-  document.querySelectorAll('.lang-option').forEach(opt => opt.setAttribute('aria-checked', opt.dataset.lang === lang));
-
-  const t = I18N[lang];
-  document.getElementById('lede-text').textContent = t.lede;
-  document.querySelectorAll('[data-i18n="backLink"]').forEach(el => { el.textContent = t.backLink; });
-  document.querySelectorAll('[data-i18n="readMore"]').forEach(el => { el.textContent = t.readMore; });
-  document.getElementById('feedback-fab-label').textContent = t.feedbackBtn;
-  document.getElementById('feedback-title').textContent = t.feedbackTitle;
-  document.getElementById('feedback-desc').textContent = t.feedbackDesc;
-  document.getElementById('feedback-textarea').placeholder = t.feedbackPlaceholder;
-  document.getElementById('feedback-cancel').textContent = t.feedbackCancel;
-  document.getElementById('feedback-submit-label').textContent = t.feedbackSubmit;
-  document.getElementById('feedback-thanks').textContent = t.feedbackThanks;
-}
-applyLang({{ lang | default('zh-Hant') | tojson }});
-
-const langBtn = document.getElementById('lang-btn');
-const langMenu = document.getElementById('lang-menu');
-langBtn.addEventListener('click', () => {
-  const open = langMenu.classList.toggle('is-open');
-  langBtn.setAttribute('aria-expanded', String(open));
-});
-document.addEventListener('click', (e) => {
-  if (!e.target.closest('.lang-switcher')) { langMenu.classList.remove('is-open'); langBtn.setAttribute('aria-expanded', 'false'); }
-});
-langMenu.querySelectorAll('.lang-option').forEach(opt => {
-  opt.addEventListener('click', () => {
-    const url = new URL(window.location.href);
-    url.searchParams.set('lang', opt.dataset.lang);
-    window.location.href = url.toString();
-  });
-});
-
-/* feedback FAB: client-side only demo, storage is per-browser, not shared across readers */
-const fabBtn = document.getElementById('feedback-fab');
-const fbOverlay = document.getElementById('feedback-overlay');
-const fbTextarea = document.getElementById('feedback-textarea');
-const fbThanks = document.getElementById('feedback-thanks');
-const FEEDBACK_KEY = 'deltaTopicFeedback:{{ issue_id }}';
-
-function openFeedback() {
-  fbOverlay.classList.add('is-open');
-  fbThanks.classList.remove('is-visible');
-  fbTextarea.value = '';
-  fbTextarea.focus();
-}
-function closeFeedback() { fbOverlay.classList.remove('is-open'); }
-
-fabBtn.addEventListener('click', openFeedback);
-document.getElementById('feedback-cancel').addEventListener('click', closeFeedback);
-fbOverlay.addEventListener('click', (e) => { if (e.target === fbOverlay) closeFeedback(); });
-document.getElementById('feedback-submit').addEventListener('click', () => {
-  const text = fbTextarea.value.trim();
-  if (!text) { fbTextarea.focus(); return; }
-  let stored = [];
-  try { stored = JSON.parse(localStorage.getItem(FEEDBACK_KEY) || '[]'); } catch (e) {}
-  stored.push({ text, lang: currentLang, at: new Date().toISOString() });
-  localStorage.setItem(FEEDBACK_KEY, JSON.stringify(stored));
-  fbThanks.classList.add('is-visible');
-  fbTextarea.value = '';
-  setTimeout(closeFeedback, 1400);
-});
-</script>
 
 </body>
 </html>

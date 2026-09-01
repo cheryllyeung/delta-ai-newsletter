@@ -25,6 +25,25 @@ Outlook 用 Word 引擎渲染信件，網頁版的 web font、grid、oklch 色�
     <div style="font-family:'Microsoft JhengHei', 'PingFang TC', Arial, sans-serif; font-size:13px; color:#bcd0e8; margin-top:8px;">{{ issue_date }}｜第 {{ issue_no }} 期｜共 {{ articles | length }} 則</div>
   </td></tr>
 
+  <!-- 本期 TLDR -->
+  {% if tldr %}
+  <tr><td style="padding:24px 32px 0;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f2f6fb; border:1px solid #d5e2f2;">
+      <tr><td style="padding:16px 20px;">
+        <div style="font-family:'Microsoft JhengHei', Arial, sans-serif; font-size:13px; font-weight:bold; letter-spacing:1px; color:#1f4e8c;">本期 TL;DR</div>
+        {% for group, label in [('trends','趨勢'), ('highlights','重點'), ('observations','觀察')] %}
+        {% if tldr.get(group) %}
+        <div style="font-family:'Microsoft JhengHei', Arial, sans-serif; font-size:13px; font-weight:bold; color:#1c2b38; margin-top:12px;">{{ label }}</div>
+        {% for item in tldr[group] %}
+        <div style="font-family:'Microsoft JhengHei', Arial, sans-serif; font-size:13px; line-height:1.8; color:#3a4652; margin-top:4px;">· {{ item }}</div>
+        {% endfor %}
+        {% endif %}
+        {% endfor %}
+      </td></tr>
+    </table>
+  </td></tr>
+  {% endif %}
+
   <!-- 文章清單 -->
   {% for a in articles %}
   <tr><td style="padding:24px 32px 8px 32px; {% if not loop.first %}border-top:1px solid #e6ebf0;{% endif %}">
@@ -36,10 +55,6 @@ Outlook 用 Word 引擎渲染信件，網頁版的 web font、grid、oklch 色�
         {% if a.is_taiwan %}
         <td style="width:6px;"></td>
         <td style="background-color:#fdf1e3; border:1px solid #e8cfa8; padding:2px 8px; font-family:'Microsoft JhengHei', Arial, sans-serif; font-size:11px; color:#8a5a1a;">台灣</td>
-        {% endif %}
-        {% if a.needs_review %}
-        <td style="width:6px;"></td>
-        <td style="background-color:#f6f7f9; border:1px solid #ccd3da; padding:2px 8px; font-family:'Microsoft JhengHei', Arial, sans-serif; font-size:11px; color:#5a6672;">待人工確認</td>
         {% endif %}
       </tr>
     </table>
