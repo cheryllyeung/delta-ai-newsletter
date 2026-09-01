@@ -63,7 +63,8 @@ def main() -> None:
             {
                 "headline": g.get("chosen_headline", ""),
                 "subhead": g.get("chosen_subhead", ""),
-                "summary": (g.get("card_summary") or {}).get("text", ""),
+                "sections": g.get("sections") or [],
+                "insight": g.get("delta_insight"),
                 "primary_tag": g.get("primary_tag", ""),
                 "is_taiwan": tw >= 4,
                 "needs_review": bool(r["needs_review"]),
