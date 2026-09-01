@@ -59,7 +59,10 @@ def _get_access_token() -> str:
     resp.raise_for_status()
     data = resp.json()
     _token_cache["token"] = data["access_token"]
-    _token_cache["expires_at"] = now + max(int(data.get("expires_in", 3600)) - 300, 60)
+    # 快取效期抓保守：WSO2 對重複的 client_credentials 請求會回同一顆
+    # token，expires_in 的語意（整段或剩餘）依設定而異，這裡打對折再扣
+    # 5 分鐘，就算估錯還有上面的 401 強制換發兜底。
+    _token_cache["expires_at"] = now + max(int(data.get("expires_in", 3600)) // 2 - 300, 60)
     return _token_cache["token"]
 
 
@@ -181,6 +184,15 @@ def create_chat_completion(client: openai.OpenAI, *, max_retries: int = 5, **kwa
                 # 每次請求時才讀 api_key 屬性，直接改掉就生效，不用重建 client。
                 client.api_key = _get_access_token()
             return client.chat.completions.create(**kwargs)
+        except openai.AuthenticationError:
+            # 2026-09-01 實際發生：快取以為 token 還有效，gateway 已判失效
+            # （WSO2 的 expires_in 語意跟我們的估計對不上），整批 401。
+            # 這種錯誤換一顆新 token 就好，強制清快取重試。
+            if _use_oauth() and attempt < max_retries:
+                _token_cache["token"] = None
+                print(f"[llm_client] 401 token 失效，換發後重試（第 {attempt + 1} 次）...")
+                continue
+            raise
         except (openai.RateLimitError, openai.APIConnectionError) as exc:
             match = _RETRY_DELAY_PATTERN.search(str(exc))
             suggested = (
