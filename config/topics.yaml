@@ -117,10 +117,10 @@ modules:
   functional:
     - id: vendor_watch
       name: 重點廠商動態
-      desc: 26 家重點關注廠商的實質動作（Illumina、Guardant Health、Foundation Medicine、Thermo Fisher、Natera、Freenome、Tempus、Grail、BillionToOne、PacBio、Element Biosciences、Quest、LabCorp、Myriad、Caris、Qiagen、Centogene、Sophia Genetics、Oxford Nanopore、BGI 華大基因、Gene Solutions、Macrogen、基龍米克斯、慧智基因、訊聯基因、金萬林）。這些是行動基因 benchmark 的對象，產品發表、策略調整、財務事件都算；文章主角不在名單上就不高分
+      desc: NBDMD 指定的 26 家重點關注廠商的實質動作：Illumina、Guardant Health、Foundation Medicine（2018 年起屬 Roche，Roche 旗下的檢測動態也算）、Thermo Fisher、Natera、Freenome、Tempus AI、Grail（2021 年起屬 Illumina）、BillionToOne、PacBio (Pacific Biosciences)、Element Biosciences、Quest Diagnostics、LabCorp、Myriad Genetics、Caris Life Sciences、Qiagen、Centogene、Sophia Genetics、Oxford Nanopore Technologies、華大基因 (BGI)、Gene Solutions、Macrogen、基龍米克斯、慧智基因、訊聯基因、金萬林。這些是行動基因 benchmark 的對象，產品發表、策略調整、財務事件都算；文章主角不在名單上就不高分
     - id: taiwan_industry
       name: 台灣廠商
-      desc: 台灣的基因檢測與生技業者動態、台灣主管機關的相關政策（含衛福部的數位健康與醫療資訊政策）。日報每天想保留一到兩則台灣內容，這個模組的分數就是那個配額的依據；跟台灣無關的內容一律低分
+      desc: 台灣的基因檢測與生技業者動態（特別是名單上的四家台灣廠商：基龍米克斯、慧智基因、訊聯基因、金萬林）、台灣主管機關的相關政策（含衛福部的數位健康與醫療資訊政策）。日報每天想保留一到兩則台灣內容，這個模組的分數就是那個配額的依據；跟台灣無關的內容一律低分
     - id: security_privacy
       name: 資安與資料隱私
       desc: 檢測機構與基因資料庫的資安事件（駭入、外洩）、基因資料隱私的法遵與爭議。檢測業手上是最敏感的個人資料，同業出事就是自家要檢查的清單；與檢測業無關的一般資安新聞不算
