@@ -1,0 +1,78 @@
+{#
+EDM 版模板（tools/render_issue_email.py 渲染）。跟網頁模板分開寫的原因：
+Outlook 用 Word 引擎渲染信件，網頁版的 web font、grid、oklch 色彩全部
+不支援，信件排版只能用 table 加行內樣式、系統字體、十六進位色碼。
+每則只放標題（連內網全文頁）、副標與摘要，全文留在網頁，這是 EDM 的
+常見做法，也對齊 NBDMD 現行「標題加三句摘要」的格式。
+#}
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{ issue_title }}</title>
+</head>
+<body style="margin:0; padding:0; background-color:#eef1f4;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#eef1f4;">
+<tr><td align="center" style="padding:24px 12px;">
+
+<table role="presentation" width="640" cellpadding="0" cellspacing="0" border="0" style="width:640px; max-width:100%; background-color:#ffffff; border:1px solid #d8dee4;">
+
+  <!-- 刊頭 -->
+  <tr><td style="background-color:#1f4e8c; padding:28px 32px;">
+    <div style="font-family:'Microsoft JhengHei', 'PingFang TC', Arial, sans-serif; font-size:12px; letter-spacing:2px; color:#bcd0e8; margin-bottom:6px;">DELTA · NBDMD</div>
+    <div style="font-family:'Microsoft JhengHei', 'PingFang TC', Arial, sans-serif; font-size:26px; font-weight:bold; color:#ffffff;">{{ newsletter_name }}</div>
+    <div style="font-family:'Microsoft JhengHei', 'PingFang TC', Arial, sans-serif; font-size:13px; color:#bcd0e8; margin-top:8px;">{{ issue_date }}｜第 {{ issue_no }} 期｜共 {{ articles | length }} 則</div>
+  </td></tr>
+
+  <!-- 文章清單 -->
+  {% for a in articles %}
+  <tr><td style="padding:24px 32px 8px 32px; {% if not loop.first %}border-top:1px solid #e6ebf0;{% endif %}">
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+      <tr>
+        {% if a.primary_tag %}
+        <td style="background-color:#eef3fa; border:1px solid #c5d4e8; padding:2px 8px; font-family:'Microsoft JhengHei', Arial, sans-serif; font-size:11px; color:#1f4e8c;">{{ a.primary_tag }}</td>
+        {% endif %}
+        {% if a.is_taiwan %}
+        <td style="width:6px;"></td>
+        <td style="background-color:#fdf1e3; border:1px solid #e8cfa8; padding:2px 8px; font-family:'Microsoft JhengHei', Arial, sans-serif; font-size:11px; color:#8a5a1a;">台灣</td>
+        {% endif %}
+        {% if a.needs_review %}
+        <td style="width:6px;"></td>
+        <td style="background-color:#f6f7f9; border:1px solid #ccd3da; padding:2px 8px; font-family:'Microsoft JhengHei', Arial, sans-serif; font-size:11px; color:#5a6672;">待人工確認</td>
+        {% endif %}
+      </tr>
+    </table>
+    <div style="margin-top:10px;">
+      <a href="{{ a.url }}" style="font-family:'Microsoft JhengHei', 'PingFang TC', Arial, sans-serif; font-size:18px; font-weight:bold; line-height:1.5; color:#173a66; text-decoration:none;">{{ a.headline }}</a>
+    </div>
+    {% if a.subhead %}
+    <div style="font-family:'Microsoft JhengHei', 'PingFang TC', Arial, sans-serif; font-size:14px; line-height:1.6; color:#1f4e8c; margin-top:4px;">{{ a.subhead }}</div>
+    {% endif %}
+    {% if a.summary %}
+    <div style="font-family:'Microsoft JhengHei', 'PingFang TC', Arial, sans-serif; font-size:14px; line-height:1.8; color:#3a4652; margin-top:8px;">{{ a.summary }}</div>
+    {% endif %}
+    <div style="margin-top:10px; padding-bottom:16px;">
+      <a href="{{ a.url }}" style="font-family:'Microsoft JhengHei', Arial, sans-serif; font-size:12px; color:#1f4e8c; text-decoration:underline;">閱讀全文</a>
+      {% if a.source_url %}
+      <span style="font-family:Arial, sans-serif; font-size:12px; color:#9aa5b0;">&nbsp;·&nbsp;</span>
+      <a href="{{ a.source_url }}" style="font-family:'Microsoft JhengHei', Arial, sans-serif; font-size:12px; color:#5a6672; text-decoration:underline;">原文出處</a>
+      {% endif %}
+    </div>
+  </td></tr>
+  {% endfor %}
+
+  <!-- 信尾 -->
+  <tr><td style="background-color:#f6f7f9; border-top:1px solid #d8dee4; padding:20px 32px;">
+    <div style="font-family:'Microsoft JhengHei', 'PingFang TC', Arial, sans-serif; font-size:12px; line-height:1.8; color:#5a6672;">
+      完整版（各領域瀏覽、歷史期數、原文連結）：<a href="{{ site_url }}" style="color:#1f4e8c;">{{ site_url }}</a><br>
+      本報由自動化系統產出，每則均附原文出處。僅供台達內部參考，請勿外流。
+    </div>
+  </td></tr>
+
+</table>
+
+</td></tr>
+</table>
+</body>
+</html>
