@@ -7,6 +7,7 @@ Anthropic 的 Messages API），所以這裡用 `openai` 套件，把 base_url �
 """
 from __future__ import annotations
 
+import base64
 import os
 import re
 import time
@@ -22,7 +23,52 @@ _OLLAMA_MARKER = "11434"
 DEFAULT_MODEL = "REPLACE_WITH_CLAWITH_QWEN_MODEL_NAME"
 
 
+# ── OAuth2 client credentials（2026-09-01 gateway 換制）─────────────────────
+# 舊制（長期 API key）2026-08-31 23:59 全面到期。新制走公司 APIM：先拿
+# CONSUMER/SECRET 到 token 端點換短效 access token（約一小時），再帶
+# Bearer 打 LLM 端點。.env 設了 LLM_OAUTH_CONSUMER / LLM_OAUTH_SECRET 就走
+# 新制，沒設就沿用舊的 LLM_API_KEY（本機 Ollama 備援仍走這條）。
+_OAUTH_TOKEN_URL_DEFAULT = "https://apim.deltaww.com/oauth2/token"
+_token_cache: dict = {"token": None, "expires_at": 0.0}
+
+
+def _use_oauth() -> bool:
+    return bool(os.environ.get("LLM_OAUTH_CONSUMER"))
+
+
+def _get_access_token() -> str:
+    """回傳有效的 access token，快過期就自動換發。
+
+    提前 5 分鐘視為過期：長批次（幾百次呼叫跑一小時以上）不該拿著剛好
+    到期的 token 出門。多執行緒同時換發只是重複要一次 token，無害。"""
+    now = time.time()
+    if _token_cache["token"] and now < _token_cache["expires_at"]:
+        return _token_cache["token"]
+    consumer = os.environ["LLM_OAUTH_CONSUMER"]
+    secret = os.environ["LLM_OAUTH_SECRET"]
+    basic = base64.b64encode(f"{consumer}:{secret}".encode()).decode()
+    resp = requests.post(
+        os.environ.get("LLM_OAUTH_TOKEN_URL", _OAUTH_TOKEN_URL_DEFAULT),
+        headers={
+            "Authorization": f"Basic {basic}",
+            "Content-Type": "application/x-www-form-urlencoded",
+        },
+        data="grant_type=client_credentials",
+        timeout=30,
+    )
+    resp.raise_for_status()
+    data = resp.json()
+    _token_cache["token"] = data["access_token"]
+    _token_cache["expires_at"] = now + max(int(data.get("expires_in", 3600)) - 300, 60)
+    return _token_cache["token"]
+
+
 def get_client() -> openai.OpenAI:
+    if _use_oauth():
+        return openai.OpenAI(
+            api_key=_get_access_token(),
+            base_url=os.environ.get("LLM_BASE_URL") or None,
+        )
     return openai.OpenAI(
         api_key=os.environ.get("LLM_API_KEY"),
         base_url=os.environ.get("LLM_BASE_URL") or None,
@@ -130,6 +176,10 @@ def create_chat_completion(client: openai.OpenAI, *, max_retries: int = 5, **kwa
 
     for attempt in range(max_retries + 1):
         try:
+            if _use_oauth():
+                # token 約一小時到期，長批次跑到一半要換新的。openai client
+                # 每次請求時才讀 api_key 屬性，直接改掉就生效，不用重建 client。
+                client.api_key = _get_access_token()
             return client.chat.completions.create(**kwargs)
         except (openai.RateLimitError, openai.APIConnectionError) as exc:
             match = _RETRY_DELAY_PATTERN.search(str(exc))
