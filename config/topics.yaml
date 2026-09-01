@@ -316,30 +316,44 @@ fetch:
 # 其餘廠商的動態靠 PR Newswire 新聞稿管道涵蓋（新聞稿本來就發那裡）。
 # Fierce Biotech 與 BioSpace 的 feed 只有短摘要，會被收錄關卡降成熱度訊號。
 sources:
+  # 2026-08-31 修正：GeneOnline 的主 feed（/feed/）是國際快訊編譯區，
+  # 抓進來全是圈外雜訊；真正的文章在 WordPress 分類 feed 裡。news 分類是
+  # 正文，台灣分類另立一個來源專門餵「台灣廠商」配額。
   - id: geneonline
     name: "GeneOnline 基因線上"
     type: rss
     tier: core
-    url: "https://geneonline.news/feed/"
+    url: "https://geneonline.news/category/news/feed/"
     weight: 0.9
+    fetch_fulltext: true
+  - id: geneonline_taiwan
+    name: "GeneOnline (台灣)"
+    type: rss
+    tier: core
+    url: "https://geneonline.news/category/%E5%8F%B0%E7%81%A3/feed/"
+    weight: 0.9
+    fetch_fulltext: true
   - id: fierce_biotech
     name: "Fierce Biotech"
     type: rss
     tier: core
     url: "https://www.fiercebiotech.com/rss/xml"
     weight: 0.9
+    fetch_fulltext: true
   - id: medtech_dive
     name: "MedTech Dive"
     type: rss
     tier: vertical
     url: "https://www.medtechdive.com/feeds/news/"
     weight: 0.8
+    fetch_fulltext: true
   - id: biospace
     name: "BioSpace"
     type: rss
     tier: signal
     url: "https://www.biospace.com/index.rss"
     weight: 0.6
+    fetch_fulltext: true
   - id: prnewswire_health
     name: "PR Newswire (Health)"
     type: rss

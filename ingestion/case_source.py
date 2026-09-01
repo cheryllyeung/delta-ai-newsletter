@@ -6,6 +6,7 @@
 """
 from __future__ import annotations
 
+import time
 from datetime import datetime, timedelta, timezone
 
 import feedparser
@@ -34,6 +35,35 @@ def _html_to_text(html: str) -> str:
     return BeautifulSoup(html, "html.parser").get_text(separator="\n", strip=True)
 
 
+# 全文抓取用的 UA：有些站對非瀏覽器 UA 直接擋。
+_FULLTEXT_UA = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
+
+
+def _fetch_fulltext(url: str, timeout: int = 20) -> str:
+    """照文章連結抓原文正文（genomics-prototype 2026-08-31 加）。
+
+    GeneOnline、Fierce Biotech、BioSpace 這些來源的 feed 只給摘要，
+    轉純文字後不到收錄門檻的 200 字，全部被降成 signal_only、當不了
+    寫作素材。開了 fetch_fulltext 的來源會在摘要太短時走這條路補全文。
+    抽取用簡單的啟發式（article/main 標籤，去掉導覽頁尾），抓不到或
+    失敗就回空字串、沿用 feed 摘要，單篇失敗不影響整批。"""
+    try:
+        response = requests.get(url, headers=_FULLTEXT_UA, timeout=timeout)
+        response.raise_for_status()
+        soup = BeautifulSoup(response.text, "html.parser")
+        for tag in soup(["script", "style", "nav", "header", "footer", "aside", "form"]):
+            tag.decompose()
+        node = soup.find("article") or soup.find("main") or soup.body
+        if node is None:
+            return ""
+        # 有的頁面抓不到正文節點時會退到 body，撈回整站的導覽與列表
+        # （實測 BioSpace 一頁 11 萬字）。正常新聞正文遠小於 2 萬字，
+        # 超過的直接截斷，保護後面的 embedding 與 LLM 呼叫。
+        return node.get_text(separator="\n", strip=True)[:20_000]
+    except Exception:  # noqa: BLE001 -- 抓不到就退回 feed 摘要
+        return ""
+
+
 def fetch_case_study_items(
     source_id: str,
     source_name: str,
@@ -42,6 +72,7 @@ def fetch_case_study_items(
     days_back: int = 30,
     max_items: int = 15,
     timeout: int = 15,
+    fetch_fulltext: bool = False,
 ) -> list[RawItem]:
     """抓一個案例來源的 RSS feed，轉成 RawItem 清單。
 
@@ -76,7 +107,16 @@ def fetch_case_study_items(
         # 整個 <a href=...> 標籤），一律過一次轉純文字。
         title = _html_to_text(entry.get("title", "")).replace("\n", " ").strip()
         link = entry.get("link", "").strip()
-        if not text or not link:
+        if not link:
+            continue
+        # feed 摘要太短時去抓原文（600 是「明顯只是摘要」的經驗值，
+        # 高於收錄門檻的 200，給正常短文留餘地）。
+        if fetch_fulltext and len(text) < 600:
+            fulltext = _fetch_fulltext(link)
+            if len(fulltext) > len(text):
+                text = fulltext
+            time.sleep(0.5)  # 對站方客氣一點
+        if not text:
             continue
 
         items.append(

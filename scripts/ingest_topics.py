@@ -126,6 +126,7 @@ def _fetch_source_items(source: dict, fetch_cfg: dict) -> list[RawItem]:
             weight=source["weight"],
             days_back=fetch_cfg["days_back"],
             max_items=fetch_cfg["max_items_per_source"],
+            fetch_fulltext=source.get("fetch_fulltext", False),
         )
 
     if source_type == "arxiv":
