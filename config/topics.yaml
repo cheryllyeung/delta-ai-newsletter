@@ -333,6 +333,27 @@ sources:
     url: "https://geneonline.news/category/%E5%8F%B0%E7%81%A3/feed/"
     weight: 0.9
     fetch_fulltext: true
+
+  # 2026-09-02 加：台灣中文源，這兩站沒有公開 RSS，用列表頁爬蟲補供給
+  # （type: scrape，見 ingestion/scrape_source.py）。補台灣量是往「每日
+  # 15 則裡有 1-2 則台灣」的目標推進。
+  - id: gbimonthly
+    name: "環球生技"
+    type: scrape
+    tier: core
+    list_url: "https://news.gbimonthly.com/index.php"
+    link_pattern: "show\\.php\\?num=\\d+"
+    base_url: "https://news.gbimonthly.com/"
+    weight: 0.85
+  - id: genetinfo
+    name: "Genet 觀點"
+    type: scrape
+    tier: core
+    list_url: "https://www.genetinfo.com/"
+    link_pattern: "/item/\\d+\\.html"
+    base_url: "https://www.genetinfo.com"
+    content_selector: "context|article-content|news-content|detail"
+    weight: 0.85
   - id: fierce_biotech
     name: "Fierce Biotech"
     type: rss

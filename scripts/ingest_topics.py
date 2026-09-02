@@ -50,6 +50,7 @@ from ingestion.base import RawItem
 from ingestion.case_source import fetch_case_study_items
 from ingestion.github_source import fetch_github_items
 from ingestion.hf_papers_source import fetch_hf_daily_papers
+from ingestion.scrape_source import fetch_scraped_items
 from ingestion.hn_source import fetch_hn_items
 from ingestion.reddit_source import fetch_reddit_items
 from ingestion.stackexchange_source import fetch_stackexchange_items
@@ -142,6 +143,19 @@ def _fetch_source_items(source: dict, fetch_cfg: dict) -> list[RawItem]:
             item.extra.setdefault("source_name", source["name"])
             item.extra.setdefault("source_weight", source["weight"])
         return items
+
+    if source_type == "scrape":
+        return fetch_scraped_items(
+            source_id=source["id"],
+            source_name=source["name"],
+            weight=source["weight"],
+            list_url=source["list_url"],
+            link_pattern=source["link_pattern"],
+            base_url=source["base_url"],
+            content_selector=source.get("content_selector"),
+            days_back=fetch_cfg["days_back"],
+            max_items=fetch_cfg["max_items_per_source"],
+        )
 
     if source_type == "hf_papers":
         return fetch_hf_daily_papers(
