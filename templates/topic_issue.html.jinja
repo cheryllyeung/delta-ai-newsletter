@@ -1,97 +1,102 @@
 <!--
-本期摘要頁（genomics-prototype，2026-09-01 整頁改寫成 EDM 版型）。
-讀者動線：摘要頁（TLDR＋每則標題副標摘要）→ 點「閱讀全文」進單篇頁
-（topic_detail，同版型）→ 單篇頁可退回這裡。跟 EDM 信件是同一套視覺，
-信件、摘要頁、全文頁三個地方看起來是同一份刊物。
+本期摘要頁（genomics-prototype，2026-09-03 改雜誌版型）。跟 EDM 信件、
+全文頁同一套視覺（米白紙底、Noto Sans、金色點綴、裝飾序號）。
+動線：EDM 信件（摘要）→ 閱讀全文 → 全文頁 → 可退回本頁。三處看起來
+是同一份刊物。
 -->
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
 <title>{{ issue_title }}</title>
 <style>
   * { box-sizing: border-box; }
-  body { margin: 0; padding: 24px 12px; background-color: #eef1f4;
-         font-family: "Microsoft JhengHei", "PingFang TC", Arial, sans-serif; }
-  .card { max-width: 640px; margin: 0 auto; background: #ffffff; border: 1px solid #d8dee4; }
+  body { margin: 0; padding: 28px 12px; background-color: #e8e4da;
+         font-family: "Noto Sans TC", "Microsoft JhengHei", "PingFang TC", Arial, sans-serif; }
+  .card { max-width: 660px; margin: 0 auto; background: #fbfaf6; box-shadow: 0 6px 24px rgba(40,36,28,0.14); }
 
-  .head { background-color: #1f4e8c; padding: 28px 32px; }
-  .head .eyebrow { font-size: 12px; letter-spacing: 2px; color: #bcd0e8; margin: 0 0 6px; }
-  .head .brand { font-size: 26px; font-weight: bold; color: #ffffff; margin: 0; }
-  .head .meta { font-size: 13px; color: #bcd0e8; margin: 8px 0 0; }
+  .head { padding: 40px 44px 24px; border-bottom: 2px solid #1a1a1a; }
+  .head-row { display: flex; justify-content: space-between; align-items: flex-end; }
+  .head .eyebrow { font-size: 11px; letter-spacing: 4px; color: #8a5a1a; font-weight: 700; }
+  .head .brand { font-size: 32px; font-weight: 900; color: #1a1a1a; margin: 6px 0 0; line-height: 1.1; }
+  .head .meta { font-size: 13px; color: #8a8578; text-align: right; }
 
-  .tldr { margin: 24px 32px 0; padding: 16px 20px; background: #f2f6fb; border: 1px solid #d5e2f2; }
-  .tldr-title { font-size: 13px; font-weight: bold; letter-spacing: 1px; color: #1f4e8c; margin: 0; }
-  .tldr-group { font-size: 13px; font-weight: bold; color: #1c2b38; margin: 12px 0 0; }
-  .tldr ul { margin: 6px 0 0; padding-left: 18px; }
-  .tldr li { font-size: 13px; line-height: 1.8; color: #3a4652; }
+  .tldr { padding: 24px 44px 0; }
+  .tldr-title { font-size: 12px; letter-spacing: 4px; color: #8a8578; margin: 0; }
+  .tldr-group { font-size: 11px; letter-spacing: 2px; font-weight: 700; color: #c9a54a; margin: 16px 0 0; }
+  .tldr-item { font-size: 13px; line-height: 1.8; color: #44474a; margin-top: 5px; padding-left: 14px; text-indent: -14px; }
+  .rule { border-top: 2px solid #1a1a1a; margin: 28px 44px 4px; height: 1px; }
 
-  .item { padding: 24px 32px 8px; }
-  .item + .item { border-top: 1px solid #e6ebf0; }
-  .chips { margin: 0 0 10px; }
-  .chip { display: inline-block; background: #eef3fa; border: 1px solid #c5d4e8; padding: 2px 8px;
-          font-size: 11px; color: #1f4e8c; margin-right: 6px; }
-  .item h2 { font-size: 18px; line-height: 1.5; margin: 0; }
-  .item h2 a { color: #173a66; text-decoration: none; }
-  .subhead { font-size: 14px; line-height: 1.6; color: #1f4e8c; margin: 4px 0 0; }
-  .teaser { font-size: 14px; line-height: 1.8; color: #3a4652; margin: 8px 0 0; }
-  .links { margin: 10px 0 16px; }
-  .links a { font-size: 12px; text-decoration: underline; }
-  .links .read { color: #1f4e8c; }
-  .links .src { color: #5a6672; }
-  .links .sep { color: #9aa5b0; font-size: 12px; }
+  .item { padding: 0 44px; }
+  .item-inner { display: flex; }
+  .num { width: 52px; flex-shrink: 0; font-size: 34px; font-weight: 900; color: #e4dccb; line-height: 1; }
+  .item-body { padding-left: 8px; }
+  .cat { font-size: 11px; letter-spacing: 2px; font-weight: 700; }
+  .item h2 { margin: 6px 0 0; }
+  .item h2 a { font-size: 21px; font-weight: 700; line-height: 1.4; color: #1a1a1a; text-decoration: none; }
+  .subhead { font-size: 13px; line-height: 1.7; color: #8a5a1a; margin: 8px 0 0; font-style: italic; }
+  .teaser { font-size: 14px; line-height: 1.9; color: #44474a; margin: 12px 0 0; }
+  .links { margin: 14px 0 0; }
+  .links .read { font-size: 12px; letter-spacing: 1px; color: #1a1a1a; text-decoration: none; border-bottom: 1px solid #c9a54a; padding-bottom: 2px; }
+  .links .src { font-size: 12px; color: #8a8578; text-decoration: none; margin-left: 14px; }
+  .thin-rule { border-top: 1px solid #ece7dc; margin: 28px 44px; height: 1px; }
 
-  .foot { background: #f6f7f9; border-top: 1px solid #d8dee4; padding: 16px 32px; margin-top: 16px;
-          font-size: 12px; line-height: 1.8; color: #5a6672; }
+  .foot { padding: 0 44px 36px; font-size: 12px; line-height: 1.9; color: #8a8578; }
+  .foot a { color: #8a5a1a; }
+  a { color: inherit; }
 </style>
 </head>
 <body>
 
+{% set TAGCOLOR = {'廠商動態':'#8a5a1a','技術發表':'#2a6a5a','研究成果':'#2a6a5a','法規與給付':'#6a3a6a','臨床應用':'#8a2a3a','財務與併購':'#3a5a8a','台灣動態':'#8a5a1a','其他':'#5a6672'} %}
+
 <div class="card">
   <div class="head">
-    <p class="eyebrow">DELTA · NBDMD</p>
-    <p class="brand">{{ newsletter_name }}</p>
-    <p class="meta">{{ issue_date }}｜第 {{ issue_no }} 期｜共 {{ total_articles }} 則</p>
+    <div class="head-row">
+      <div>
+        <p class="eyebrow">DELTA · NBDMD</p>
+        <p class="brand">{{ newsletter_name }}</p>
+      </div>
+      <div class="meta">{{ issue_date }}<br>第 {{ issue_no }} 期 · 共 {{ total_articles }} 則</div>
+    </div>
   </div>
 
   {% if tldr %}
   <div class="tldr">
-    <p class="tldr-title">本期 TL;DR</p>
-    {% if tldr.trends %}
-    <p class="tldr-group">趨勢</p>
-    <ul>{% for item in tldr.trends %}<li>{{ item }}</li>{% endfor %}</ul>
+    <p class="tldr-title">本期導讀</p>
+    {% for group, label in [('trends','趨勢'), ('highlights','重點'), ('observations','觀察')] %}
+    {% if tldr.get(group) %}
+    <p class="tldr-group">{{ label }}</p>
+    {% for item in tldr[group] %}<div class="tldr-item">— {{ item }}</div>{% endfor %}
     {% endif %}
-    {% if tldr.highlights %}
-    <p class="tldr-group">重點</p>
-    <ul>{% for item in tldr.highlights %}<li>{{ item }}</li>{% endfor %}</ul>
-    {% endif %}
-    {% if tldr.observations %}
-    <p class="tldr-group">觀察</p>
-    <ul>{% for item in tldr.observations %}<li>{{ item }}</li>{% endfor %}</ul>
-    {% endif %}
+    {% endfor %}
   </div>
+  <div class="rule"></div>
   {% endif %}
 
   {% for topic in topics %}
   <div class="item">
-    <div class="chips">
-      {% if topic.primary_tag %}<span class="chip">{{ topic.primary_tag }}</span>{% endif %}
-    </div>
-    <h2><a href="/issues/{{ issue_id }}/topics/{{ topic.id }}">{{ topic.chosen_headline }}</a></h2>
-    {% if topic.chosen_subhead %}<p class="subhead">{{ topic.chosen_subhead }}</p>{% endif %}
-    {% if topic.card_summary %}<p class="teaser">{{ topic.card_summary.text }}</p>{% endif %}
-    <div class="links">
-      <a class="read" href="/issues/{{ issue_id }}/topics/{{ topic.id }}">閱讀全文</a>
-      {% if topic.source_url %}
-      <span class="sep">&nbsp;·&nbsp;</span>
-      <a class="src" href="{{ topic.source_url }}" target="_blank" rel="noopener noreferrer">原文出處</a>
-      {% endif %}
+    <div class="item-inner">
+      <div class="num">{{ "%02d"|format(loop.index) }}</div>
+      <div class="item-body">
+        <div class="cat" style="color: {{ TAGCOLOR.get(topic.primary_tag, '#5a6672') }};">{{ topic.primary_tag }}</div>
+        <h2><a href="/issues/{{ issue_id }}/topics/{{ topic.id }}">{{ topic.chosen_headline }}</a></h2>
+        {% if topic.chosen_subhead %}<div class="subhead">{{ topic.chosen_subhead }}</div>{% endif %}
+        {% if topic.card_summary %}<div class="teaser">{{ topic.card_summary.text }}</div>{% endif %}
+        <div class="links">
+          <a class="read" href="/issues/{{ issue_id }}/topics/{{ topic.id }}">閱讀全文 →</a>
+          {% if topic.source_url %}<a class="src" href="{{ topic.source_url }}" target="_blank" rel="noopener noreferrer">原文出處</a>{% endif %}
+        </div>
+      </div>
     </div>
   </div>
+  <div class="thin-rule"></div>
   {% endfor %}
 
   <div class="foot">
+    完整版與歷史期數：<a href="http://TWTP1NB3422.delta.corp:8002">http://TWTP1NB3422.delta.corp:8002</a><br>
     本報由自動化系統產出，每則均附原文出處。僅供台達內部參考，請勿外流。
   </div>
 </div>

@@ -44,6 +44,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--issue-id", type=int, default=None)
     parser.add_argument("--intro", type=str, default=None, help="信首文字檔（純文字，空行分段），會排在 EDM 上方")
+    parser.add_argument("--to", type=str, default=None, help="預填收件人；仍只開草稿不自動寄送")
     args = parser.parse_args()
 
     # 先渲染（重用既有工具，確保跟預覽看到的完全相同）
@@ -74,9 +75,11 @@ def main() -> None:
     outlook = win32com.client.Dispatch("Outlook.Application")
     mail = outlook.CreateItem(0)  # 0 = MailItem
     mail.Subject = f"Delta 基因檢測日報（{issue_date}）"
+    if args.to:
+        mail.To = args.to
     mail.HTMLBody = html
-    mail.Display()  # 打開草稿視窗，不寄送
-    print("[draft_issue_email] Outlook 草稿已打開，填好收件人後自行按傳送。")
+    mail.Display()  # 打開草稿視窗，不寄送（送出由使用者自己按）
+    print("[draft_issue_email] Outlook 草稿已打開，確認後自行按傳送。")
 
 
 if __name__ == "__main__":

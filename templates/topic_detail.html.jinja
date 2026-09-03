@@ -1,71 +1,58 @@
 <!--
-單篇全文頁（genomics-prototype，2026-09-01 整頁改寫）。定位是「EDM 的
-延伸頁」：讀者從信件點「閱讀全文」進來，看到的要跟信件同一套版型
-（640 寬白卡、藍刊頭、同字體同色），讀完就走，不把人帶進網站的領域
-首頁。所以刻意沒有：回首頁連結、語言切換、意見回饋、領域導覽。
-歷史期數與領域瀏覽的入口只在信尾，不在這頁。
+單篇全文頁（genomics-prototype，2026-09-03 改雜誌版型）。從 EDM 或摘要頁
+點「閱讀全文」進來,跟兩者同一套視覺(米白紙底、Noto Sans、金色點綴)。
+左上可退回本期摘要;沒有領域導覽、語言切換、意見回饋,讀完就走。
 -->
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
 <title>{{ topic.chosen_headline }}｜{{ newsletter_name }}</title>
 <style>
   * { box-sizing: border-box; }
-  body { margin: 0; padding: 24px 12px; background-color: #eef1f4;
-         font-family: "Microsoft JhengHei", "PingFang TC", Arial, sans-serif; }
-  .card { max-width: 640px; margin: 0 auto; background: #ffffff; border: 1px solid #d8dee4; }
+  body { margin: 0; padding: 28px 12px; background-color: #e8e4da;
+         font-family: "Noto Sans TC", "Microsoft JhengHei", "PingFang TC", Arial, sans-serif; }
+  .card { max-width: 660px; margin: 0 auto; background: #fbfaf6; box-shadow: 0 6px 24px rgba(40,36,28,0.14); }
+  .body { padding: 36px 44px 40px; }
 
-  .head { background-color: #1f4e8c; padding: 28px 32px; }
-  .head .eyebrow { font-size: 12px; letter-spacing: 2px; color: #bcd0e8; margin: 0 0 6px; }
-  .head .brand { font-size: 20px; font-weight: bold; color: #ffffff; margin: 0; }
-  .head .meta { font-size: 13px; color: #bcd0e8; margin: 8px 0 0; }
+  .back { font-size: 12px; letter-spacing: 1px; color: #8a8578; text-decoration: none; }
+  .cat { font-size: 11px; letter-spacing: 2px; font-weight: 700; margin: 24px 0 0; }
+  h1 { font-size: 28px; font-weight: 900; line-height: 1.4; color: #1a1a1a; margin: 10px 0 0; }
+  .subhead { font-size: 15px; line-height: 1.7; color: #8a5a1a; font-style: italic; margin: 10px 0 0; }
+  .rule { border-top: 2px solid #1a1a1a; margin: 20px 0 0; height: 1px; }
 
-  .body { padding: 24px 32px 8px; }
-  .back { display: inline-block; font-size: 12px; color: #5a6672; text-decoration: underline; margin: 0 0 14px; }
-  .chips { margin: 0 0 10px; }
-  .chip { display: inline-block; background: #eef3fa; border: 1px solid #c5d4e8; padding: 2px 8px;
-          font-size: 11px; color: #1f4e8c; margin-right: 6px; }
-  h1 { font-size: 22px; line-height: 1.5; color: #173a66; margin: 0; }
-  .subhead { font-size: 15px; line-height: 1.6; color: #1f4e8c; margin: 6px 0 0; }
+  .stats { margin: 24px 0 4px; }
+  .stat { display: inline-block; margin-right: 26px; vertical-align: top; }
+  .stat b { font-size: 26px; font-weight: 900; color: #1a1a1a; display: block; }
+  .stat span { font-size: 11px; color: #8a8578; }
 
-  .stats { margin: 18px 0 0; padding: 12px 16px; background: #f6f7f9; border: 1px solid #e6ebf0; }
-  .stat { display: inline-block; margin-right: 24px; }
-  .stat b { font-size: 18px; color: #173a66; }
-  .stat span { font-size: 12px; color: #5a6672; margin-left: 6px; }
+  .section-heading { font-size: 17px; font-weight: 700; color: #1a1a1a; margin: 28px 0 0; }
+  p { font-size: 15px; line-height: 2.0; color: #33363a; margin: 14px 0 0; }
 
-  .section-heading { font-size: 16px; font-weight: bold; color: #1c2b38; margin: 22px 0 0; }
-  p { font-size: 15px; line-height: 1.95; color: #3a4652; margin: 12px 0 0; }
+  .insight { margin: 28px 0 0; padding: 16px 20px; background: #f4efe4; border-left: 3px solid #c9a54a; }
+  .insight .label { font-size: 11px; letter-spacing: 2px; font-weight: 700; color: #c9a54a; }
+  .insight .heading { font-size: 14px; font-weight: 700; color: #1a1a1a; margin: 8px 0 0; }
+  .insight p { font-size: 14px; line-height: 1.9; color: #44474a; }
 
-  .insight { margin: 22px 0 0; padding: 14px 18px; background: #f2f6fb; border-left: 3px solid #1f4e8c; }
-  .insight .heading { font-size: 14px; font-weight: bold; color: #1f4e8c; margin: 0; }
-  .insight p { font-size: 14px; line-height: 1.85; }
-
-  .sources { margin: 24px 0 0; padding: 14px 0 20px; border-top: 1px solid #e6ebf0; }
-  .sources a { font-size: 13px; color: #5a6672; text-decoration: underline; display: block; margin-top: 6px; }
-  .sources .label { font-size: 12px; color: #9aa5b0; }
-
-  .foot { background: #f6f7f9; border-top: 1px solid #d8dee4; padding: 16px 32px;
-          font-size: 12px; line-height: 1.8; color: #5a6672; }
+  .sources { margin: 32px 0 0; padding-top: 16px; border-top: 1px solid #ece7dc; }
+  .sources .label { font-size: 11px; letter-spacing: 1px; color: #8a8578; }
+  .sources a { font-size: 13px; color: #8a5a1a; text-decoration: underline; display: block; margin-top: 6px; }
+  a { color: inherit; }
 </style>
 </head>
 <body>
 
-<div class="card">
-  <div class="head">
-    <p class="eyebrow">DELTA · NBDMD</p>
-    <p class="brand">{{ newsletter_name }}</p>
-    <p class="meta">第 {{ issue_no }} 期</p>
-  </div>
+{% set TAGCOLOR = {'廠商動態':'#8a5a1a','技術發表':'#2a6a5a','研究成果':'#2a6a5a','法規與給付':'#6a3a6a','臨床應用':'#8a2a3a','財務與併購':'#3a5a8a','台灣動態':'#8a5a1a','其他':'#5a6672'} %}
 
+<div class="card">
   <div class="body">
     <a class="back" href="/issues/{{ issue_id }}">← 回本期摘要</a>
-    <div class="chips">
-      {% if topic.primary_tag %}<span class="chip">{{ topic.primary_tag }}</span>{% endif %}
-    </div>
+    {% if topic.primary_tag %}<div class="cat" style="color: {{ TAGCOLOR.get(topic.primary_tag, '#5a6672') }};">{{ topic.primary_tag }}</div>{% endif %}
     <h1>{{ topic.chosen_headline }}</h1>
-    {% if topic.chosen_subhead %}<p class="subhead">{{ topic.chosen_subhead }}</p>{% endif %}
+    {% if topic.chosen_subhead %}<div class="subhead">{{ topic.chosen_subhead }}</div>{% endif %}
+    <div class="rule"></div>
 
     {% if topic.stats %}
     <div class="stats">
@@ -80,21 +67,18 @@
 
     {% if topic.delta_insight %}
     <div class="insight">
-      {% if topic.delta_insight.heading %}<p class="heading">{{ topic.delta_insight.heading }}</p>{% endif %}
+      <div class="label">行動基因視角</div>
+      {% if topic.delta_insight.heading %}<div class="heading">{{ topic.delta_insight.heading }}</div>{% endif %}
       {% for para in topic.delta_insight.paragraphs %}<p>{{ para }}</p>{% endfor %}
     </div>
     {% endif %}
 
     <div class="sources">
-      <span class="label">原文出處</span>
+      <div class="label">原文出處</div>
       {% for src in topic.sources %}
       <a href="{{ src.url }}" target="_blank" rel="noopener noreferrer">{{ src.source_name }}｜{{ src.title }}</a>
       {% endfor %}
     </div>
-  </div>
-
-  <div class="foot">
-    本報由自動化系統產出，每則均附原文出處。僅供台達內部參考，請勿外流。
   </div>
 </div>
 
