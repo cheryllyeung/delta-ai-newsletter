@@ -23,6 +23,11 @@ def _get_model():
         from sentence_transformers import SentenceTransformer
 
         _model = SentenceTransformer(_MODEL_NAME)
+        # Qwen3-Embedding 預設支援 32k 長上下文。有些來源（Google Cloud、
+        # AWS 技術部落格）單篇三萬多字，在 CPU 上一篇要算好幾分鐘，一大批
+        # 就把聚類卡到幾小時（2026-09-03 主線實際卡死）。聚類只需要「是不是
+        # 同一件事」的語意，前 512 token 就夠，單篇縮到十秒級。
+        _model.max_seq_length = 512
     return _model
 
 
