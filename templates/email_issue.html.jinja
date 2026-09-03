@@ -1,93 +1,85 @@
 {#
-EDM 版模板（tools/render_issue_email.py 渲染）。跟網頁模板分開寫的原因：
-Outlook 用 Word 引擎渲染信件，網頁版的 web font、grid、oklch 色彩全部
-不支援，信件排版只能用 table 加行內樣式、系統字體、十六進位色碼。
-每則只放標題（連內網全文頁）、副標與摘要，全文留在網頁，這是 EDM 的
-常見做法，也對齊 NBDMD 現行「標題加三句摘要」的格式。
+EDM 雜誌版模板（tools/render_issue_email.py 渲染）。純 table + 行內樣式,
+Outlook 用 Word 引擎渲染信件,現代 CSS 不吃。設計語言（米白紙底、Noto
+Sans、金色點綴、大號裝飾序號）跟網頁的摘要頁/全文頁一致,三處看起來
+是同一份刊物。字體用 Noto Sans TC(載不進來退回微軟正黑,不掉質感)。
 #}
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
 <title>{{ issue_title }}</title>
 </head>
-<body style="margin:0; padding:0; background-color:#eef1f4;">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#eef1f4;">
-<tr><td align="center" style="padding:24px 12px;">
-
-<table role="presentation" width="640" cellpadding="0" cellspacing="0" border="0" style="width:640px; max-width:100%; background-color:#ffffff; border:1px solid #d8dee4;">
+{% set SANS = "'Noto Sans TC', 'Microsoft JhengHei', 'PingFang TC', Arial, sans-serif" %}
+<body style="margin:0; padding:28px 12px; background-color:#e8e4da;">
+<table role="presentation" width="660" cellpadding="0" cellspacing="0" border="0" align="center"
+       style="width:660px; max-width:100%; background:#fbfaf6; box-shadow:0 6px 24px rgba(40,36,28,0.14);">
 
   <!-- 刊頭 -->
-  <tr><td style="background-color:#1f4e8c; padding:28px 32px;">
-    <div style="font-family:'Microsoft JhengHei', 'PingFang TC', Arial, sans-serif; font-size:12px; letter-spacing:2px; color:#bcd0e8; margin-bottom:6px;">DELTA · NBDMD</div>
-    <div style="font-family:'Microsoft JhengHei', 'PingFang TC', Arial, sans-serif; font-size:26px; font-weight:bold; color:#ffffff;">{{ newsletter_name }}</div>
-    <div style="font-family:'Microsoft JhengHei', 'PingFang TC', Arial, sans-serif; font-size:13px; color:#bcd0e8; margin-top:8px;">{{ issue_date }}｜第 {{ issue_no }} 期｜共 {{ articles | length }} 則</div>
+  <tr><td style="padding:40px 44px 24px; border-bottom:2px solid #1a1a1a;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+      <td valign="bottom">
+        <div style="font-family:{{ SANS }}; font-size:11px; letter-spacing:4px; color:#8a5a1a; font-weight:700;">DELTA · NBDMD</div>
+        <div style="font-family:{{ SANS }}; font-size:32px; font-weight:900; color:#1a1a1a; margin-top:6px; line-height:1.1;">{{ newsletter_name }}</div>
+      </td>
+      <td valign="bottom" align="right">
+        <div style="font-family:{{ SANS }}; font-size:13px; color:#8a8578;">{{ issue_date }}</div>
+        <div style="font-family:{{ SANS }}; font-size:13px; color:#8a8578;">第 {{ issue_no }} 期 · 共 {{ articles | length }} 則</div>
+      </td>
+    </tr></table>
   </td></tr>
 
-  <!-- 本期 TLDR -->
+  <!-- 本期導讀（TLDR） -->
   {% if tldr %}
-  <tr><td style="padding:24px 32px 0;">
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f2f6fb; border:1px solid #d5e2f2;">
-      <tr><td style="padding:16px 20px;">
-        <div style="font-family:'Microsoft JhengHei', Arial, sans-serif; font-size:13px; font-weight:bold; letter-spacing:1px; color:#1f4e8c;">本期 TL;DR</div>
-        {% for group, label in [('trends','趨勢'), ('highlights','重點'), ('observations','觀察')] %}
-        {% if tldr.get(group) %}
-        <div style="font-family:'Microsoft JhengHei', Arial, sans-serif; font-size:13px; font-weight:bold; color:#1c2b38; margin-top:12px;">{{ label }}</div>
-        {% for item in tldr[group] %}
-        <div style="font-family:'Microsoft JhengHei', Arial, sans-serif; font-size:13px; line-height:1.8; color:#3a4652; margin-top:4px;">· {{ item }}</div>
-        {% endfor %}
-        {% endif %}
-        {% endfor %}
-      </td></tr>
-    </table>
+  <tr><td style="padding:24px 44px 0;">
+    <div style="font-family:{{ SANS }}; font-size:12px; letter-spacing:4px; color:#8a8578;">本期導讀</div>
+    {% for group, label in [('trends','趨勢'), ('highlights','重點'), ('observations','觀察')] %}
+    {% if tldr.get(group) %}
+    <div style="font-family:{{ SANS }}; font-size:11px; letter-spacing:2px; font-weight:700; color:#c9a54a; margin-top:16px;">{{ label }}</div>
+    {% for item in tldr[group] %}
+    <div style="font-family:{{ SANS }}; font-size:13px; line-height:1.8; color:#44474a; margin-top:5px; padding-left:14px; text-indent:-14px;">— {{ item }}</div>
+    {% endfor %}
+    {% endif %}
+    {% endfor %}
   </td></tr>
+  <tr><td style="padding:28px 44px 4px;"><div style="border-top:2px solid #1a1a1a; height:1px; line-height:1px;">&nbsp;</div></td></tr>
   {% endif %}
 
   <!-- 文章清單 -->
   {% for a in articles %}
-  <tr><td style="padding:24px 32px 8px 32px; {% if not loop.first %}border-top:1px solid #e6ebf0;{% endif %}">
-    <table role="presentation" cellpadding="0" cellspacing="0" border="0">
-      <tr>
-        {% if a.primary_tag %}
-        <td style="background-color:#eef3fa; border:1px solid #c5d4e8; padding:2px 8px; font-family:'Microsoft JhengHei', Arial, sans-serif; font-size:11px; color:#1f4e8c;">{{ a.primary_tag }}</td>
-        {% endif %}
-        {% if a.is_taiwan %}
-        <td style="width:6px;"></td>
-        <td style="background-color:#fdf1e3; border:1px solid #e8cfa8; padding:2px 8px; font-family:'Microsoft JhengHei', Arial, sans-serif; font-size:11px; color:#8a5a1a;">台灣</td>
-        {% endif %}
-      </tr>
-    </table>
-    <div style="margin-top:10px;">
-      <a href="{{ a.url }}" style="font-family:'Microsoft JhengHei', 'PingFang TC', Arial, sans-serif; font-size:18px; font-weight:bold; line-height:1.5; color:#173a66; text-decoration:none;">{{ a.headline }}</a>
-    </div>
-    {% if a.subhead %}
-    <div style="font-family:'Microsoft JhengHei', 'PingFang TC', Arial, sans-serif; font-size:14px; line-height:1.6; color:#1f4e8c; margin-top:4px;">{{ a.subhead }}</div>
-    {% endif %}
-    {% if a.summary %}
-    <div style="font-family:'Microsoft JhengHei', 'PingFang TC', Arial, sans-serif; font-size:14px; line-height:1.8; color:#3a4652; margin-top:8px;">{{ a.summary }}</div>
-    {% endif %}
-    <div style="margin-top:10px; padding-bottom:16px;">
-      <a href="{{ a.url }}" style="font-family:'Microsoft JhengHei', Arial, sans-serif; font-size:12px; color:#1f4e8c; text-decoration:underline;">閱讀全文</a>
-      {% if a.source_url %}
-      <span style="font-family:Arial, sans-serif; font-size:12px; color:#9aa5b0;">&nbsp;·&nbsp;</span>
-      <a href="{{ a.source_url }}" style="font-family:'Microsoft JhengHei', Arial, sans-serif; font-size:12px; color:#5a6672; text-decoration:underline;">原文出處</a>
-      {% endif %}
-    </div>
+  <tr><td style="padding:0 44px;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+      <td width="52" valign="top" style="width:52px;">
+        <div style="font-family:{{ SANS }}; font-size:34px; font-weight:900; color:#e4dccb; line-height:1;">{{ a.num }}</div>
+      </td>
+      <td valign="top" style="padding-left:8px;">
+        <div style="font-family:{{ SANS }}; font-size:11px; letter-spacing:2px; font-weight:700; color:{{ a.tag_color }};">{{ a.primary_tag }}{% if a.is_taiwan %} · 台灣{% endif %}</div>
+        <div style="margin-top:6px;"><a href="{{ a.url }}" style="font-family:{{ SANS }}; font-size:21px; font-weight:700; line-height:1.4; color:#1a1a1a; text-decoration:none;">{{ a.headline }}</a></div>
+        {% if a.subhead %}<div style="font-family:{{ SANS }}; font-size:13px; line-height:1.7; color:#8a5a1a; margin-top:8px; font-style:italic;">{{ a.subhead }}</div>{% endif %}
+        {% if a.summary %}<div style="font-family:{{ SANS }}; font-size:14px; line-height:1.9; color:#44474a; margin-top:12px;">{{ a.summary }}</div>{% endif %}
+        <div style="margin-top:14px;">
+          <a href="{{ a.url }}" style="font-family:{{ SANS }}; font-size:12px; letter-spacing:1px; color:#1a1a1a; text-decoration:none; border-bottom:1px solid #c9a54a; padding-bottom:2px;">閱讀全文 →</a>
+          {% if a.source_url %}
+          <span style="font-family:Arial; font-size:12px; color:#c9c3b6;">&nbsp;&nbsp;</span>
+          <a href="{{ a.source_url }}" target="_blank" style="font-family:{{ SANS }}; font-size:12px; color:#8a8578; text-decoration:none;">原文出處</a>
+          {% endif %}
+        </div>
+      </td>
+    </tr></table>
   </td></tr>
+  <tr><td style="padding:28px 44px;"><div style="border-top:1px solid #ece7dc; height:1px; line-height:1px;">&nbsp;</div></td></tr>
   {% endfor %}
 
   <!-- 信尾 -->
-  <tr><td style="background-color:#f6f7f9; border-top:1px solid #d8dee4; padding:20px 32px;">
-    <div style="font-family:'Microsoft JhengHei', 'PingFang TC', Arial, sans-serif; font-size:12px; line-height:1.8; color:#5a6672;">
-      完整版（各領域瀏覽、歷史期數、原文連結）：<a href="{{ site_url }}" style="color:#1f4e8c;">{{ site_url }}</a><br>
+  <tr><td style="padding:0 44px 36px;">
+    <div style="font-family:{{ SANS }}; font-size:12px; line-height:1.9; color:#8a8578;">
+      完整版與歷史期數：<a href="{{ site_url }}" style="color:#8a5a1a;">{{ site_url }}</a><br>
       本報由自動化系統產出，每則均附原文出處。僅供台達內部參考，請勿外流。
     </div>
   </td></tr>
 
-</table>
-
-</td></tr>
 </table>
 </body>
 </html>

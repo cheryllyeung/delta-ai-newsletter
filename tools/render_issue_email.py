@@ -42,11 +42,17 @@ def main() -> None:
         print("[render_issue_email] 沒有任何一期可渲染。")
         sys.exit(1)
 
+    # 分類 -> 專屬色（雜誌版用，低彩度）
+    tag_color = {
+        "廠商動態": "#8a5a1a", "技術發表": "#2a6a5a", "研究成果": "#2a6a5a",
+        "法規與給付": "#6a3a6a", "臨床應用": "#8a2a3a", "財務與併購": "#3a5a8a",
+        "台灣動態": "#8a5a1a", "其他": "#5a6672",
+    }
     rows = conn.execute(
         "SELECT * FROM generated_topics WHERE issue_id = ? ORDER BY id", (issue["id"],)
     ).fetchall()
     articles = []
-    for r in rows:
+    for idx, r in enumerate(rows, 1):
         g = json.loads(r["generated_json"])
         # 摘要用卡片文案；台灣標記看打分（taiwan_industry 過 4 分就標）
         scores_row = conn.execute(
@@ -59,14 +65,16 @@ def main() -> None:
             "SELECT url FROM articles WHERE topic_id = ? AND discarded_at IS NULL ORDER BY published_at DESC LIMIT 1",
             (r["topic_id"],),
         ).fetchone()
+        tag = g.get("primary_tag", "其他")
         articles.append(
             {
+                "num": f"{idx:02d}",
                 "headline": g.get("chosen_headline", ""),
                 "subhead": g.get("chosen_subhead", ""),
                 "summary": (g.get("card_summary") or {}).get("text", ""),
-                "primary_tag": g.get("primary_tag", ""),
+                "primary_tag": tag,
+                "tag_color": tag_color.get(tag, "#5a6672"),
                 "is_taiwan": tw >= 4,
-                "needs_review": bool(r["needs_review"]),
                 "url": f"{SITE_URL}/issues/{issue['id']}/topics/{r['id']}",
                 "source_url": src["url"] if src else None,
             }
