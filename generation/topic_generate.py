@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import json
 import random
+import re
 import sqlite3
 
 import openai
@@ -57,16 +58,34 @@ OPENING_TECHNIQUES = [
 ]
 
 
+def _strip_invalid_escapes(text: str) -> str:
+    """把 JSON 非法的反斜線跳脫修掉。JSON 合法跳脫只有 \\" \\\\ \\/ \\b \\f
+    \\n \\r \\t \\uXXXX,但模型常在字串裡吐出 \\x、\\ (空白)、\\( 這種非法
+    跳脫,json.loads 會報 Invalid \\escape。作法:把不是合法跳脫的反斜線
+    後面那個字元前的反斜線移除(等於還原成純字元)。這是 2026-09-10 實測
+    台達 AI 補刊時反覆卡在這個錯誤才加的容錯。"""
+    return re.sub(r'\\(?!["\\/bfnrtu])', "", text)
+
+
 def _parse_json_object(raw_text: str) -> dict:
     # strict=False：LLM 常在字串值裡直接吐出沒跳脫的換行/tab 等控制字元，
     # 嚴格模式的 json.loads 會直接拋 JSONDecodeError（Invalid control character）。
-    try:
-        return json.loads(raw_text, strict=False)
-    except json.JSONDecodeError:
-        start, end = raw_text.find("{"), raw_text.rfind("}")
-        if start != -1 and end != -1:
-            return json.loads(raw_text[start : end + 1], strict=False)
-        raise
+    candidate = raw_text
+    for attempt in range(2):  # 第二輪先清非法跳脫再試
+        try:
+            return json.loads(candidate, strict=False)
+        except json.JSONDecodeError:
+            start, end = candidate.find("{"), candidate.rfind("}")
+            if start != -1 and end != -1:
+                try:
+                    return json.loads(candidate[start : end + 1], strict=False)
+                except json.JSONDecodeError:
+                    pass
+            if attempt == 0:
+                candidate = _strip_invalid_escapes(raw_text)  # 清完再跑一輪
+            else:
+                raise
+    raise json.JSONDecodeError("無法解析", raw_text, 0)
 
 
 def drop_section_duplicating_insight(parsed: dict) -> dict:
