@@ -36,13 +36,12 @@ function Write-Log([string]$msg) {
 
 Write-Log "=== 開始，出刊日期 $IssueDate ==="
 
-# 步驟零：確保 Neo4j 活著（起不來只會讓建圖被跳過，不擋出刊）。
-& powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot "start_neo4j.ps1") 2>&1 |
-    ForEach-Object { Add-Content -Path $log -Value $_ -Encoding utf8 }
-
-# 步驟一：抓取與分析（含建圖）。失敗不要接著跑出刊，那樣只會產出半成品的一期。
+# 步驟一：抓取與分析。2026-09-11 拿掉每日建圖：建圖那步在這台無 GPU 的
+# 機器上會卡在聚類/embedding 幾小時,每天排程白佔 CPU 又出不了刊(9 月斷更
+# 一週就是這樣)。知識圖譜改成有需要時手動跑 tools/backfill_graph_extraction.py。
+# 也不再每天起 Neo4j。失敗不要接著出刊,那樣只會產出半成品的一期。
 Write-Log "--- ingest_topics ---"
-& python -X utf8 -u -m scripts.ingest_topics --concurrency $Concurrency --build-graph 2>&1 |
+& python -X utf8 -u -m scripts.ingest_topics --concurrency $Concurrency 2>&1 |
     ForEach-Object { Add-Content -Path $log -Value $_ -Encoding utf8 }
 $ingestCode = $LASTEXITCODE
 Write-Log "ingest_topics 結束，exit code $ingestCode"
