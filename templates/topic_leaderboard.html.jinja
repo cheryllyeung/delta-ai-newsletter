@@ -26,7 +26,8 @@ LMArena 分類排行榜頁（scripts/serve_topics.py 的 /leaderboard）。
     --font-body:    "IBM Plex Sans", ui-sans-serif, "PingFang TC", "Noto Sans TC", sans-serif;
     --font-label:   "JetBrains Mono", ui-monospace, monospace;
     --page-gutter: clamp(1.25rem, 4vw, 3rem);
-    --shell: 46rem;
+    /* 這頁比其他頁寬：兩欄各放一張五欄表格，46rem 會把數字擠掉。 */
+    --shell: 62rem;
   }
   * { box-sizing: border-box; }
   html, body { overflow-x: clip; margin: 0; padding: 0; }
@@ -45,13 +46,16 @@ LMArena 分類排行榜頁（scripts/serve_topics.py 的 /leaderboard）。
 
   .leaderboard { max-width: var(--shell); margin: 1.5rem auto 0; padding: 0 var(--page-gutter) 4rem; }
   .leaderboard-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
-  @media (max-width: 40rem) { .leaderboard-grid { grid-template-columns: 1fr; } }
-  .leaderboard-box { background: var(--color-paper-2); border: 2px solid var(--color-ink); box-shadow: 3px 3px 0 var(--color-ink); padding: 1rem 1.2rem; }
+  /* 一格塞不下五欄表格時退回一欄，斷點抓寬一點，寧可直排也不要擠壞。 */
+  @media (max-width: 52rem) { .leaderboard-grid { grid-template-columns: 1fr; } }
+  .leaderboard-box { background: var(--color-paper-2); border: 2px solid var(--color-ink); box-shadow: 3px 3px 0 var(--color-ink); padding: 1rem 1.2rem; overflow-x: auto; }
   .leaderboard-title { font-family: var(--font-label); font-size: 0.78rem; font-weight: 700; color: var(--color-accent); margin: 0 0 0.6rem; }
-  .leaderboard table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
-  .leaderboard th { font-family: var(--font-label); font-size: 0.68rem; text-align: left; color: var(--color-muted); padding: 0.25em 0.5em; border-bottom: 1.5px solid var(--color-ink); }
+  .leaderboard table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+  .leaderboard th { font-family: var(--font-label); font-size: 0.68rem; text-align: left; color: var(--color-muted); padding: 0.25em 0.5em; border-bottom: 1.5px solid var(--color-ink); white-space: nowrap; }
   .leaderboard td { padding: 0.35em 0.5em; border-bottom: 1px solid var(--color-paper-3); }
-  .leaderboard .rank { font-family: var(--font-label); }
+  /* 數字欄不准折行也不准被壓縮，寬度不夠時讓模型名折行去吸收。 */
+  .leaderboard .rank { font-family: var(--font-label); white-space: nowrap; }
+  .leaderboard .model-name { overflow-wrap: anywhere; }
 
   .empty { max-width: var(--shell); margin: 0 auto; padding: 3rem var(--page-gutter); color: var(--color-muted); }
   .foot { background: var(--color-ink); color: var(--color-accent-ink); padding: 1.5rem var(--page-gutter) 2.5rem; }
@@ -83,7 +87,7 @@ LMArena 分類排行榜頁（scripts/serve_topics.py 的 /leaderboard）。
           {% for r in board.rows %}
           <tr>
             <td class="rank">{{ r.rank }}</td>
-            <td>{{ r.model }}</td>
+            <td class="model-name">{{ r.model }}</td>
             <td>{{ r.org or "" }}</td>
             <td class="rank">{{ r.score if r.score is not none else "—" }}</td>
             <td class="rank">{{ "{:,}".format(r.votes) if r.votes else "—" }}</td>
