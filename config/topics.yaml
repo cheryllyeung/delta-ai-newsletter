@@ -676,3 +676,91 @@ sources:
     tier: vertical
     url: "https://displaydaily.com/feed/"
     weight: 0.8
+
+  # 2026-09-14 擴充：對照台達官方四大範疇（電源及零組件／交通／自動化／
+  # 基礎設施）補缺口。交通原本只有 InsideEVs 一個、樓宇自動化是零、儲能
+  # 微電網也是零。全部候選當天用 curl 驗證過 feed 可用且一週內有更新；
+  # Data Center Frontier、Automation World、Microgrid Knowledge 都 404，
+  # Control Engineering 回 HTML 不是 feed，Smart Energy International 503，
+  # 沒收。Electrek 跟 CnEVPost feed 可用但量大且跟 InsideEVs 定位重疊，
+  # 先不加，之後交通版位不夠再開。
+  #
+  # 電源及零組件：電力電子與資料中心電源散熱
+  - id: power_electronics_news
+    name: "Power Electronics News"
+    type: rss
+    tier: vertical
+    url: "https://www.powerelectronicsnews.com/feed/"
+    weight: 0.9
+  - id: electronics_weekly
+    name: "Electronics Weekly"
+    type: rss
+    tier: vertical
+    url: "https://www.electronicsweekly.com/feed/"
+    weight: 0.8
+  - id: datacenter_dynamics
+    name: "Data Center Dynamics"
+    type: rss
+    tier: vertical
+    url: "https://www.datacenterdynamics.com/rss/"
+    weight: 0.9
+  - id: datacenter_knowledge
+    name: "Data Center Knowledge"
+    type: rss
+    tier: vertical
+    url: "https://www.datacenterknowledge.com/rss.xml"
+    weight: 0.8
+  # 交通：EV 工程與供應鏈視角，補 InsideEVs 的消費者視角以外的部分
+  - id: charged_evs
+    name: "Charged EVs"
+    type: rss
+    tier: vertical
+    url: "https://chargedevs.com/feed/"
+    weight: 0.8
+  - id: electrive
+    name: "electrive"
+    type: rss
+    tier: vertical
+    url: "https://www.electrive.com/feed/"
+    weight: 0.8
+  # 自動化：製造業產業媒體、機器人、樓宇
+  - id: manufacturing_dive
+    name: "Manufacturing Dive"
+    type: rss
+    tier: vertical
+    url: "https://www.manufacturingdive.com/feeds/news/"
+    weight: 0.8
+  # 8/26 測是 403 擋爬蟲，9/14 帶瀏覽器 UA 測通了。feedparser 預設 UA
+  # 可能還是被擋，第一次跑要看掛零名單，掛了就在抓取端帶 UA 或移除。
+  - id: robot_report
+    name: "The Robot Report"
+    type: rss
+    tier: vertical
+    url: "https://www.therobotreport.com/feed/"
+    weight: 0.8
+  # 樓宇自動化目前唯一可用的候選，市場研究型，更新頻率偏低（週更左右）
+  - id: memoori
+    name: "Memoori"
+    type: rss
+    tier: vertical
+    url: "https://memoori.com/feed/"
+    weight: 0.8
+  # 基礎設施：儲能、電網、智慧城市
+  - id: energy_storage_news
+    name: "Energy Storage News"
+    type: rss
+    tier: vertical
+    url: "https://www.energy-storage.news/feed/"
+    weight: 0.8
+  - id: canary_media
+    name: "Canary Media"
+    type: rss
+    tier: vertical
+    url: "https://www.canarymedia.com/rss.xml"
+    weight: 0.8
+  - id: smart_cities_dive
+    name: "Smart Cities Dive"
+    type: rss
+    tier: vertical
+    url: "https://www.smartcitiesdive.com/feeds/news/"
+    weight: 0.7
