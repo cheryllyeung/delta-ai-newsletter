@@ -63,9 +63,15 @@ def main() -> None:
     html = html_path.read_text(encoding="utf-8")
 
     if args.intro:
+        # 2026-09-18 修：原本靠找舊版模板的錨點字串插入，模板改版後錨點
+        # 消失就靜默失敗（開場白整段不見）。改插在 <body> 標籤正後方，
+        # 不依賴版型；連 <body> 都找不到就直接放最前面。
+        import re
+
         intro_html = _intro_to_html(Path(args.intro).read_text(encoding="utf-8"))
-        marker = "<tr><td align=\"center\" style=\"padding:24px 12px;\">"
-        html = html.replace(marker, marker + intro_html, 1)
+        html, n = re.subn(r"(<body[^>]*>)", lambda m: m.group(1) + intro_html, html, count=1)
+        if not n:
+            html = intro_html + html
 
     # 主旨從檔名的日期組
     issue_date = html_path.stem.replace("email_preview_", "")
