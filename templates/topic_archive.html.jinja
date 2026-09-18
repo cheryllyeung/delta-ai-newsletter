@@ -1,0 +1,79 @@
+<!--
+出刊紀錄頁（2026-09-18 刊物改版，仿 integuide 的 archive）。每一期一行：
+報頭導語當標題、日期、則數，按月分組。視覺跟領域頁同一套 Carnival 語彙。
+-->
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=IBM+Plex+Sans:wght@400;500;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<title>出刊紀錄｜{{ newsletter_name }}</title>
+<style>
+  :root {
+    --color-paper: #f4f1ea; --color-paper-2: #fbfaf6;
+    --color-ink: #1c2b38; --color-ink-2: #44525e; --color-muted: #7a8691;
+    --color-accent: #b3591c; --color-accent-ink: #fdf6ef;
+    --font-display: "Noto Sans TC", sans-serif;
+    --font-body: "IBM Plex Sans", ui-sans-serif, "PingFang TC", "Noto Sans TC", sans-serif;
+    --font-label: "JetBrains Mono", ui-monospace, monospace;
+    --page-gutter: clamp(1.25rem, 4vw, 3rem);
+    --shell: 46rem;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body { background: var(--color-paper); color: var(--color-ink); font-family: var(--font-body); }
+  h1, h2 { font-family: var(--font-display); font-weight: 900; }
+
+  .masthead { background: var(--color-accent); color: var(--color-accent-ink); padding: 2.2rem var(--page-gutter) 1.8rem; }
+  .masthead-inner { max-width: var(--shell); margin: 0 auto; }
+  .back-link { font-family: var(--font-label); font-size: 0.78rem; color: var(--color-accent-ink); text-decoration: none; opacity: 0.85; }
+  .eyebrow { font-family: var(--font-label); font-size: 0.75rem; letter-spacing: 0.1em; margin: 0.8rem 0 0.4rem; }
+  .masthead h1 { margin: 0; font-size: clamp(1.6rem, 3vw + 0.8rem, 2.4rem); }
+
+  .wrap { max-width: var(--shell); margin: 0 auto; padding: 1.5rem var(--page-gutter) 3rem; }
+  .month-title { font-size: 1.15rem; margin: 1.8rem 0 0.6rem; border-bottom: 2px solid var(--color-ink); padding-bottom: 0.3em; }
+  .issue-row { display: block; background: var(--color-paper-2); border: 1px solid #d8dee4;
+               box-shadow: 0 1px 4px rgba(28,43,56,0.10); padding: 0.75rem 0.95rem; margin-top: 0.6rem;
+               text-decoration: none; color: var(--color-ink);
+               transition: transform 120ms ease-out, box-shadow 120ms ease-out; }
+  .issue-row:hover { transform: translate(-1px, -1px); box-shadow: 0 2px 8px rgba(28,43,56,0.14); }
+  .issue-row-headline { font-family: var(--font-display); font-weight: 700; font-size: 0.98rem; line-height: 1.5; }
+  .issue-row-meta { font-family: var(--font-label); font-size: 0.74rem; color: var(--color-muted); margin-top: 0.3rem; }
+  .issue-row-meta .weekly { color: var(--color-accent); font-weight: 700; }
+
+  .foot { background: var(--color-ink); color: var(--color-accent-ink); padding: 1.5rem var(--page-gutter) 2.5rem; }
+  .foot-inner { max-width: var(--shell); margin: 0 auto; font-size: 0.8rem; opacity: 0.85; }
+</style>
+</head>
+<body>
+
+<header class="masthead">
+  <div class="masthead-inner">
+    <a class="back-link" href="/">← 回首頁</a>
+    <p class="eyebrow">ARCHIVE</p>
+    <h1>出刊紀錄</h1>
+  </div>
+</header>
+
+<div class="wrap">
+  {% for month in months %}
+  <h2 class="month-title">{{ month.label }}</h2>
+  {% for issue in month.issues %}
+  <a class="issue-row" href="/issues/{{ issue.id }}">
+    <div class="issue-row-headline">{{ issue.headline }}</div>
+    <div class="issue-row-meta">{{ issue.date }} · {% if issue.cadence == 'weekly' %}<span class="weekly">週報</span>{% else %}日報{% endif %} · {{ issue.count }} 則</div>
+  </a>
+  {% endfor %}
+  {% endfor %}
+  {% if not months %}
+  <p>還沒有任何期數。</p>
+  {% endif %}
+</div>
+
+<footer class="foot">
+  <div class="foot-inner"><p>{{ newsletter_name }}．僅供台達內部參考。</p></div>
+</footer>
+
+</body>
+</html>

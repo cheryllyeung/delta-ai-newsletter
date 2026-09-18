@@ -45,6 +45,8 @@
   .masthead .eyebrow { font-family: var(--font-label); font-size: 0.75rem; letter-spacing: 0.1em; margin: 0 0 0.6rem; }
   .masthead h1 { margin: 0; font-size: clamp(1.9rem, 3.6vw + 1rem, 3rem); }
   .masthead p { margin: 1rem 0 0; font-size: 0.9rem; line-height: 1.6; color: color-mix(in oklch, var(--color-accent-ink) 82%, transparent); max-width: 56ch; }
+  .masthead-nav { font-family: var(--font-label); font-size: 0.78rem; }
+  .masthead-nav a { color: var(--color-accent-ink); text-decoration: none; border-bottom: 1px solid color-mix(in oklch, var(--color-accent-ink) 50%, transparent); padding-bottom: 1px; }
 
   .ornament-row { display: none; text-align: center; color: var(--color-accent-2); letter-spacing: 0.6em; padding: 1.5rem 0; font-size: 0.9rem; }
 
@@ -138,6 +140,7 @@
     <p class="eyebrow">DELTA AI TREND DAILY</p>
     <h1>{{ newsletter_name }}</h1>
     <p>每天更新，用一杯咖啡的時間，帶你發掘最值得一看的 AI 動態。</p>
+    <p class="masthead-nav"><a href="/archive">出刊紀錄</a> ◆ <a href="/sources">來源清單</a></p>
   </div>
 </header>
 

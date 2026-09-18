@@ -395,6 +395,46 @@ def sources_page(request: Request):
     )
 
 
+@app.get("/archive", response_class=HTMLResponse)
+def archive_page(request: Request):
+    """出刊紀錄頁（2026-09-18 刊物改版）：每一期一行——報頭導語、日期、
+    則數，按月分組。標題用 tldr_json 的 headline（9/18 起的期數才有），
+    舊期數退回用日期。"""
+    conn = _get_conn()
+    rows = conn.execute(
+        """SELECT i.id, i.issue_date, i.cadence, i.tldr_json,
+                  (SELECT COUNT(*) FROM generated_topics g WHERE g.issue_id = i.id) AS n
+           FROM issues i ORDER BY i.issue_date DESC, i.id DESC"""
+    ).fetchall()
+    months: list[dict] = []
+    for r in rows:
+        headline = None
+        if r["tldr_json"]:
+            try:
+                headline = (json.loads(r["tldr_json"]) or {}).get("headline")
+            except json.JSONDecodeError:
+                pass
+        cadence_name = "週報" if r["cadence"] == "weekly" else "日報"
+        label = f"{int(r['issue_date'][:4])} 年 {int(r['issue_date'][5:7])} 月"
+        if not months or months[-1]["label"] != label:
+            months.append({"label": label, "issues": []})
+        months[-1]["issues"].append(
+            {
+                "id": r["id"],
+                "date": r["issue_date"],
+                "cadence": r["cadence"],
+                "cadence_name": cadence_name,
+                "count": r["n"],
+                "headline": headline or f"{r['issue_date']} {cadence_name}",
+            }
+        )
+    return templates.TemplateResponse(
+        request,
+        "topic_archive.html.jinja",
+        {"newsletter_name": _config["newsletter"]["name"], "months": months},
+    )
+
+
 @app.get("/graph", response_class=HTMLResponse)
 def knowledge_graph():
     """知識圖譜的互動頁（tools/export_graph_html.py 產出的靜態檔）。
