@@ -82,5 +82,21 @@
   </div>
 </div>
 
+<script>
+// 2026-09-18：這頁被彈層（列表頁的 iframe）載入時，「回本期摘要」不該
+// 在 iframe 裡面再開一層期數頁，而是直接關掉彈層回到底下的列表。
+// 同源 iframe 可以直接呼叫 parent 的 history，退一步就觸發列表頁的
+// popstate 把彈層關掉。直接開這頁（EDM 連結）時 self === top，不動。
+(function () {
+  if (window.self === window.top) return;
+  var back = document.querySelector('a.back');
+  if (!back) return;
+  back.addEventListener('click', function (e) {
+    e.preventDefault();
+    window.parent.history.back();
+  });
+})();
+</script>
+
 </body>
 </html>

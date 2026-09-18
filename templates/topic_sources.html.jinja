@@ -15,7 +15,10 @@ Noto Sans、金色點綴。內容來自 config/topics.yaml 的 sources 區塊，
   body { margin: 0; padding: 28px 12px; background-color: #e8e4da;
          font-family: "Noto Sans TC", "Microsoft JhengHei", "PingFang TC", Arial, sans-serif; }
   .card { max-width: 660px; margin: 0 auto; background: #fbfaf6; box-shadow: 0 6px 24px rgba(40,36,28,0.14); }
-  .head { padding: 40px 44px 24px; border-bottom: 2px solid #1a1a1a; }
+  .head { padding: 28px 44px 24px; border-bottom: 2px solid #1a1a1a; }
+  .head-nav { margin: 0 0 18px; font-size: 12px; }
+  .head-nav a { color: #8a5a1a; text-decoration: none; }
+  .head-nav a:hover { text-decoration: underline; }
   .head .eyebrow { font-size: 11px; letter-spacing: 4px; color: #8a5a1a; font-weight: 700; }
   .head .brand { font-size: 32px; font-weight: 900; color: #1a1a1a; margin: 6px 0 0; line-height: 1.1; }
   .head .meta { font-size: 13px; color: #8a8578; margin-top: 8px; }
@@ -35,6 +38,7 @@ Noto Sans、金色點綴。內容來自 config/topics.yaml 的 sources 區塊，
 <body>
 <div class="card">
   <div class="head">
+    <p class="head-nav"><a href="/">← 回首頁</a></p>
     <p class="eyebrow">DELTA · NBDMD</p>
     <p class="brand">來源清單</p>
     <p class="meta">{{ newsletter_name }} 每天讀 {{ total }} 個來源，這裡是完整名單與取捨依據。</p>

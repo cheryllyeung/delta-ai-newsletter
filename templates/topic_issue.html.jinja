@@ -17,7 +17,10 @@
          font-family: "Noto Sans TC", "Microsoft JhengHei", "PingFang TC", Arial, sans-serif; }
   .card { max-width: 660px; margin: 0 auto; background: #fbfaf6; box-shadow: 0 6px 24px rgba(40,36,28,0.14); }
 
-  .head { padding: 40px 44px 24px; border-bottom: 2px solid #1a1a1a; }
+  .head { padding: 28px 44px 24px; border-bottom: 2px solid #1a1a1a; }
+  .head-nav { margin: 0 0 18px; font-size: 12px; }
+  .head-nav a { color: #8a5a1a; text-decoration: none; margin-right: 16px; }
+  .head-nav a:hover { text-decoration: underline; }
   .head-row { display: flex; justify-content: space-between; align-items: flex-end; }
   .head .eyebrow { font-size: 11px; letter-spacing: 4px; color: #8a5a1a; font-weight: 700; }
   .head .brand { font-size: 32px; font-weight: 900; color: #1a1a1a; margin: 6px 0 0; line-height: 1.1; }
@@ -54,6 +57,9 @@
 
 <div class="card">
   <div class="head">
+    {# 2026-09-18 補頂部導覽：這頁原本沒有任何回上層連結，從 archive 或
+       首頁點進來會困在這層（使用者反映）。 #}
+    <p class="head-nav"><a href="/">← 回首頁</a><a href="/archive">出刊紀錄</a></p>
     <div class="head-row">
       <div>
         <p class="eyebrow">DELTA · NBDMD</p>
