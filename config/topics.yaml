@@ -312,8 +312,11 @@ quality:
 
 fetch:
   days_back: 30
-  # 比照 legacy/config/pulse.yaml 對同一批來源已驗證過的規模。
-  max_items_per_source: 15
+  # 2026-09-18 從 15 加到 40：實測 99 篇入池只有 1 篇過領域判定（GeneOnline
+  # 被藥品標示更新灌版、Genet/環球生技多數是製藥類、PRN 夾雜無關公關稿），
+  # 嚴選之下每來源前 15 筆的有效產出太少，抓深一點讓判定有得挑。代價是
+  # 標籤階段的 LLM 呼叫變多，被排除的不會進後續流程，成本可控。
+  max_items_per_source: 40
 
 # 來源清單（genomics-prototype，2026-08-31 整批換掉）：基因檢測／多體學
 # 領域來源，每一個都實測過 feed 可抓（驗證過程見 docs/genomics_prototype_plan.md）。
