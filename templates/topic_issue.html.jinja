@@ -63,6 +63,12 @@
     </div>
   </div>
 
+  {% if tldr and tldr.get('headline') %}
+  <div class="tldr" style="padding-top: 18px;">
+    <div class="tldr-item" style="font-size: 15px; color: #1a1a1a; font-weight: 500;">{{ tldr.headline }}</div>
+  </div>
+  {% endif %}
+
   {% if tldr %}
   <div class="tldr">
     <p class="tldr-title">本期導讀</p>
@@ -88,6 +94,7 @@
         <div class="links">
           <a class="read" href="/issues/{{ issue_id }}/topics/{{ topic.id }}">閱讀全文 →</a>
           {% if topic.source_url %}<a class="src" href="{{ topic.source_url }}" target="_blank" rel="noopener noreferrer">原文出處</a>{% endif %}
+          {% if topic.needs_review %}<span class="src" title="這則的自動自檢信心偏低">⚠ 自檢信心偏低，請以原文為準</span>{% endif %}
         </div>
       </div>
     </div>
@@ -95,9 +102,22 @@
   <div class="thin-rule"></div>
   {% endfor %}
 
+  {% if tldr and tldr.get('editorial') %}
+  <div class="tldr" style="padding-bottom: 8px;">
+    <p class="tldr-title">主編觀察</p>
+    {% for para in tldr.editorial %}
+    <p class="teaser" style="margin-top: 12px;">{{ para }}</p>
+    {% endfor %}
+    <p class="tldr-item" style="margin-top: 14px; color: #8a8578;">本欄由 AI 依本期報導綜合而成，屬推測性觀點，請以各篇原文為準。</p>
+  </div>
+  <div class="thin-rule"></div>
+  {% endif %}
+
   <div class="foot">
-    完整版與歷史期數：<a href="http://TWTP1NB3422.delta.corp:8002">http://TWTP1NB3422.delta.corp:8002</a><br>
-    本報由自動化系統產出，每則均附原文出處。僅供台達內部參考，請勿外流。
+    完整版與歷史期數：<a href="http://TWTP1NB3422.delta.corp:8002">http://TWTP1NB3422.delta.corp:8002</a> ·
+    <a href="/sources">來源清單</a><br>
+    本報每日自動掃描的完整來源見〈來源清單〉。摘要與導讀由 AI 生成並經
+    自動自檢，每則均附原文出處，請以原文為準。僅供台達內部參考，請勿外流。
   </div>
 </div>
 

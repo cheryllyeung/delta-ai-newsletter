@@ -365,6 +365,36 @@ def leaderboard_page(request: Request):
     )
 
 
+@app.get("/sources", response_class=HTMLResponse)
+def sources_page(request: Request):
+    """來源透明頁（2026-09-18 刊物改版）：把 config 的來源清單攤在讀者
+    面前——每天讀哪些站、各站的層級與權重、哪些站評估過但沒收跟原因。
+    可信度的一部分：讀者能檢查我們的視野範圍，缺什麼可以直接反映。"""
+    tier_labels = {
+        "core": ("核心媒體", "基因檢測與生技領域的主要報導來源，每日必讀"),
+        "vertical": ("垂直產業", "醫療科技與新聞稿管道，涵蓋廠商動態"),
+        "signal": ("熱度訊號", "只有短摘要或部分付費牆，用來偵測「多家在報導同一件事」"),
+        "depth": ("深度研究", "論文預印本與廠商技術部落格"),
+        "case": ("企業案例", "廠商官方管道"),
+    }
+    groups: dict[str, list[dict]] = {}
+    for s in _config.get("sources", []):
+        groups.setdefault(s.get("tier", "core"), []).append(s)
+    tiers = [
+        {"key": k, "label": tier_labels.get(k, (k, ""))[0], "desc": tier_labels.get(k, (k, ""))[1], "sources": v}
+        for k, v in groups.items()
+    ]
+    return templates.TemplateResponse(
+        request,
+        "topic_sources.html.jinja",
+        {
+            "newsletter_name": _config["newsletter"]["name"],
+            "tiers": tiers,
+            "total": sum(len(t["sources"]) for t in tiers),
+        },
+    )
+
+
 @app.get("/graph", response_class=HTMLResponse)
 def knowledge_graph():
     """知識圖譜的互動頁（tools/export_graph_html.py 產出的靜態檔）。
@@ -561,12 +591,21 @@ def issue_overview(request: Request, issue_id: int, lang: str | None = None):
             tldr = json.loads(issue["tldr_json"])
     except (KeyError, IndexError):
         pass
+    # 自檢信心標記（2026-09-18 刊物改版）：讀者端誠實揭露哪幾則自檢信心
+    # 偏低。needs_review 本來只是後台旗標，現在直接印在版面上。
+    review_map = {
+        r["topic_id"]: bool(r["needs_review"])
+        for r in conn.execute(
+            "SELECT topic_id, needs_review FROM generated_topics WHERE issue_id = ?", (issue_id,)
+        )
+    }
     for t in topics:
         src = conn.execute(
             "SELECT url FROM articles WHERE topic_id = ? AND discarded_at IS NULL ORDER BY published_at DESC LIMIT 1",
             (t.get("topic_id"),),
         ).fetchone()
         t["source_url"] = src["url"] if src else None
+        t["needs_review"] = review_map.get(t.get("topic_id"), False)
     return templates.TemplateResponse(
         request,
         "topic_issue.html.jinja",

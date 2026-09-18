@@ -1,0 +1,80 @@
+<!--
+來源透明頁（2026-09-18 刊物改版加）。設計語言跟摘要頁同一套：米白紙底、
+Noto Sans、金色點綴。內容來自 config/topics.yaml 的 sources 區塊，
+「名單之外」的說明對應 config 註解裡記錄的評估結論，改了那邊記得同步。
+-->
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+<title>{{ newsletter_name }} 來源清單</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 28px 12px; background-color: #e8e4da;
+         font-family: "Noto Sans TC", "Microsoft JhengHei", "PingFang TC", Arial, sans-serif; }
+  .card { max-width: 660px; margin: 0 auto; background: #fbfaf6; box-shadow: 0 6px 24px rgba(40,36,28,0.14); }
+  .head { padding: 40px 44px 24px; border-bottom: 2px solid #1a1a1a; }
+  .head .eyebrow { font-size: 11px; letter-spacing: 4px; color: #8a5a1a; font-weight: 700; }
+  .head .brand { font-size: 32px; font-weight: 900; color: #1a1a1a; margin: 6px 0 0; line-height: 1.1; }
+  .head .meta { font-size: 13px; color: #8a8578; margin-top: 8px; }
+  .sec { padding: 24px 44px 0; }
+  .sec-title { font-size: 11px; letter-spacing: 2px; font-weight: 700; color: #c9a54a; margin: 0; }
+  .sec-desc { font-size: 13px; color: #8a8578; margin: 4px 0 0; }
+  .src-row { display: flex; justify-content: space-between; align-items: baseline;
+             border-bottom: 1px solid #ece7dc; padding: 10px 0 8px; }
+  .src-name { font-size: 15px; font-weight: 500; color: #1a1a1a; }
+  .src-note { font-size: 12px; color: #8a8578; }
+  .prose { font-size: 14px; line-height: 1.9; color: #44474a; margin: 10px 0 0; }
+  .rule { border-top: 2px solid #1a1a1a; margin: 28px 44px 4px; height: 1px; }
+  .foot { padding: 24px 44px 36px; font-size: 12px; line-height: 1.9; color: #8a8578; }
+  .foot a { color: #8a5a1a; }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="head">
+    <p class="eyebrow">DELTA · NBDMD</p>
+    <p class="brand">來源清單</p>
+    <p class="meta">{{ newsletter_name }} 每天讀 {{ total }} 個來源，這裡是完整名單與取捨依據。</p>
+  </div>
+
+  {% for tier in tiers %}
+  <div class="sec">
+    <p class="sec-title">{{ tier.label }}（{{ tier.sources | length }}）</p>
+    <p class="sec-desc">{{ tier.desc }}</p>
+    {% for s in tier.sources %}
+    <div class="src-row">
+      <span class="src-name">{{ s.name }}</span>
+      <span class="src-note">權重 {{ s.weight }}</span>
+    </div>
+    {% endfor %}
+  </div>
+  {% endfor %}
+
+  <div class="rule"></div>
+
+  <div class="sec">
+    <p class="sec-title">名單之外</p>
+    <div class="prose">
+      評估過但沒有收錄的：GenomeWeb、360Dx、Precision Medicine Online 是
+      付費牆站，目前不接；環球生技與 Genet 觀點沒有公開 RSS，我們用列表頁
+      爬蟲直接抓；多數檢測廠商官網沒有 feed，動態靠 PR Newswire 新聞稿
+      管道涵蓋。
+    </div>
+    <div class="prose">
+      收進來不等於會上刊。每篇文章都經過領域判定（藥物開發、細胞治療、
+      與檢測無關的醫材新聞會被排除，判不準時寧可不收）、內文完整度分級、
+      七個模組的價值打分，最後依配額選出每天的版面。每則為什麼入選或
+      落選都留有紀錄。
+    </div>
+  </div>
+
+  <div class="foot">
+    覺得少了哪個來源，直接回覆日報信件告訴我們。<br>
+    回首頁：<a href="/">{{ newsletter_name }}</a>
+  </div>
+</div>
+</body>
+</html>

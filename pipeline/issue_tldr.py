@@ -46,7 +46,7 @@ def write_issue_tldr(conn: sqlite3.Connection, issue_id: int, client=None) -> di
         response = create_chat_completion(
             client,
             model=get_model(),
-            max_tokens=1200,
+            max_tokens=2500,  # 2026-09-18 加 headline 與 editorial，1200 會截斷
             temperature=0.3,
             messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
             **reasoning_effort_kwargs(),

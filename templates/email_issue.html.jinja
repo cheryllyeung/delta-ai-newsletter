@@ -31,6 +31,13 @@ Sans、金色點綴、大號裝飾序號）跟網頁的摘要頁/全文頁一致
     </tr></table>
   </td></tr>
 
+  <!-- 報頭導語（2026-09-18 刊物改版） -->
+  {% if tldr and tldr.get('headline') %}
+  <tr><td style="padding:18px 44px 0;">
+    <div style="font-family:{{ SANS }}; font-size:15px; font-weight:500; color:#1a1a1a; line-height:1.6;">{{ tldr.headline }}</div>
+  </td></tr>
+  {% endif %}
+
   <!-- 本期導讀（TLDR） -->
   {% if tldr %}
   <tr><td style="padding:24px 44px 0;">
@@ -65,6 +72,10 @@ Sans、金色點綴、大號裝飾序號）跟網頁的摘要頁/全文頁一致
           <span style="font-family:Arial; font-size:12px; color:#c9c3b6;">&nbsp;&nbsp;</span>
           <a href="{{ a.source_url }}" target="_blank" style="font-family:{{ SANS }}; font-size:12px; color:#8a8578; text-decoration:none;">原文出處</a>
           {% endif %}
+          {% if a.needs_review %}
+          <span style="font-family:Arial; font-size:12px; color:#c9c3b6;">&nbsp;&nbsp;</span>
+          <span style="font-family:{{ SANS }}; font-size:12px; color:#8a8578;">⚠ 自檢信心偏低，請以原文為準</span>
+          {% endif %}
         </div>
       </td>
     </tr></table>
@@ -72,11 +83,25 @@ Sans、金色點綴、大號裝飾序號）跟網頁的摘要頁/全文頁一致
   <tr><td style="padding:28px 44px;"><div style="border-top:1px solid #ece7dc; height:1px; line-height:1px;">&nbsp;</div></td></tr>
   {% endfor %}
 
+  <!-- 主編觀察（2026-09-18 刊物改版） -->
+  {% if tldr and tldr.get('editorial') %}
+  <tr><td style="padding:0 44px;">
+    <div style="font-family:{{ SANS }}; font-size:12px; letter-spacing:4px; color:#8a8578;">主編觀察</div>
+    {% for para in tldr.editorial %}
+    <div style="font-family:{{ SANS }}; font-size:14px; line-height:1.9; color:#44474a; margin-top:12px;">{{ para }}</div>
+    {% endfor %}
+    <div style="font-family:{{ SANS }}; font-size:12px; line-height:1.8; color:#8a8578; margin-top:14px;">本欄由 AI 依本期報導綜合而成，屬推測性觀點，請以各篇原文為準。</div>
+  </td></tr>
+  <tr><td style="padding:28px 44px;"><div style="border-top:1px solid #ece7dc; height:1px; line-height:1px;">&nbsp;</div></td></tr>
+  {% endif %}
+
   <!-- 信尾 -->
   <tr><td style="padding:0 44px 36px;">
     <div style="font-family:{{ SANS }}; font-size:12px; line-height:1.9; color:#8a8578;">
-      完整版與歷史期數：<a href="{{ site_url }}" style="color:#8a5a1a;">{{ site_url }}</a><br>
-      本報由自動化系統產出，每則均附原文出處。僅供台達內部參考，請勿外流。
+      完整版與歷史期數：<a href="{{ site_url }}" style="color:#8a5a1a;">{{ site_url }}</a> ·
+      <a href="{{ site_url }}/sources" style="color:#8a5a1a;">來源清單</a><br>
+      摘要與導讀由 AI 生成並經自動自檢，每則均附原文出處，請以原文為準。
+      僅供台達內部參考，請勿外流。
     </div>
   </td></tr>
 

@@ -77,6 +77,7 @@ def main() -> None:
                 "is_taiwan": tw >= 4,
                 "url": f"{SITE_URL}/issues/{issue['id']}/topics/{r['id']}",
                 "source_url": src["url"] if src else None,
+                "needs_review": bool(r["needs_review"]),
             }
         )
 
