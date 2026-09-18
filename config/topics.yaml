@@ -406,3 +406,50 @@ sources:
     tier: depth
     url: "https://www.pacb.com/blog/feed/"
     weight: 0.7
+
+  # 2026-09-18 擴充：使用者要求每天固定 15 則，11 個來源的日均供給偏緊，
+  # 補 6 個。全部當天 curl 驗證過 feed 可用且最近有更新。落選的：
+  # MedCity 的 genomics 分類 feed 404（用主 feed）、mobihealthnews 403、
+  # Fierce Healthcare 最新一篇停在 7 月偏舊、GenomeWeb feed 連線逾時
+  # （付費牆站，v1 本來就不接）。STAT 與 Endpoints 有部分付費牆，feed
+  # 只給摘要，預期多數落在 signal_only 當訊號；藥物開發類內容會被收錄
+  # 判定濾掉，這兩站實際產出不會多，權重壓低。
+  - id: genengnews
+    name: "GEN (Genetic Engineering News)"
+    type: rss
+    tier: core
+    url: "https://www.genengnews.com/feed/"
+    weight: 0.9
+    fetch_fulltext: true
+  - id: inside_precision_medicine
+    name: "Inside Precision Medicine"
+    type: rss
+    tier: core
+    url: "https://www.insideprecisionmedicine.com/feed/"
+    weight: 0.9
+    fetch_fulltext: true
+  - id: medcity_news
+    name: "MedCity News"
+    type: rss
+    tier: vertical
+    url: "https://medcitynews.com/feed/"
+    weight: 0.7
+    fetch_fulltext: true
+  - id: stat_news
+    name: "STAT News"
+    type: rss
+    tier: signal
+    url: "https://www.statnews.com/feed/"
+    weight: 0.6
+  - id: endpoints_news
+    name: "Endpoints News"
+    type: rss
+    tier: signal
+    url: "https://endpts.com/feed/"
+    weight: 0.6
+  - id: biorxiv_genomics
+    name: "bioRxiv (Genomics)"
+    type: rss
+    tier: depth
+    url: "https://connect.biorxiv.org/biorxiv_xml.php?subject=genomics"
+    weight: 0.6
