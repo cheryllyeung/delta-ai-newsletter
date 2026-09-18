@@ -73,7 +73,10 @@
   .module-card-name { font-family: var(--font-display); font-weight: 800; font-size: 1.05rem;  }
   .module-card.domain .module-card-name { color: var(--color-accent); }
   .module-card-count { font-family: var(--font-label); font-size: 0.72rem; color: var(--color-muted); }
-  .module-card-latest { font-size: 0.76rem; line-height: 1.5; color: var(--color-ink-2); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  /* 2026-09-18 預覽從兩行縮一行：使用者反映分類牆重複感太重，卡片減重。 */
+  .module-card-latest { font-size: 0.76rem; line-height: 1.5; color: var(--color-ink-2); display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
+  .board-empty-note { font-size: 0.76rem; color: var(--color-muted); margin: 0.8rem 0 0; }
+  .board-empty-note a { color: var(--color-muted); }
   .cal-section-title { margin-top: 0.5rem; }
 
   /* 月曆：一週從週日起算（跟週報的週定義一致）。日曆是首頁主視覺，
@@ -144,9 +147,11 @@
     </a>
   </div>
   {% endif %}
+  {# 2026-09-18：0 篇的領域不再佔一張卡，收成底下一行灰字（使用者反映
+     空領域放大了分類牆的重複感）。領域頁本身還在，點灰字一樣進得去。 #}
   <p class="board-group-label">事業領域</p>
   <div class="module-card-grid">
-    {% for m in module_overview.domain %}
+    {% for m in module_overview.domain if m.count %}
     <a class="module-card domain" href="/modules/{{ m.id }}">
       <span class="module-card-name">{{ m.name }}</span>
       <span class="module-card-count">{{ m.count }} 篇</span>
@@ -156,7 +161,7 @@
   </div>
   <p class="board-group-label">工作職能</p>
   <div class="module-card-grid">
-    {% for m in module_overview.functional %}
+    {% for m in module_overview.functional if m.count %}
     <a class="module-card" href="/modules/{{ m.id }}">
       <span class="module-card-name">{{ m.name }}</span>
       <span class="module-card-count">{{ m.count }} 篇</span>
@@ -164,6 +169,10 @@
     </a>
     {% endfor %}
   </div>
+  {% set empties = (module_overview.domain + module_overview.functional) | selectattr("count", "equalto", 0) | list %}
+  {% if empties %}
+  <p class="board-empty-note">目前沒有內容的領域：{% for m in empties %}<a href="/modules/{{ m.id }}">{{ m.name }}</a>{% if not loop.last %}、{% endif %}{% endfor %}</p>
+  {% endif %}
 </section>
 {% endif %}
 

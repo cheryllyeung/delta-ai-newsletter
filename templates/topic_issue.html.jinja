@@ -121,5 +121,58 @@
   </div>
 </div>
 
+{# 彈層閱讀（2026-09-18）：跟 topic_module_list.html.jinja 同一段，兩邊
+   模板沒有繼承機制，改這裡記得同步那邊。點文章開 iframe 彈層、pushState
+   換網址、Esc／點背景／上一頁都會關。 #}
+<div class="reader-overlay" id="reader" hidden>
+  <div class="reader-panel">
+    <button class="reader-close" aria-label="關閉">✕</button>
+    <iframe class="reader-frame" id="reader-frame" title="全文"></iframe>
+  </div>
+</div>
+<style>
+  .reader-overlay { position: fixed; inset: 0; background: rgba(24,30,36,0.55); z-index: 50; }
+  .reader-panel { position: absolute; top: 3vh; left: 50%; transform: translateX(-50%);
+                  width: min(720px, 94vw); height: 94vh; background: #fff;
+                  box-shadow: 0 12px 48px rgba(0,0,0,0.35); }
+  .reader-close { position: absolute; top: 0; right: 0; z-index: 2; border: 0; cursor: pointer;
+                  background: rgba(24,30,36,0.85); color: #fff; font-size: 1rem; line-height: 1;
+                  padding: 0.55em 0.75em; }
+  .reader-frame { width: 100%; height: 100%; border: 0; display: block; }
+</style>
+<script>
+(function () {
+  var overlay = document.getElementById('reader');
+  var frame = document.getElementById('reader-frame');
+  function openReader(url) {
+    frame.src = url;
+    overlay.hidden = false;
+    document.body.style.overflow = 'hidden';
+    history.pushState({ reader: true }, '', url);
+  }
+  function closeReader(viaHistory) {
+    overlay.hidden = true;
+    frame.src = 'about:blank';
+    document.body.style.overflow = '';
+    if (!viaHistory) history.back();
+  }
+  document.addEventListener('click', function (e) {
+    var a = e.target.closest ? e.target.closest('a') : null;
+    if (!a) return;
+    var href = a.getAttribute('href') || '';
+    if (/^\/issues\/\d+\/topics\/\d+/.test(href)) {
+      e.preventDefault();
+      openReader(href);
+    }
+  });
+  overlay.addEventListener('click', function (e) { if (e.target === overlay) closeReader(false); });
+  overlay.querySelector('.reader-close').addEventListener('click', function () { closeReader(false); });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && !overlay.hidden) closeReader(false);
+  });
+  window.addEventListener('popstate', function () { if (!overlay.hidden) closeReader(true); });
+})();
+</script>
+
 </body>
 </html>

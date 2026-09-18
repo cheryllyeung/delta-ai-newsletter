@@ -44,7 +44,6 @@
   .masthead p { margin: 0.8rem 0 0; font-size: 0.88rem; line-height: 1.6; max-width: 56ch; color: color-mix(in oklch, var(--color-accent-ink) 85%, transparent); }
 
   .module-nav { max-width: var(--shell); margin: 0 auto; padding: 1.2rem var(--page-gutter) 0.4rem; }
-  .module-nav-label { font-family: var(--font-label); font-size: 0.72rem; color: var(--color-muted); margin: 0 0 0.4rem; }
   .module-nav-row { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 0.7rem; }
   .module-chip { font-family: var(--font-label); font-size: 0.72rem; border: 1px solid #c9d2da; background: var(--color-paper-2); padding: 0.25em 0.6em; }
   .module-chip:hover { background: var(--color-accent); color: var(--color-accent-ink); }
@@ -79,16 +78,12 @@
   </div>
 </header>
 
+{# 2026-09-18 拿掉「事業領域／工作職能」兩個群組標籤、七個 chip 合併成
+   一排：這裡是切換器不是目錄，群組結構首頁的卡片牆已經給過（使用者
+   反映同一套分類每頁重複一次太重）。 #}
 <nav class="module-nav" aria-label="領域切換">
-  <p class="module-nav-label">事業領域</p>
   <div class="module-nav-row">
-    {% for m in modules_by_group.domain %}
-    <a class="module-chip{% if m.id == module.id %} active{% endif %}" href="/modules/{{ m.id }}">{{ m.name }}</a>
-    {% endfor %}
-  </div>
-  <p class="module-nav-label">工作職能</p>
-  <div class="module-nav-row">
-    {% for m in modules_by_group.functional %}
+    {% for m in modules_by_group.domain + modules_by_group.functional %}
     <a class="module-chip{% if m.id == module.id %} active{% endif %}" href="/modules/{{ m.id }}">{{ m.name }}</a>
     {% endfor %}
   </div>
@@ -118,6 +113,61 @@
 <footer class="foot">
   <div class="foot-inner"><p>{{ newsletter_name }}．僅供台達內部參考。</p></div>
 </footer>
+
+{# 彈層閱讀（2026-09-18）：點文章不再跳到第三層，全文用 iframe 蓋在本頁
+   上，關掉就回到原捲動位置。網址用 pushState 切到全文頁網址，所以複製
+   連結分享、瀏覽器上一頁都照常運作；直接開全文網址仍然是完整頁（EDM
+   信件裡的連結走那條路）。同一段程式也放在 topic_issue.html.jinja，
+   兩邊模板沒有繼承機制，改這裡記得同步那邊。 #}
+<div class="reader-overlay" id="reader" hidden>
+  <div class="reader-panel">
+    <button class="reader-close" aria-label="關閉">✕</button>
+    <iframe class="reader-frame" id="reader-frame" title="全文"></iframe>
+  </div>
+</div>
+<style>
+  .reader-overlay { position: fixed; inset: 0; background: rgba(24,30,36,0.55); z-index: 50; }
+  .reader-panel { position: absolute; top: 3vh; left: 50%; transform: translateX(-50%);
+                  width: min(720px, 94vw); height: 94vh; background: #fff;
+                  box-shadow: 0 12px 48px rgba(0,0,0,0.35); }
+  .reader-close { position: absolute; top: 0; right: 0; z-index: 2; border: 0; cursor: pointer;
+                  background: rgba(24,30,36,0.85); color: #fff; font-size: 1rem; line-height: 1;
+                  padding: 0.55em 0.75em; }
+  .reader-frame { width: 100%; height: 100%; border: 0; display: block; }
+</style>
+<script>
+(function () {
+  var overlay = document.getElementById('reader');
+  var frame = document.getElementById('reader-frame');
+  function openReader(url) {
+    frame.src = url;
+    overlay.hidden = false;
+    document.body.style.overflow = 'hidden';
+    history.pushState({ reader: true }, '', url);
+  }
+  function closeReader(viaHistory) {
+    overlay.hidden = true;
+    frame.src = 'about:blank';
+    document.body.style.overflow = '';
+    if (!viaHistory) history.back();
+  }
+  document.addEventListener('click', function (e) {
+    var a = e.target.closest ? e.target.closest('a') : null;
+    if (!a) return;
+    var href = a.getAttribute('href') || '';
+    if (/^\/issues\/\d+\/topics\/\d+/.test(href)) {
+      e.preventDefault();
+      openReader(href);
+    }
+  });
+  overlay.addEventListener('click', function (e) { if (e.target === overlay) closeReader(false); });
+  overlay.querySelector('.reader-close').addEventListener('click', function () { closeReader(false); });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && !overlay.hidden) closeReader(false);
+  });
+  window.addEventListener('popstate', function () { if (!overlay.hidden) closeReader(true); });
+})();
+</script>
 
 </body>
 </html>
