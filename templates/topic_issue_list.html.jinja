@@ -64,35 +64,24 @@
   .issue-card-cadence { font-family: var(--font-label); font-size: 0.7rem; border: 1px solid var(--color-ink); padding: 0.1em 0.5em; white-space: nowrap; }
   .issue-card-cadence.weekly { background: var(--color-ink); color: var(--color-paper); }
 
-  /* 首頁領域卡片（2026-08-26 改版主視覺）。 */
-  .module-board { max-width: 52rem; margin: 0 auto; padding: 0 var(--page-gutter) 2rem; }
-  .board-title { font-family: var(--font-display); font-weight: 800;  font-size: clamp(1.4rem, 2.4vw + 0.8rem, 2rem); margin: 0; color: var(--color-ink); border-bottom: 4px solid var(--color-accent); display: inline-block; padding-bottom: 0.15em; }
-  .board-group-label { font-family: var(--font-label); font-size: 0.72rem; letter-spacing: 0.08em; color: var(--color-muted); margin: 1rem 0 0.5rem; }
-  .module-card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(13.5rem, 1fr)); gap: 0.8rem; }
-  .module-card { display: flex; flex-direction: column; gap: 0.3rem; background: var(--color-paper-2); border: 1px solid #ddd5c4; box-shadow: 0 1px 4px rgba(40,36,28,0.10); padding: 0.8rem 0.95rem; transition: transform 120ms ease-out, box-shadow 120ms ease-out; }
-  .module-card:hover { transform: translate(-1px, -1px); box-shadow: 0 2px 8px rgba(40,36,28,0.14); }
-  .module-card.domain { border-color: var(--color-accent); }
-  .module-card-name { font-family: var(--font-display); font-weight: 800; font-size: 1.05rem;  }
-  .module-card.domain .module-card-name { color: var(--color-accent); }
-  .module-card-count { font-family: var(--font-label); font-size: 0.72rem; color: var(--color-muted); }
-  /* 2026-09-18 預覽從兩行縮一行：使用者反映分類牆重複感太重，卡片減重。 */
-  .module-card-latest { font-size: 0.76rem; line-height: 1.5; color: var(--color-ink-2); display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
-  .board-empty-note { font-size: 0.76rem; color: var(--color-muted); margin: 0.8rem 0 0; }
-  .board-empty-note a { color: var(--color-muted); }
-  /* 2026-09-18 主副欄改版：事業領域主欄大卡，特輯＋工作職能收右側窄欄。 */
-  .board-layout { display: grid; grid-template-columns: minmax(0, 1fr) 13rem; gap: 1.6rem; margin-top: 1rem; }
-  .board-rail { border-left: 1px solid #ddd5c4; padding-left: 1.2rem; }
-  .rail-item { display: flex; justify-content: space-between; align-items: baseline; gap: 0.5rem;
-               padding: 0.4rem 0; border-bottom: 1px solid #ece7dc; text-decoration: none;
-               font-size: 0.85rem; color: var(--color-ink); }
-  .rail-item:hover { color: var(--color-accent); }
-  .rail-item.empty, .rail-item.empty:hover { color: var(--color-muted); }
-  .rail-count { font-family: var(--font-label); font-size: 0.72rem; color: var(--color-muted); white-space: nowrap; }
-  .rail-gap { margin-top: 1.2rem; }
-  @media (max-width: 44rem) {
-    .board-layout { grid-template-columns: 1fr; }
-    .board-rail { border-left: none; padding-left: 0; }
-  }
+  /* 2026-09-18 新聞流改版：卡片牆樣式退場，改用跟領域頁同款的 chip 列
+     與時間軸（無模板繼承，樣式對照 topic_module_list.html.jinja）。 */
+  .feed-nav { max-width: var(--shell); margin: 0 auto; padding: 1.2rem var(--page-gutter) 0.2rem; }
+  .module-nav-row { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 0.7rem; }
+  .module-chip { font-family: var(--font-label); font-size: 0.72rem; border: 1px solid #ddd5c4; background: var(--color-paper-2); padding: 0.25em 0.6em; }
+  .module-chip:hover { background: var(--color-accent); color: var(--color-accent-ink); }
+  .module-chip.active { background: var(--color-ink); color: var(--color-paper); }
+  .module-chip.dim { color: var(--color-muted); }
+  .timeline { max-width: var(--shell); margin: 0 auto; padding: 1rem var(--page-gutter) 4rem; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.9rem; }
+  @media (max-width: 40rem) { .timeline { grid-template-columns: 1fr; } }
+  .timeline-date { grid-column: 1 / -1; font-family: var(--font-label); font-size: 0.8rem; font-weight: 700; letter-spacing: 0.08em; color: var(--color-accent); margin: 1rem 0 -0.2rem; display: flex; align-items: center; gap: 0.7em; }
+  .timeline-date::after { content: ""; flex: 1; border-top: 2px solid var(--color-paper-3); }
+  .timeline-date:first-child { margin-top: 0.2rem; }
+  .entry { display: block; background: var(--color-paper-2); border: 1px solid #ddd5c4; box-shadow: 0 1px 4px rgba(40,36,28,0.10); padding: 1rem 1.2rem; transition: transform 120ms ease-out, box-shadow 120ms ease-out; }
+  .entry:hover { transform: translate(-1px, -1px); box-shadow: 0 2px 8px rgba(40,36,28,0.14); }
+  .entry h2 { margin: 0 0 0.25rem; font-family: var(--font-display); font-size: 1.05rem; line-height: 1.4; }
+  .entry .subhead { margin: 0; font-size: 0.85rem; line-height: 1.55; color: var(--color-ink-2); }
+  .empty { max-width: var(--shell); margin: 0 auto; padding: 3rem var(--page-gutter); color: var(--color-muted); }
   .cal-section-title { margin-top: 0.5rem; }
 
   /* 月曆：一週從週日起算（跟週報的週定義一致）。日曆是首頁主視覺，
@@ -146,57 +135,92 @@
 
 <div class="ornament-row" aria-hidden="true">✱ ✱ ✱ ✱</div>
 
-{% if module_overview %}
-{# 首頁主視覺：領域卡片（2026-08-26 改版）。讀者是帶著職能來的，法務的人
-   點法務、能源的人點能源，日期是次要資訊，月曆降到下面當出刊紀錄。 #}
-<section class="module-board" aria-label="依領域瀏覽">
-  {# 標題下面刻意不放說明句：原本那句在解釋資料模型（專屬頁面、一篇文章
-     屬於幾個領域），讀者點一次就懂的事不用先教（2026-08-28 使用者定調）。 #}
-  <h2 class="board-title">選你的領域</h2>
-  {# 2026-09-18 主副欄改版（使用者選案）：事業領域是日報主體，保留大卡
-     與最新一篇預覽當主欄；特輯與工作職能是配額性質，收進右側窄欄只列
-     名稱與篇數，0 篇的顯示 -- 不再佔一張卡。同一套分類不再以同等視覺
-     重量出現三次。 #}
-  <div class="board-layout">
-    <div class="board-main">
-      <p class="board-group-label">事業領域</p>
-      <div class="module-card-grid">
-        {% for m in module_overview.domain if m.count %}
-        <a class="module-card domain" href="/modules/{{ m.id }}">
-          <span class="module-card-name">{{ m.name }}</span>
-          <span class="module-card-count">{{ m.count }} 篇</span>
-          {% if m.latest %}<span class="module-card-latest">{{ m.latest.date }}｜{{ m.latest.title }}</span>{% endif %}
-        </a>
-        {% endfor %}
-      </div>
-      {% set domain_empties = module_overview.domain | selectattr("count", "equalto", 0) | list %}
-      {% if domain_empties %}
-      <p class="board-empty-note">目前沒有內容：{% for m in domain_empties %}<a href="/modules/{{ m.id }}">{{ m.name }}</a>{% if not loop.last %}、{% endif %}{% endfor %}</p>
-      {% endif %}
-    </div>
-    <aside class="board-rail">
-      {% if release_overview %}
-      <p class="board-group-label">特輯</p>
-      <a class="rail-item" href="/releases">
-        <span>模型與工具發佈</span><span class="rail-count">{{ release_overview.count }} 則</span>
-      </a>
-      {% endif %}
-      <p class="board-group-label rail-gap">工作職能</p>
-      {% for m in module_overview.functional %}
-      <a class="rail-item{% if not m.count %} empty{% endif %}" href="/modules/{{ m.id }}">
-        <span>{{ m.name }}</span><span class="rail-count">{% if m.count %}{{ m.count }} 篇{% else %}--{% endif %}</span>
-      </a>
-      {% endfor %}
-    </aside>
+{# 2026-09-18 新聞流改版（使用者選案）：首頁是全領域最新文章的時間軸，
+   「全部」就是本頁，領域 chip 連到各領域頁（同款時間軸），特輯 chip 連
+   發佈頁。卡片牆（2026-08-26 版）退場。 #}
+<nav class="feed-nav" aria-label="領域篩選">
+  <div class="module-nav-row">
+    <a class="module-chip active" href="/">全部</a>
+    {% for m in module_overview.domain + module_overview.functional %}
+    <a class="module-chip{% if not m.count %} dim{% endif %}" href="/modules/{{ m.id }}">{{ m.name }}</a>
+    {% endfor %}
+    {% if release_overview %}<a class="module-chip" href="/releases">模型與工具發佈</a>{% endif %}
   </div>
+</nav>
+
+{% if feed %}
+<section class="timeline" aria-label="最新文章">
+  {% for e in feed %}
+  {% if loop.changed(e.issue_date) %}
+  <p class="timeline-date">{{ e.issue_date[5:7] | int }}/{{ e.issue_date[8:10] | int }}</p>
+  {% endif %}
+  <div class="entry">
+    <a href="/issues/{{ e.issue_id }}/topics/{{ e.generated_id }}">
+      <h2>{{ e.headline }}</h2>
+      {% if e.subhead %}<p class="subhead">{{ e.subhead }}</p>{% endif %}
+    </a>
+  </div>
+  {% endfor %}
 </section>
+{% else %}
+<div class="empty"><p>還沒有出刊文章。</p></div>
 {% endif %}
 
-{# 月曆（出刊紀錄）跟期數列表 2026-08-28 拿掉：使用者定調首頁只留
-   「選你的領域」。單期頁的網址（/issues/<id>）都還在，只是首頁不再列。 #}
 <footer class="foot">
   <div class="foot-inner"><p>{{ newsletter_name }}．僅供台達內部參考。</p></div>
 </footer>
+
+{# 彈層閱讀：跟 topic_module_list.html.jinja 同一段（無模板繼承，改的話
+   三處同步：這裡、module_list、issue）。 #}
+<div class="reader-overlay" id="reader" hidden>
+  <div class="reader-panel">
+    <button class="reader-close" aria-label="關閉">✕</button>
+    <iframe class="reader-frame" id="reader-frame" title="全文"></iframe>
+  </div>
+</div>
+<style>
+  .reader-overlay { position: fixed; inset: 0; background: rgba(24,30,36,0.55); z-index: 50; }
+  .reader-panel { position: absolute; top: 3vh; left: 50%; transform: translateX(-50%);
+                  width: min(720px, 94vw); height: 94vh; background: #fff;
+                  box-shadow: 0 12px 48px rgba(0,0,0,0.35); }
+  .reader-close { position: absolute; top: 0; right: 0; z-index: 2; border: 0; cursor: pointer;
+                  background: rgba(24,30,36,0.85); color: #fff; font-size: 1rem; line-height: 1;
+                  padding: 0.55em 0.75em; }
+  .reader-frame { width: 100%; height: 100%; border: 0; display: block; }
+</style>
+<script>
+(function () {
+  var overlay = document.getElementById('reader');
+  var frame = document.getElementById('reader-frame');
+  function openReader(url) {
+    frame.src = url;
+    overlay.hidden = false;
+    document.body.style.overflow = 'hidden';
+    history.pushState({ reader: true }, '', url);
+  }
+  function closeReader(viaHistory) {
+    overlay.hidden = true;
+    frame.src = 'about:blank';
+    document.body.style.overflow = '';
+    if (!viaHistory) history.back();
+  }
+  document.addEventListener('click', function (e) {
+    var a = e.target.closest ? e.target.closest('a') : null;
+    if (!a) return;
+    var href = a.getAttribute('href') || '';
+    if (/^\/issues\/\d+\/topics\/\d+/.test(href)) {
+      e.preventDefault();
+      openReader(href);
+    }
+  });
+  overlay.addEventListener('click', function (e) { if (e.target === overlay) closeReader(false); });
+  overlay.querySelector('.reader-close').addEventListener('click', function () { closeReader(false); });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && !overlay.hidden) closeReader(false);
+  });
+  window.addEventListener('popstate', function () { if (!overlay.hidden) closeReader(true); });
+})();
+</script>
 
 </body>
 </html>

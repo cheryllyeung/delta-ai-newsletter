@@ -575,10 +575,30 @@ def _issue_display_no(conn, issue) -> int:
 
 @app.get("/", response_class=HTMLResponse)
 def issue_list(request: Request, lang: str | None = None):
-    # 2026-08-28 使用者要求：首頁只留「選你的領域」（含特輯卡），月曆跟
-    # 期數列表拿掉，所以不再組 issues／months。讀者從領域頁點文章時網址
-    # 還是帶期數（/issues/<id>/topics/<gid>），入口變了、內容路徑沒變。
+    # 2026-09-18 新聞流改版（使用者選案）：首頁改成全領域最新文章的時間
+    # 軸，領域卡片牆退場，改成一排 chip 連到各領域頁（那邊本來就是同款
+    # 時間軸，所以「全部＝首頁、單一領域＝領域頁」語彙一致）。
     conn = _get_conn()
+    rows = conn.execute(
+        """SELECT g.id AS gid, g.issue_id, i.issue_date, g.generated_json
+           FROM generated_topics g JOIN issues i ON g.issue_id = i.id
+           ORDER BY i.issue_date DESC, g.id LIMIT 80"""
+    ).fetchall()
+    feed = []
+    for r in rows:
+        try:
+            g = json.loads(r["generated_json"])
+        except json.JSONDecodeError:
+            continue
+        feed.append(
+            {
+                "issue_date": r["issue_date"],
+                "issue_id": r["issue_id"],
+                "generated_id": r["gid"],
+                "headline": g.get("chosen_headline") or g.get("title") or "",
+                "subhead": g.get("chosen_subhead") or "",
+            }
+        )
     return templates.TemplateResponse(
         request,
         "topic_issue_list.html.jinja",
@@ -586,6 +606,7 @@ def issue_list(request: Request, lang: str | None = None):
             "newsletter_name": _config["newsletter"]["name"],
             "module_overview": _module_overview(conn),
             "release_overview": _release_overview(conn),
+            "feed": feed,
             "lang": _normalise_lang(lang),
         },
     )
