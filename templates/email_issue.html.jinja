@@ -66,6 +66,33 @@ Sans、金色點綴、大號裝飾序號）跟網頁的摘要頁/全文頁一致
         <div style="margin-top:6px;"><a href="{{ a.url }}" style="font-family:{{ SANS }}; font-size:21px; font-weight:700; line-height:1.4; color:#1a1a1a; text-decoration:none;">{{ a.headline }}</a></div>
         {% if a.subhead %}<div style="font-family:{{ SANS }}; font-size:13px; line-height:1.7; color:#8a5a1a; margin-top:8px; font-style:italic;">{{ a.subhead }}</div>{% endif %}
         {% if a.summary %}<div style="font-family:{{ SANS }}; font-size:14px; line-height:1.9; color:#44474a; margin-top:12px;">{{ a.summary }}</div>{% endif %}
+        {# 2026-09-18 信件自包含：全文直接進信（收件人不依賴筆電上的網頁
+           伺服器）。needs_review 的不給全文，render_issue_email.py 端就
+           清空了 sections。 #}
+        {% if a.stats %}
+        <div style="margin-top:14px;">
+          {% for stat in a.stats %}
+          <span style="font-family:{{ SANS }}; font-size:12px; color:#8a5a1a; margin-right:16px;"><b style="font-size:15px;">{{ stat.value }}</b> {{ stat.label }}</span>
+          {% endfor %}
+        </div>
+        {% endif %}
+        {% for section in a.sections %}
+        {% if section.heading %}<div style="font-family:{{ SANS }}; font-size:13px; font-weight:700; letter-spacing:1px; color:#c9a54a; margin-top:16px;">{{ section.heading }}</div>{% endif %}
+        {% for para in section.paragraphs %}
+        <div style="font-family:{{ SANS }}; font-size:14px; line-height:1.9; color:#44474a; margin-top:10px;">{{ para }}</div>
+        {% endfor %}
+        {% endfor %}
+        {% if a.delta_insight %}
+        <div style="border-left:3px solid #c9a54a; padding:10px 14px; margin-top:16px; background:#f6f2e8;">
+          {% if a.delta_insight.heading %}<div style="font-family:{{ SANS }}; font-size:12px; font-weight:700; color:#8a5a1a;">{{ a.delta_insight.heading }}</div>{% endif %}
+          {% for para in a.delta_insight.paragraphs %}
+          <div style="font-family:{{ SANS }}; font-size:13px; line-height:1.8; color:#44474a; margin-top:6px;">{{ para }}</div>
+          {% endfor %}
+        </div>
+        {% endif %}
+        {% if a.needs_review %}
+        <div style="font-family:{{ SANS }}; font-size:12px; line-height:1.8; color:#8a8578; margin-top:12px;">本則自動自檢信心偏低，僅提供摘要，完整內容請以原文出處為準。</div>
+        {% endif %}
         <div style="margin-top:14px;">
           <a href="{{ a.url }}" style="font-family:{{ SANS }}; font-size:12px; letter-spacing:1px; color:#1a1a1a; text-decoration:none; border-bottom:1px solid #c9a54a; padding-bottom:2px;">閱讀全文 →</a>
           {% if a.source_url %}

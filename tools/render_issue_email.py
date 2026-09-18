@@ -78,6 +78,13 @@ def main() -> None:
                 "url": f"{SITE_URL}/issues/{issue['id']}/topics/{r['id']}",
                 "source_url": src["url"] if src else None,
                 "needs_review": bool(r["needs_review"]),
+                # 2026-09-18 信件自包含：完整內容直接放進信裡，收件人不用
+                # 連回筆電上的網頁伺服器也讀得到（筆電關機連結就死）。
+                # 自檢信心偏低（needs_review）的不放全文，只給摘要與原文
+                # 連結（使用者定的規則：自檢程度低就不該放進去）。
+                "sections": [] if r["needs_review"] else (g.get("sections") or []),
+                "stats": [] if r["needs_review"] else (g.get("stats") or []),
+                "delta_insight": None if r["needs_review"] else g.get("delta_insight"),
             }
         )
 
