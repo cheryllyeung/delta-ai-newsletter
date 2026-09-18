@@ -104,10 +104,8 @@ Sans、金色點綴、大號裝飾序號）跟網頁的摘要頁/全文頁一致
           <span style="font-family:Arial; font-size:12px; color:#c9c3b6;">&nbsp;&nbsp;</span>
           <a href="{{ a.source_url }}" target="_blank" style="font-family:{{ SANS }}; font-size:12px; color:#8a8578; text-decoration:none;">原文出處</a>
           {% endif %}
-          {% if a.needs_review %}
-          <span style="font-family:Arial; font-size:12px; color:#c9c3b6;">&nbsp;&nbsp;</span>
-          <span style="font-family:{{ SANS }}; font-size:12px; color:#8a8578;">⚠ 自檢信心偏低，請以原文為準</span>
-          {% endif %}
+          {# needs_review 的警示只留摘要下方那句完整說明，連結旁不再重複
+             （2026-09-18 使用者反映同一資訊出現兩次）。 #}
         </div>
       </td>
     </tr></table>
