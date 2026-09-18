@@ -287,6 +287,10 @@ selection:
     tier_cap:
       case: 2
       release: 2
+      # 2026-09-18 加：bioRxiv 上線後學術論文灌進候選池，當天 15 則裡
+      # 佔了 9 則，NBDMD 要的是產業動態不是論文導讀。深度層最多 4 個
+      # 版位，其餘留給 core/vertical 的產業內容。
+      depth: 4
 
 # 熱門度評分 = 報導家數 × 來源權重 × 時間衰減。
 # time_decay 用半衰期參數化：half_life_days 天後熱度打對折。
