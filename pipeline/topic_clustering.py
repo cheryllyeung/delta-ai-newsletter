@@ -140,16 +140,22 @@ def cluster_new_articles(
     client = vector_store.get_client(qdrant_path)
     vector_store.ensure_collection(client, collection, embeddings.embedding_dimension())
 
-    # embedding 先整批算完再逐篇分配。逐篇呼叫 encode_one 的話，每篇都要付
-    # 一次模型呼叫的固定開銷，實測在這台筆電上一篇要 20 秒以上；批次算把
-    # 固定開銷攤掉。分配那段仍然要照順序逐篇做（後面的文章要跟前面的比），
-    # 但那段只是查 Qdrant 跟寫 DB，毫秒級。
-    all_vectors = embeddings.encode([_embedding_text(row) for row in rows])
+    # embedding 分塊算，每塊算完就分配寫入。逐篇呼叫 encode_one 的話每篇要付
+    # 一次模型呼叫的固定開銷（實測這台筆電一篇 20 秒以上），批次算把開銷攤掉；
+    # 但一次全算的話 backlog 一大就是幾小時零輸出、零落盤，中途被砍全部重來
+    # （2026-09-18 補刊 639 篇算了近兩小時被砍，前面 9/15、9/17 排程也死在
+    # 同一段）。分塊後中斷最多損失一塊。分配仍照順序逐篇做（後面的文章要跟
+    # 前面的比），那段只是查 Qdrant 跟寫 DB，毫秒級。
+    _chunk_size = 64
 
     new_topics = 0
     merged = 0
     topics_merged = 0
-    for row, vector in zip(rows, all_vectors):
+    done = 0
+    for _start in range(0, len(rows), _chunk_size):
+      _chunk = rows[_start:_start + _chunk_size]
+      _vectors = embeddings.encode([_embedding_text(row) for row in _chunk])
+      for row, vector in zip(_chunk, _vectors):
         seen_at = datetime.now(timezone.utc).isoformat()
         row_is_signal = _is_signal_only(row)
 
@@ -216,6 +222,9 @@ def cluster_new_articles(
             vector=vector,
             payload={"topic_id": topic_id, "title": row["title"], "url": row["url"]},
         )
+
+      done += len(_chunk)
+      print(f"[topic_clustering] 聚類進度 {done}/{len(rows)}", flush=True)
 
     return {
         "processed": len(rows),
