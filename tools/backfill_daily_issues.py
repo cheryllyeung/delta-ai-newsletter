@@ -18,6 +18,12 @@ import sys
 from datetime import date, timedelta
 from pathlib import Path
 
+# 不帶 -X utf8 跑的時候，Windows 主控台是 cp950，話題標題裡的特殊字元
+# （2026-09-18 撞到 \xa0）會讓 print 直接炸掉整批。比照 ingest_topics
+# 的做法印不出來就換替代字元，別讓 log 輸出殺死補刊。
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(errors="replace")
+
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from dotenv import load_dotenv
