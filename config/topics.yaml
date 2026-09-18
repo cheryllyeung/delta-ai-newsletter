@@ -310,8 +310,13 @@ quality:
   #     0.45 → 0.70   0.40 → 0.54   0.30 → 0.60     （變好）
   # 本來就接近門檻的重寫多半變差，本來很爛的重寫才會變好。舊的 0.8 讓 77%
   # 都去重寫，等於大量在把還可以的文章改爛，還拖慢整批。
-  regenerate_below: 0.6      # 低於此值才值得重寫（實測約 33% 會觸發）
-  needs_review_below: 0.8    # 低於此值就標記給人工看，維持原本的把關嚴格度
+  # 2026-09-18 政策升級（使用者定調「自檢沒過的就不應該放進去」）：
+  # needs_review 從「標記後照登」變成硬性出刊門檻，低於 0.8 重寫、重寫
+  # 仍不過就撤下由補位遞補。regenerate_below 同步提到 0.8，不然 0.6-0.8
+  # 之間的會沒重寫就被撤。重寫改爛的風險由「保留歷次最佳版」緩解
+  # （scripts/compose_topic_issue.py 的 best_article 機制）。
+  regenerate_below: 0.8
+  needs_review_below: 0.8
   max_regeneration_retries: 2
 
 fetch:

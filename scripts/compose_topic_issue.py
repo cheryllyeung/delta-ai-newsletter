@@ -107,10 +107,16 @@ def generate_and_check(conn, selected: list[dict], config: dict) -> tuple[list[d
                 opening_technique=opening_technique,
             )
 
+            # 2026-09-18 改：保留歷次嘗試中信心最高的一版做最終判定。主線
+            # 實測過重寫常把接近門檻的文章改爛（0.78→0.66），只看最後一次
+            # 等於賭運氣。
             revision_instructions = None
             check_result = None
+            best_article, best_check = article, None
             for attempt in range(max_retries + 1):
                 check_result = self_check(article, source_rows)
+                if best_check is None or check_result["confidence"] > best_check["confidence"]:
+                    best_article, best_check = article, check_result
                 if check_result["confidence"] >= regenerate_below:
                     break
                 revision_instructions = check_result.get("revision_instructions", "")
@@ -124,6 +130,7 @@ def generate_and_check(conn, selected: list[dict], config: dict) -> tuple[list[d
                         revision_instructions,
                         opening_technique=opening_technique,
                     )
+            article, check_result = best_article, best_check
         except Exception as exc:  # noqa: BLE001 -- 單篇失敗不中斷整批，這個話題留在池裡下次重跑會重新入選
             print(f"[compose_topic_issue]   這篇生成失敗，跳過（下次重跑會重新入選）：{exc}")
             rejections.append(
@@ -152,6 +159,29 @@ def generate_and_check(conn, selected: list[dict], config: dict) -> tuple[list[d
                     "detail": {
                         "confidence": round(check_result["confidence"], 2),
                         "coherence_check": coherence,
+                        "sources": source_detail,
+                    },
+                }
+            )
+            continue
+
+        # 2026-09-18 政策升級（使用者定）：自檢信心低於門檻的不再「標註後
+        # 照登」，重寫仍不過就整篇撤下。之前的做法是 EDM 只給摘要不給全文，
+        # 使用者定調「自檢沒過的就不應該放進去」。撤下的話題留在池裡，
+        # 選題的補位輪會拿下一個候選補缺額。
+        if check_result["confidence"] < needs_review_below:
+            print(
+                f"[compose_topic_issue]   重寫後自檢信心仍只有 "
+                f"{check_result['confidence']:.2f} < {needs_review_below}，這篇不出刊"
+            )
+            rejections.append(
+                {
+                    "topic_id": topic_id,
+                    "decision": "rejected",
+                    "reason": "low_confidence",
+                    "stage": "generation",
+                    "detail": {
+                        "confidence": round(check_result["confidence"], 2),
                         "sources": source_detail,
                     },
                 }
