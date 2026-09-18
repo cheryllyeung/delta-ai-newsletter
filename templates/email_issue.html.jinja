@@ -45,8 +45,13 @@ Sans、金色點綴、大號裝飾序號）跟網頁的摘要頁/全文頁一致
     {% for group, label in [('trends','趨勢'), ('highlights','重點'), ('observations','觀察')] %}
     {% if tldr.get(group) %}
     <div style="font-family:{{ SANS }}; font-size:11px; letter-spacing:2px; font-weight:700; color:#c9a54a; margin-top:16px;">{{ label }}</div>
+    {# 趨勢條目 2026-09-18 起帶 dimension 標籤，舊期數是純字串，兩種都吃。 #}
     {% for item in tldr[group] %}
+    {% if item is mapping %}
+    <div style="font-family:{{ SANS }}; font-size:13px; line-height:1.8; color:#44474a; margin-top:5px; padding-left:14px; text-indent:-14px;">— <b style="color:#8a5a1a;">{{ item.dimension }}</b>｜{{ item.text }}</div>
+    {% else %}
     <div style="font-family:{{ SANS }}; font-size:13px; line-height:1.8; color:#44474a; margin-top:5px; padding-left:14px; text-indent:-14px;">— {{ item }}</div>
+    {% endif %}
     {% endfor %}
     {% endif %}
     {% endfor %}

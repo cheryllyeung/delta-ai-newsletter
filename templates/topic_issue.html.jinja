@@ -81,7 +81,15 @@
     {% for group, label in [('trends','趨勢'), ('highlights','重點'), ('observations','觀察')] %}
     {% if tldr.get(group) %}
     <p class="tldr-group">{{ label }}</p>
-    {% for item in tldr[group] %}<div class="tldr-item">— {{ item }}</div>{% endfor %}
+    {# 趨勢條目 2026-09-18 起帶 dimension 標籤（技術/市場/法規/臨床），
+       舊期數還是純字串，兩種都要吃。 #}
+    {% for item in tldr[group] %}
+    {% if item is mapping %}
+    <div class="tldr-item">— <b style="color: #8a5a1a;">{{ item.dimension }}</b>｜{{ item.text }}</div>
+    {% else %}
+    <div class="tldr-item">— {{ item }}</div>
+    {% endif %}
+    {% endfor %}
     {% endif %}
     {% endfor %}
   </div>
