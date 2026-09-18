@@ -77,6 +77,20 @@
   .module-card-latest { font-size: 0.76rem; line-height: 1.5; color: var(--color-ink-2); display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
   .board-empty-note { font-size: 0.76rem; color: var(--color-muted); margin: 0.8rem 0 0; }
   .board-empty-note a { color: var(--color-muted); }
+  /* 2026-09-18 主副欄改版：事業領域主欄大卡，特輯＋工作職能收右側窄欄。 */
+  .board-layout { display: grid; grid-template-columns: minmax(0, 1fr) 13rem; gap: 1.6rem; margin-top: 1rem; }
+  .board-rail { border-left: 1px solid #d8dee4; padding-left: 1.2rem; }
+  .rail-item { display: flex; justify-content: space-between; align-items: baseline; gap: 0.5rem;
+               padding: 0.4rem 0; border-bottom: 1px solid #e6ebf0; text-decoration: none;
+               font-size: 0.85rem; color: var(--color-ink); }
+  .rail-item:hover { color: var(--color-accent); }
+  .rail-item.empty, .rail-item.empty:hover { color: var(--color-muted); }
+  .rail-count { font-family: var(--font-label); font-size: 0.72rem; color: var(--color-muted); white-space: nowrap; }
+  .rail-gap { margin-top: 1.2rem; }
+  @media (max-width: 44rem) {
+    .board-layout { grid-template-columns: 1fr; }
+    .board-rail { border-left: none; padding-left: 0; }
+  }
   .cal-section-title { margin-top: 0.5rem; }
 
   /* 月曆：一週從週日起算（跟週報的週定義一致）。日曆是首頁主視覺，
@@ -136,43 +150,42 @@
   {# 標題下面刻意不放說明句：原本那句在解釋資料模型（專屬頁面、一篇文章
      屬於幾個領域），讀者點一次就懂的事不用先教（2026-08-28 使用者定調）。 #}
   <h2 class="board-title">選你的領域</h2>
-  {# 特輯放在台達本業上面（2026-08-28 使用者要求）。 #}
-  {% if release_overview %}
-  <p class="board-group-label">特輯</p>
-  <div class="module-card-grid">
-    <a class="module-card domain" href="/releases">
-      <span class="module-card-name">模型與工具發佈</span>
-      <span class="module-card-count">{{ release_overview.count }} 則</span>
-      {% if release_overview.latest %}<span class="module-card-latest">{{ release_overview.latest.date }}｜{% if release_overview.latest.vendor %}{{ release_overview.latest.vendor }}：{% endif %}{{ release_overview.latest.title }}</span>{% endif %}
-    </a>
+  {# 2026-09-18 主副欄改版（使用者選案）：事業領域是日報主體，保留大卡
+     與最新一篇預覽當主欄；特輯與工作職能是配額性質，收進右側窄欄只列
+     名稱與篇數，0 篇的顯示 -- 不再佔一張卡。同一套分類不再以同等視覺
+     重量出現三次。 #}
+  <div class="board-layout">
+    <div class="board-main">
+      <p class="board-group-label">事業領域</p>
+      <div class="module-card-grid">
+        {% for m in module_overview.domain if m.count %}
+        <a class="module-card domain" href="/modules/{{ m.id }}">
+          <span class="module-card-name">{{ m.name }}</span>
+          <span class="module-card-count">{{ m.count }} 篇</span>
+          {% if m.latest %}<span class="module-card-latest">{{ m.latest.date }}｜{{ m.latest.title }}</span>{% endif %}
+        </a>
+        {% endfor %}
+      </div>
+      {% set domain_empties = module_overview.domain | selectattr("count", "equalto", 0) | list %}
+      {% if domain_empties %}
+      <p class="board-empty-note">目前沒有內容：{% for m in domain_empties %}<a href="/modules/{{ m.id }}">{{ m.name }}</a>{% if not loop.last %}、{% endif %}{% endfor %}</p>
+      {% endif %}
+    </div>
+    <aside class="board-rail">
+      {% if release_overview %}
+      <p class="board-group-label">特輯</p>
+      <a class="rail-item" href="/releases">
+        <span>模型與工具發佈</span><span class="rail-count">{{ release_overview.count }} 則</span>
+      </a>
+      {% endif %}
+      <p class="board-group-label rail-gap">工作職能</p>
+      {% for m in module_overview.functional %}
+      <a class="rail-item{% if not m.count %} empty{% endif %}" href="/modules/{{ m.id }}">
+        <span>{{ m.name }}</span><span class="rail-count">{% if m.count %}{{ m.count }} 篇{% else %}--{% endif %}</span>
+      </a>
+      {% endfor %}
+    </aside>
   </div>
-  {% endif %}
-  {# 2026-09-18：0 篇的領域不再佔一張卡，收成底下一行灰字（使用者反映
-     空領域放大了分類牆的重複感）。領域頁本身還在，點灰字一樣進得去。 #}
-  <p class="board-group-label">事業領域</p>
-  <div class="module-card-grid">
-    {% for m in module_overview.domain if m.count %}
-    <a class="module-card domain" href="/modules/{{ m.id }}">
-      <span class="module-card-name">{{ m.name }}</span>
-      <span class="module-card-count">{{ m.count }} 篇</span>
-      {% if m.latest %}<span class="module-card-latest">{{ m.latest.date }}｜{{ m.latest.title }}</span>{% endif %}
-    </a>
-    {% endfor %}
-  </div>
-  <p class="board-group-label">工作職能</p>
-  <div class="module-card-grid">
-    {% for m in module_overview.functional if m.count %}
-    <a class="module-card" href="/modules/{{ m.id }}">
-      <span class="module-card-name">{{ m.name }}</span>
-      <span class="module-card-count">{{ m.count }} 篇</span>
-      {% if m.latest %}<span class="module-card-latest">{{ m.latest.date }}｜{{ m.latest.title }}</span>{% endif %}
-    </a>
-    {% endfor %}
-  </div>
-  {% set empties = (module_overview.domain + module_overview.functional) | selectattr("count", "equalto", 0) | list %}
-  {% if empties %}
-  <p class="board-empty-note">目前沒有內容的領域：{% for m in empties %}<a href="/modules/{{ m.id }}">{{ m.name }}</a>{% if not loop.last %}、{% endif %}{% endfor %}</p>
-  {% endif %}
 </section>
 {% endif %}
 

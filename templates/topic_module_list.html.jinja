@@ -44,6 +44,7 @@
   .masthead p { margin: 0.8rem 0 0; font-size: 0.88rem; line-height: 1.6; max-width: 56ch; color: color-mix(in oklch, var(--color-accent-ink) 85%, transparent); }
 
   .module-nav { max-width: var(--shell); margin: 0 auto; padding: 1.2rem var(--page-gutter) 0.4rem; }
+  .module-nav-label { font-family: var(--font-label); font-size: 0.72rem; color: var(--color-muted); margin: 0 0 0.4rem; }
   .module-nav-row { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 0.7rem; }
   .module-chip { font-family: var(--font-label); font-size: 0.72rem; border: 1px solid #c9d2da; background: var(--color-paper-2); padding: 0.25em 0.6em; }
   .module-chip:hover { background: var(--color-accent); color: var(--color-accent-ink); }
@@ -78,12 +79,16 @@
   </div>
 </header>
 
-{# 2026-09-18 拿掉「事業領域／工作職能」兩個群組標籤、七個 chip 合併成
-   一排：這裡是切換器不是目錄，群組結構首頁的卡片牆已經給過（使用者
-   反映同一套分類每頁重複一次太重）。 #}
 <nav class="module-nav" aria-label="領域切換">
+  <p class="module-nav-label">事業領域</p>
   <div class="module-nav-row">
-    {% for m in modules_by_group.domain + modules_by_group.functional %}
+    {% for m in modules_by_group.domain %}
+    <a class="module-chip{% if m.id == module.id %} active{% endif %}" href="/modules/{{ m.id }}">{{ m.name }}</a>
+    {% endfor %}
+  </div>
+  <p class="module-nav-label">工作職能</p>
+  <div class="module-nav-row">
+    {% for m in modules_by_group.functional %}
     <a class="module-chip{% if m.id == module.id %} active{% endif %}" href="/modules/{{ m.id }}">{{ m.name }}</a>
     {% endfor %}
   </div>
