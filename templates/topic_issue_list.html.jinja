@@ -14,16 +14,16 @@
 <link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800&family=Noto+Sans+TC:wght@700;900&family=IBM+Plex+Sans:wght@400;500&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
 <style>
   :root {
-    --color-paper:   #eef1f4;
-    --color-paper-2: #ffffff;
-    --color-paper-3: #dde4ea;
-    --color-ink:     #1c2b38;
-    --color-ink-2:   #33424f;
-    --color-muted:   #5a6672;
-    --color-accent:      #1f4e8c;
-    --color-accent-ink:  #ffffff;
+    --color-paper:   #e8e4da;
+    --color-paper-2: #fbfaf6;
+    --color-paper-3: #ece7dc;
+    --color-ink:     #1a1a1a;
+    --color-ink-2:   #44474a;
+    --color-muted:   #8a8578;
+    --color-accent:      #8a5a1a;
+    --color-accent-ink:  #fdf6ef;
     --color-accent-2:    #c07a2a;
-    --color-focus:   #1f4e8c;
+    --color-focus:   #8a5a1a;
     --font-display: "Noto Sans TC", "Microsoft JhengHei", sans-serif;
     --font-body:    "IBM Plex Sans", ui-sans-serif, "PingFang TC", "Noto Sans TC", sans-serif;
     --font-label:   "JetBrains Mono", ui-monospace, monospace;
@@ -52,12 +52,12 @@
 
   .issue-index { max-width: var(--shell); margin: 0 auto; padding: 0 var(--page-gutter) 4rem; display: flex; flex-direction: column; gap: 1rem; }
   .issue-card {
-    display: block; background: var(--color-paper-2); border: 1px solid #d8dee4;
-    box-shadow: 0 2px 8px rgba(28,43,56,0.14); padding: 1.1rem 1.4rem;
+    display: block; background: var(--color-paper-2); border: 1px solid #ddd5c4;
+    box-shadow: 0 2px 8px rgba(40,36,28,0.14); padding: 1.1rem 1.4rem;
     transition: transform 120ms ease-out, box-shadow 120ms ease-out;
   }
-  .issue-card:hover { transform: translate(-1px, -1px); box-shadow: 0 2px 8px rgba(28,43,56,0.10); }
-  .issue-card:active { transform: translate(2px, 2px); box-shadow: 0 1px 2px rgba(28,43,56,0.10); }
+  .issue-card:hover { transform: translate(-1px, -1px); box-shadow: 0 2px 8px rgba(40,36,28,0.10); }
+  .issue-card:active { transform: translate(2px, 2px); box-shadow: 0 1px 2px rgba(40,36,28,0.10); }
   .issue-card-row { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
   .issue-card-title { font-family: var(--font-display); font-weight: 800; font-size: clamp(1.1rem, 1.6vw + 0.7rem, 1.5rem);  }
   .issue-card-date { font-family: var(--font-label); font-size: 0.8rem; color: var(--color-muted); white-space: nowrap; }
@@ -69,8 +69,8 @@
   .board-title { font-family: var(--font-display); font-weight: 800;  font-size: clamp(1.4rem, 2.4vw + 0.8rem, 2rem); margin: 0; color: var(--color-ink); border-bottom: 4px solid var(--color-accent); display: inline-block; padding-bottom: 0.15em; }
   .board-group-label { font-family: var(--font-label); font-size: 0.72rem; letter-spacing: 0.08em; color: var(--color-muted); margin: 1rem 0 0.5rem; }
   .module-card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(13.5rem, 1fr)); gap: 0.8rem; }
-  .module-card { display: flex; flex-direction: column; gap: 0.3rem; background: var(--color-paper-2); border: 1px solid #d8dee4; box-shadow: 0 1px 4px rgba(28,43,56,0.10); padding: 0.8rem 0.95rem; transition: transform 120ms ease-out, box-shadow 120ms ease-out; }
-  .module-card:hover { transform: translate(-1px, -1px); box-shadow: 0 2px 8px rgba(28,43,56,0.14); }
+  .module-card { display: flex; flex-direction: column; gap: 0.3rem; background: var(--color-paper-2); border: 1px solid #ddd5c4; box-shadow: 0 1px 4px rgba(40,36,28,0.10); padding: 0.8rem 0.95rem; transition: transform 120ms ease-out, box-shadow 120ms ease-out; }
+  .module-card:hover { transform: translate(-1px, -1px); box-shadow: 0 2px 8px rgba(40,36,28,0.14); }
   .module-card.domain { border-color: var(--color-accent); }
   .module-card-name { font-family: var(--font-display); font-weight: 800; font-size: 1.05rem;  }
   .module-card.domain .module-card-name { color: var(--color-accent); }
@@ -81,9 +81,9 @@
   .board-empty-note a { color: var(--color-muted); }
   /* 2026-09-18 主副欄改版：事業領域主欄大卡，特輯＋工作職能收右側窄欄。 */
   .board-layout { display: grid; grid-template-columns: minmax(0, 1fr) 13rem; gap: 1.6rem; margin-top: 1rem; }
-  .board-rail { border-left: 1px solid #d8dee4; padding-left: 1.2rem; }
+  .board-rail { border-left: 1px solid #ddd5c4; padding-left: 1.2rem; }
   .rail-item { display: flex; justify-content: space-between; align-items: baseline; gap: 0.5rem;
-               padding: 0.4rem 0; border-bottom: 1px solid #e6ebf0; text-decoration: none;
+               padding: 0.4rem 0; border-bottom: 1px solid #ece7dc; text-decoration: none;
                font-size: 0.85rem; color: var(--color-ink); }
   .rail-item:hover { color: var(--color-accent); }
   .rail-item.empty, .rail-item.empty:hover { color: var(--color-muted); }
@@ -100,7 +100,7 @@
   .cal-wrap { max-width: 52rem; margin: 0 auto; padding: 0 var(--page-gutter) 2.5rem; }
   .cal-month { margin-bottom: 2.5rem; }
   .cal-title { font-family: var(--font-display); font-weight: 800;  font-size: clamp(1.4rem, 2.4vw + 0.8rem, 2rem); margin: 0 0 0.9rem; }
-  .cal-board { border: 1px solid #d8dee4; box-shadow: 0 2px 8px rgba(28,43,56,0.10); background: var(--color-paper-2); overflow-x: auto; }
+  .cal-board { border: 1px solid #ddd5c4; box-shadow: 0 2px 8px rgba(40,36,28,0.10); background: var(--color-paper-2); overflow-x: auto; }
   .cal-head, .cal-week { display: grid; grid-template-columns: repeat(7, minmax(4.2rem, 1fr)); }
   .cal-head { background: var(--color-ink); color: var(--color-accent-ink); }
   .cal-head span { font-family: var(--font-label); font-size: 0.72rem; letter-spacing: 0.08em; text-align: center; padding: 0.45em 0; }
@@ -111,9 +111,9 @@
   .cal-cell.out .cal-day { opacity: 0.35; }
   .cal-cell.today { outline: 3px solid var(--color-accent); outline-offset: -3px; }
   .cal-day { font-family: var(--font-label); font-size: 0.78rem; color: var(--color-muted); }
-  .cal-chip { display: block; font-family: var(--font-label); font-size: 0.68rem; line-height: 1.35; border: 1px solid #c9d2da; background: var(--color-paper); padding: 0.18em 0.4em; box-shadow: 2px 2px 0 var(--color-ink); transition: transform 100ms ease-out, box-shadow 100ms ease-out; }
-  .cal-chip:hover { transform: translate(-1px, -1px); box-shadow: 0 1px 4px rgba(28,43,56,0.10); background: var(--color-accent); color: var(--color-accent-ink); }
-  .cal-chip:active { transform: translate(1px, 1px); box-shadow: 0 1px 2px rgba(28,43,56,0.10); }
+  .cal-chip { display: block; font-family: var(--font-label); font-size: 0.68rem; line-height: 1.35; border: 1px solid #ddd5c4; background: var(--color-paper); padding: 0.18em 0.4em; box-shadow: 2px 2px 0 var(--color-ink); transition: transform 100ms ease-out, box-shadow 100ms ease-out; }
+  .cal-chip:hover { transform: translate(-1px, -1px); box-shadow: 0 1px 4px rgba(40,36,28,0.10); background: var(--color-accent); color: var(--color-accent-ink); }
+  .cal-chip:active { transform: translate(1px, 1px); box-shadow: 0 1px 2px rgba(40,36,28,0.10); }
   .cal-chip.weekly { background: var(--color-ink); color: var(--color-paper); }
   .cal-chip.weekly:hover { background: var(--color-accent); }
   .cal-legend { display: flex; gap: 1.2rem; margin-top: 0.7rem; font-family: var(--font-label); font-size: 0.72rem; color: var(--color-muted); }

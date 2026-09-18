@@ -14,14 +14,14 @@ LMArena 分類排行榜頁（scripts/serve_topics.py 的 /leaderboard）。
 <link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800&family=Noto+Sans+TC:wght@700;900&family=IBM+Plex+Sans:wght@400;500&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
 <style>
   :root {
-    --color-paper:   #eef1f4;
-    --color-paper-2: #ffffff;
-    --color-paper-3: #dde4ea;
-    --color-ink:     #1c2b38;
-    --color-ink-2:   #33424f;
-    --color-muted:   #5a6672;
-    --color-accent:      #1f4e8c;
-    --color-accent-ink:  #ffffff;
+    --color-paper:   #e8e4da;
+    --color-paper-2: #fbfaf6;
+    --color-paper-3: #ece7dc;
+    --color-ink:     #1a1a1a;
+    --color-ink-2:   #44474a;
+    --color-muted:   #8a8578;
+    --color-accent:      #8a5a1a;
+    --color-accent-ink:  #fdf6ef;
     --font-display: "Noto Sans TC", "Microsoft JhengHei", sans-serif;
     --font-body:    "IBM Plex Sans", ui-sans-serif, "PingFang TC", "Noto Sans TC", sans-serif;
     --font-label:   "JetBrains Mono", ui-monospace, monospace;
@@ -46,7 +46,7 @@ LMArena 分類排行榜頁（scripts/serve_topics.py 的 /leaderboard）。
   .leaderboard { max-width: var(--shell); margin: 1.5rem auto 0; padding: 0 var(--page-gutter) 4rem; }
   .leaderboard-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
   @media (max-width: 40rem) { .leaderboard-grid { grid-template-columns: 1fr; } }
-  .leaderboard-box { background: var(--color-paper-2); border: 1px solid #d8dee4; box-shadow: 0 1px 4px rgba(28,43,56,0.10); padding: 1rem 1.2rem; }
+  .leaderboard-box { background: var(--color-paper-2); border: 1px solid #ddd5c4; box-shadow: 0 1px 4px rgba(40,36,28,0.10); padding: 1rem 1.2rem; }
   .leaderboard-title { font-family: var(--font-label); font-size: 0.78rem; font-weight: 700; color: var(--color-accent); margin: 0 0 0.6rem; }
   .leaderboard table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
   .leaderboard th { font-family: var(--font-label); font-size: 0.68rem; text-align: left; color: var(--color-muted); padding: 0.25em 0.5em; border-bottom: 1.5px solid var(--color-ink); }
