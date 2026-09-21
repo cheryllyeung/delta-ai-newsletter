@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import json
+import re
 import sqlite3
 
 import openai
@@ -16,7 +17,12 @@ from pipeline.llm_client import create_chat_completion, get_client, get_review_m
 from pipeline.llm_logging import log_call
 from pipeline.prompt_loader import load_prompt_parts
 
-_SOURCE_CHARS_FOR_CHECK = 3000
+# 自檢能看到的來源全文長度。2026-09-21 從 3000 提到 45000：原本審查員
+# 看到的來源比寫作端還少（而且是整批截斷，第二篇之後的來源可能整篇被
+# 切掉），寫作端誇大了後半段原文它根本無從發現。現在寫作端每篇來源餵
+# 8000 字（見 generation/topic_generate.py），這裡要涵蓋寫作看過的全部，
+# 45000 = 5 篇 × 8000 加上格式框架的餘裕。
+_SOURCE_CHARS_FOR_CHECK = 45000
 
 
 def _parse_json_object(raw_text: str) -> dict:
@@ -59,6 +65,37 @@ def is_coherent(result: dict) -> bool:
     if coherence.get("single_subject") is False:
         return False
     return not coherence.get("unrelated_sources")
+
+
+# 生成結果只該有繁體中文與英文專有名詞。2026-09-21 加：實測出過內文混進
+# 俄文（「分子 профиля」），LLM 自檢沒抓到就照登了。西里爾字母、假名、
+# 諺文用程式直接掃，比要求審查員「注意看」可靠。簡體字另有
+# pipeline/text_normalize.py 逐字元轉掉，不歸這裡管。
+_FOREIGN_CHARS = re.compile(r"[Ѐ-ӿ぀-ヿ가-힯]")
+
+# 抓到殘留字元時信心度的上限。壓在 regenerate_below（0.8）之下，一定會
+# 觸發重寫；重寫指示會附上出現位置。
+_FOREIGN_RESIDUE_CONFIDENCE_CAP = 0.7
+
+
+def _foreign_char_violations(value, path: str = "") -> list[dict]:
+    if isinstance(value, str):
+        m = _FOREIGN_CHARS.search(value)
+        if m:
+            snippet = value[max(0, m.start() - 10): m.end() + 10]
+            return [{"rule": "非中英文字元殘留", "location": f"{path}：…{snippet}…"}]
+        return []
+    if isinstance(value, list):
+        found = []
+        for i, v in enumerate(value):
+            found.extend(_foreign_char_violations(v, f"{path}[{i}]"))
+        return found
+    if isinstance(value, dict):
+        found = []
+        for k, v in value.items():
+            found.extend(_foreign_char_violations(v, f"{path}.{k}" if path else k))
+        return found
+    return []
 
 
 def _compute_confidence(result: dict) -> float:
@@ -111,6 +148,16 @@ def self_check(
         # 解析失敗也要把原始回應存下來，不然沒辦法回頭比對到底是哪裡壞的。
         log_call("topic_self_check", system, user, raw_text, None)
         raise
+    foreign = _foreign_char_violations(generated_article)
+    if foreign:
+        parsed.setdefault("style_violations", []).extend(foreign)
+        locations = "；".join(v["location"] for v in foreign)
+        parsed["revision_instructions"] = (
+            f"{parsed.get('revision_instructions', '')}\n"
+            f"內文混入了非中英文的字元，重寫時改成正確的繁體中文：{locations}"
+        ).strip()
     parsed["confidence"] = _compute_confidence(parsed)
+    if foreign:
+        parsed["confidence"] = min(parsed["confidence"], _FOREIGN_RESIDUE_CONFIDENCE_CAP)
     log_call("topic_self_check", system, user, raw_text, parsed)
     return parsed

@@ -17,7 +17,12 @@ from pipeline.llm_logging import log_call
 from pipeline.prompt_loader import load_prompt_parts
 from pipeline.text_normalize import fix_stray_simplified_in
 
-_CONTENT_CHARS_PER_SOURCE = 1500
+# 每篇來源餵給寫作的內文長度上限。2026-09-21 從 1500 提到 8000：使用者
+# 抓到一篇 9297 字的 GEN 報導，模型只看得到前三段，關鍵發現（候選標靶、
+# 年齡分界、免疫差異）全沒進 prompt，後面的篇幅只能靠修辭撐，標題也
+# 跟著失真。1500 字是早期省 context 的值，現在 max_sources=5 最壞情況
+# 40k 字元也就一萬多 token，換不到「文章把原文重點寫錯」的代價。
+_CONTENT_CHARS_PER_SOURCE = 8000
 
 # JSON 解析失敗時重新生成的次數。
 #
