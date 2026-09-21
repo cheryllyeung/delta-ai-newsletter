@@ -296,6 +296,39 @@ def _release_overview(conn) -> dict:
     return {"count": len(rows), "latest": latest}
 
 
+def _thinktank_entries(conn) -> list[dict]:
+    """智庫觀察的歷期格子攤成時間線（新到舊），/thinktank 頁與首頁的
+    智庫卡片共用（2026-09-21，pipeline/thinktank_watch.py 產的資料）。"""
+    entries: list[dict] = []
+    for row in conn.execute(
+        """SELECT id, issue_date, thinktank_json FROM issues
+           WHERE thinktank_json IS NOT NULL ORDER BY issue_date DESC, id DESC"""
+    ):
+        try:
+            cells = (json.loads(row["thinktank_json"]) or {}).get("cells") or []
+        except ValueError:
+            continue
+        for c in cells:
+            entries.append({"issue_id": row["id"], "issue_date": row["issue_date"], **c})
+    return entries
+
+
+@app.get("/thinktank", response_class=HTMLResponse)
+def thinktank_page(request: Request):
+    """智庫觀察彙整頁（2026-09-21）：首頁「我想看智庫怎麼分析」卡片的
+    落點。獨立成頁而不是錨點連到單期，因為不是每期都有智庫文章，錨點
+    會撲空（使用者選的方案）。"""
+    conn = _get_conn()
+    return templates.TemplateResponse(
+        request,
+        "topic_thinktank.html.jinja",
+        {
+            "newsletter_name": _config["newsletter"]["name"],
+            "entries": _thinktank_entries(conn),
+        },
+    )
+
+
 @app.get("/releases", response_class=HTMLResponse)
 def release_timeline(request: Request, vendor: str | None = None, kind: str | None = None):
     """模型與工具發佈頁：池裡所有判定為官方發佈的文章，發佈時間新到舊。
@@ -509,6 +542,12 @@ def issue_list(request: Request, lang: str | None = None):
     # 期數列表拿掉，所以不再組 issues／months。讀者從領域頁點文章時網址
     # 還是帶期數（/issues/<id>/topics/<gid>），入口變了、內容路徑沒變。
     conn = _get_conn()
+    # 意圖卡片（2026-09-21 改版：首頁改成「我想看什麼」的第一人稱導覽，
+    # 使用者給的範本是福利入口網的意圖式卡片）需要最新一期跟智庫概況。
+    latest = conn.execute(
+        "SELECT id, issue_date, cadence FROM issues ORDER BY issue_date DESC, id DESC LIMIT 1"
+    ).fetchone()
+    tt_entries = _thinktank_entries(conn)
     return templates.TemplateResponse(
         request,
         "topic_issue_list.html.jinja",
@@ -516,6 +555,9 @@ def issue_list(request: Request, lang: str | None = None):
             "newsletter_name": _config["newsletter"]["name"],
             "module_overview": _module_overview(conn),
             "release_overview": _release_overview(conn),
+            "latest_issue": dict(latest) if latest else None,
+            "thinktank_count": len(tt_entries),
+            "thinktank_latest": tt_entries[0] if tt_entries else None,
             "lang": _normalise_lang(lang),
         },
     )

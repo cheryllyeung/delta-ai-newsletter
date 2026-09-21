@@ -62,6 +62,17 @@
   .issue-card-cadence { font-family: var(--font-label); font-size: 0.7rem; border: 1px solid var(--color-ink); padding: 0.1em 0.5em; white-space: nowrap; }
   .issue-card-cadence.weekly { background: var(--color-ink); color: var(--color-paper); }
 
+  /* 意圖卡片（2026-09-21 改版）：第一人稱「我想看什麼」導覽，範本是
+     福利入口網的意圖式卡片。跟領域卡同一套硬邊語彙，多描述句跟 CTA。 */
+  .intent-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr)); gap: 0.8rem; margin-top: 0.6rem; }
+  .intent-card { display: flex; flex-direction: column; gap: 0.4rem; background: var(--color-paper-2); border: 2px solid var(--color-ink); box-shadow: 3px 3px 0 var(--color-ink); padding: 0.9rem 1rem; transition: transform 120ms ease-out, box-shadow 120ms ease-out; }
+  .intent-card:hover { transform: translate(-1px, -1px); box-shadow: 4px 4px 0 var(--color-ink); }
+  .intent-card:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 var(--color-ink); }
+  .intent-title { font-family: var(--font-body); font-weight: 700; font-size: 1rem; color: var(--color-ink); }
+  .intent-desc { font-size: 0.78rem; line-height: 1.55; color: var(--color-ink-2); flex: 1; }
+  .intent-cta { font-family: var(--font-label); font-size: 0.74rem; letter-spacing: 0.05em; color: var(--color-accent); font-weight: 700; }
+  .board-group-desc { font-size: 0.78rem; line-height: 1.55; color: var(--color-ink-2); margin: 0 0 0.6rem; }
+
   /* 首頁領域卡片（2026-08-26 改版主視覺）。 */
   .module-board { max-width: 52rem; margin: 0 auto; padding: 0 var(--page-gutter) 2rem; }
   .board-title { font-family: var(--font-display); font-weight: 800; text-transform: uppercase; font-size: clamp(1.4rem, 2.4vw + 0.8rem, 2rem); margin: 0; color: var(--color-ink); border-bottom: 4px solid var(--color-accent); display: inline-block; padding-bottom: 0.15em; }
@@ -129,22 +140,40 @@
 {% if module_overview %}
 {# 首頁主視覺：領域卡片（2026-08-26 改版）。讀者是帶著職能來的，法務的人
    點法務、能源的人點能源，日期是次要資訊，月曆降到下面當出刊紀錄。 #}
-<section class="module-board" aria-label="依領域瀏覽">
-  {# 標題下面刻意不放說明句：原本那句在解釋資料模型（專屬頁面、一篇文章
-     屬於幾個領域），讀者點一次就懂的事不用先教（2026-08-28 使用者定調）。 #}
-  <h2 class="board-title">選你的領域</h2>
-  {# 特輯放在台達本業上面（2026-08-28 使用者要求）。 #}
-  {% if release_overview %}
-  <p class="board-group-label">特輯</p>
-  <div class="module-card-grid">
-    <a class="module-card domain" href="/releases">
-      <span class="module-card-name">模型與工具發佈</span>
-      <span class="module-card-count">{{ release_overview.count }} 則</span>
-      {% if release_overview.latest %}<span class="module-card-latest">{{ release_overview.latest.date }}｜{% if release_overview.latest.vendor %}{{ release_overview.latest.vendor }}：{% endif %}{{ release_overview.latest.title }}</span>{% endif %}
+<section class="module-board" aria-label="你想看什麼">
+  {# 2026-09-21 改版：首頁改成第一人稱意圖導覽（「我想看⋯」），範本是
+     使用者給的福利入口網卡片。原本的「選你的領域」群組保留在下面，
+     只是群組標題也改成意圖句。 #}
+  <h2 class="board-title">你想看什麼？</h2>
+  <div class="intent-grid">
+    {% if latest_issue %}
+    <a class="intent-card" href="/issues/{{ latest_issue.id }}">
+      <span class="intent-title">我想看最新一期日報</span>
+      <span class="intent-desc">{{ latest_issue.issue_date }} 出刊，今天最值得看的 AI 動態一次讀完。</span>
+      <span class="intent-cta">看最新一期 →</span>
+    </a>
+    {% endif %}
+    {% if release_overview %}
+    <a class="intent-card" href="/releases">
+      <span class="intent-title">我想追大廠發佈了什麼</span>
+      <span class="intent-desc">模型與工具的官方發佈時間線，共 {{ release_overview.count }} 則，可按廠商與類型篩選。</span>
+      <span class="intent-cta">看發佈特輯 →</span>
+    </a>
+    {% endif %}
+    <a class="intent-card" href="/leaderboard">
+      <span class="intent-title">我想知道最近什麼最熱</span>
+      <span class="intent-desc">話題熱度排行榜，看各家媒體都在追什麼。</span>
+      <span class="intent-cta">看排行榜 →</span>
+    </a>
+    <a class="intent-card" href="/thinktank">
+      <span class="intent-title">我想看智庫怎麼分析</span>
+      <span class="intent-desc">台灣智庫的政策與供應鏈研究{% if thinktank_count %}，共 {{ thinktank_count }} 篇{% endif %}，附對台達的啟示。</span>
+      <span class="intent-cta">看智庫觀察 →</span>
     </a>
   </div>
-  {% endif %}
-  <p class="board-group-label">事業領域</p>
+
+  <p class="board-group-label">我想看我的事業領域動態</p>
+  <p class="board-group-desc">挑你的事業群，看跟它最相關的報導。</p>
   <div class="module-card-grid">
     {% for m in module_overview.domain %}
     <a class="module-card domain" href="/modules/{{ m.id }}">
@@ -154,7 +183,8 @@
     </a>
     {% endfor %}
   </div>
-  <p class="board-group-label">工作職能</p>
+  <p class="board-group-label">我想看我的職能相關情報</p>
+  <p class="board-group-desc">法務、人資、資安、行銷⋯⋯跟你日常工作有關的 AI 應用。</p>
   <div class="module-card-grid">
     {% for m in module_overview.functional %}
     <a class="module-card" href="/modules/{{ m.id }}">
