@@ -41,6 +41,7 @@ from pipeline.topic_db import (
     list_issues,
     list_release_articles,
 )
+from pipeline.issue_tldr import tldr_display_groups
 from pipeline.translate import SUPPORTED as SUPPORTED_LANGS
 from pipeline.translate import get_article_in
 
@@ -678,6 +679,7 @@ def issue_overview(request: Request, issue_id: int, lang: str | None = None):
             "issue_date": issue["issue_date"],
             "issue_cadence": issue["cadence"],
             "tldr": tldr,
+            "tldr_groups": tldr_display_groups(tldr),
             "topics": topics,
             "total_articles": column_topic_count + len(topics),
             "delta_column": delta_column,

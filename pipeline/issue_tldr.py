@@ -14,6 +14,49 @@ from pipeline.llm_logging import log_call
 from pipeline.prompt_loader import load_prompt_parts
 
 
+# 版面上面向區塊的固定順序（2026-09-21 改版，使用者主管定的：市場、
+# 技術、臨床，法規當天有新聞才出現）。
+_DIMENSION_ORDER = ["市場", "技術", "臨床", "法規"]
+
+
+def tldr_display_groups(tldr: dict | None) -> list[dict] | None:
+    """把 tldr_json 整理成版面用的分組 [{"label": str, "entries": [str]}]。
+
+    2026-09-21 改版：導讀從「趨勢／重點／觀察」三類改成按面向（市場／
+    技術／臨床／法規）分大區塊。主管反映三類界線模糊（同一條放哪類都
+    說得通），面向分類比較直覺。三種存檔格式都要吃：
+    - 新格式：items 一層，每條帶 dimension
+    - 2026-09-18 到 09-20：trends/highlights/observations 三列，每條帶
+      dimension，合併後照樣能按面向分組
+    - 9/18 前：三列純字串沒有面向，只能維持原本的三類標籤
+    """
+    if not tldr:
+        return None
+    entries = tldr.get("items")
+    if entries is None:
+        entries = []
+        for key in ("trends", "highlights", "observations"):
+            entries.extend(tldr.get(key) or [])
+    if not entries:
+        return None
+
+    if all(isinstance(e, dict) and e.get("dimension") for e in entries):
+        by_dim: dict[str, list[str]] = {}
+        for e in entries:
+            by_dim.setdefault(e["dimension"], []).append(e.get("text", ""))
+        order = _DIMENSION_ORDER + [d for d in by_dim if d not in _DIMENSION_ORDER]
+        return [{"label": d, "entries": by_dim[d]} for d in order if d in by_dim]
+
+    # 舊格式（純字串）退回三類標籤
+    groups = []
+    for key, label in (("trends", "趨勢"), ("highlights", "重點"), ("observations", "觀察")):
+        items = tldr.get(key) or []
+        texts = [i.get("text", "") if isinstance(i, dict) else i for i in items]
+        if texts:
+            groups.append({"label": label, "entries": texts})
+    return groups or None
+
+
 def _parse_json_object(raw_text: str) -> dict:
     try:
         return json.loads(raw_text, strict=False)

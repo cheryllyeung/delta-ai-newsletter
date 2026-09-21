@@ -20,6 +20,7 @@ from jinja2 import Environment, FileSystemLoader
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from pipeline.issue_tldr import tldr_display_groups
 from pipeline.topic_db import get_connection
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -98,6 +99,7 @@ def main() -> None:
     env = Environment(loader=FileSystemLoader(str(ROOT / "templates")))
     html = env.get_template("email_issue.html.jinja").render(
         tldr=tldr,
+        tldr_groups=tldr_display_groups(tldr),
         newsletter_name=config["newsletter"]["name"],
         issue_title=f"{config['newsletter']['name']}（{issue['issue_date']}）",
         issue_date=issue["issue_date"],

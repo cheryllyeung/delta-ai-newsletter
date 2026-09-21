@@ -75,22 +75,17 @@
   </div>
   {% endif %}
 
-  {% if tldr %}
+  {# 2026-09-21 改版：導讀按面向（市場/技術/臨床/法規）分大區塊，不再
+     分趨勢/重點/觀察（主管反映三類界線模糊）。分組在 Python 端做
+     （pipeline.issue_tldr.tldr_display_groups），舊期數退回原三類標籤。 #}
+  {% if tldr_groups %}
   <div class="tldr">
     <p class="tldr-title">本期導讀</p>
-    {% for group, label in [('trends','趨勢'), ('highlights','重點'), ('observations','觀察')] %}
-    {% if tldr.get(group) %}
-    <p class="tldr-group">{{ label }}</p>
-    {# 趨勢條目 2026-09-18 起帶 dimension 標籤（技術/市場/法規/臨床），
-       舊期數還是純字串，兩種都要吃。 #}
-    {% for item in tldr[group] %}
-    {% if item is mapping %}
-    <div class="tldr-item">— <b style="color: #8a5a1a;">{{ item.dimension }}</b>｜{{ item.text }}</div>
-    {% else %}
-    <div class="tldr-item">— {{ item }}</div>
-    {% endif %}
+    {% for group in tldr_groups %}
+    <p class="tldr-group">{{ group.label }}</p>
+    {% for text in group.entries %}
+    <div class="tldr-item">— {{ text }}</div>
     {% endfor %}
-    {% endif %}
     {% endfor %}
   </div>
   <div class="rule"></div>

@@ -38,22 +38,17 @@ Sans、金色點綴、大號裝飾序號）跟網頁的摘要頁/全文頁一致
   </td></tr>
   {% endif %}
 
-  <!-- 本期導讀（TLDR） -->
-  {% if tldr %}
+  <!-- 本期導讀（TLDR）。2026-09-21 改版：按面向（市場/技術/臨床/法規）
+       分大區塊，不再分趨勢/重點/觀察（主管反映三類界線模糊）。分組在
+       render_issue_email.py 端做，舊期數退回原三類標籤。 -->
+  {% if tldr_groups %}
   <tr><td style="padding:24px 44px 0;">
     <div style="font-family:{{ SANS }}; font-size:12px; letter-spacing:4px; color:#8a8578;">本期導讀</div>
-    {% for group, label in [('trends','趨勢'), ('highlights','重點'), ('observations','觀察')] %}
-    {% if tldr.get(group) %}
-    <div style="font-family:{{ SANS }}; font-size:11px; letter-spacing:2px; font-weight:700; color:#c9a54a; margin-top:16px;">{{ label }}</div>
-    {# 趨勢條目 2026-09-18 起帶 dimension 標籤，舊期數是純字串，兩種都吃。 #}
-    {% for item in tldr[group] %}
-    {% if item is mapping %}
-    <div style="font-family:{{ SANS }}; font-size:13px; line-height:1.8; color:#44474a; margin-top:5px; padding-left:14px; text-indent:-14px;">— <b style="color:#8a5a1a;">{{ item.dimension }}</b>｜{{ item.text }}</div>
-    {% else %}
-    <div style="font-family:{{ SANS }}; font-size:13px; line-height:1.8; color:#44474a; margin-top:5px; padding-left:14px; text-indent:-14px;">— {{ item }}</div>
-    {% endif %}
+    {% for group in tldr_groups %}
+    <div style="font-family:{{ SANS }}; font-size:11px; letter-spacing:2px; font-weight:700; color:#c9a54a; margin-top:16px;">{{ group.label }}</div>
+    {% for text in group.entries %}
+    <div style="font-family:{{ SANS }}; font-size:13px; line-height:1.8; color:#44474a; margin-top:5px; padding-left:14px; text-indent:-14px;">— {{ text }}</div>
     {% endfor %}
-    {% endif %}
     {% endfor %}
   </td></tr>
   <tr><td style="padding:28px 44px 4px;"><div style="border-top:2px solid #1a1a1a; height:1px; line-height:1px;">&nbsp;</div></td></tr>
@@ -127,9 +122,9 @@ Sans、金色點綴、大號裝飾序號）跟網頁的摘要頁/全文頁一致
 
   <!-- 信尾 -->
   <tr><td style="padding:0 44px 36px;">
+    {# 2026-09-21 拿掉網站網址與來源清單連結：主管指示信裡不放內部
+       伺服器位址，網頁版自己內部用就好。 #}
     <div style="font-family:{{ SANS }}; font-size:12px; line-height:1.9; color:#8a8578;">
-      完整版與歷史期數：<a href="{{ site_url }}" style="color:#8a5a1a;">{{ site_url }}</a> ·
-      <a href="{{ site_url }}/sources" style="color:#8a5a1a;">來源清單</a><br>
       摘要與導讀由 AI 生成並經自動自檢，每則均附原文出處，請以原文為準。
       僅供台達內部參考，請勿外流。
     </div>
