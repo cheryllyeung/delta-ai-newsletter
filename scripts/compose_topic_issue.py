@@ -247,8 +247,13 @@ def select_and_generate(conn, config: dict, cadence: str, date_range) -> tuple[l
     5 篇但其中一篇生成失敗，那天就默默變 4 篇，沒有任何補位。現在生成完
     數量不足就回頭再選（排除已試過的話題），最多補兩輪。正常出刊跟補刊
     （tools/backfill_daily_issues.py）都走這一條，不要各自維護兩份。
+
+    2026-09-21 加出刊下限 min_topics_to_publish：日報改全收後不固定則數，
+    夠格的太少就整期不出刊（回傳空清單）。選題後就先檢查，不用白花生成
+    的 LLM 呼叫；生成失敗掉到下限以下也一樣不出。
     """
     total_min = config["selection"][cadence]["total_topics"][0]
+    min_publish = config["selection"][cadence].get("min_topics_to_publish", 0)
     results: list[dict] = []
     rejections: list[dict] = []
     tried: set[int] = set()
@@ -262,6 +267,10 @@ def select_and_generate(conn, config: dict, cadence: str, date_range) -> tuple[l
             # 只有第一輪的落選帳是完整的；補位輪的「落選」多半是第一輪
             # 已經記過的同一批，重複記會讓帳目灌水。
             rejections.extend(rejs)
+            if len(selected) < min_publish:
+                print(f"[compose_topic_issue] 夠格話題只有 {len(selected)} 個，"
+                      f"低於出刊下限 {min_publish}，這期不出刊。")
+                return [], rejections
         else:
             selected = selected[: total_min - len(results)]
             if selected:
@@ -280,6 +289,10 @@ def select_and_generate(conn, config: dict, cadence: str, date_range) -> tuple[l
         rejections.extend(gen_rejs)
         if len(results) >= total_min:
             break
+    if len(results) < min_publish:
+        print(f"[compose_topic_issue] 生成後只剩 {len(results)} 篇，"
+              f"低於出刊下限 {min_publish}，這期不出刊。")
+        return [], rejections
     results.sort(key=lambda r: display_order[r["topic_id"]])
     return results, rejections
 
@@ -385,7 +398,7 @@ def main() -> None:
         record_selection_trace(
             conn, issue_date=args.date, cadence=args.cadence, entries=rejections
         )
-        print("[compose_topic_issue] 沒有可用話題或全部生成失敗，沒有組成新的一期，中止。")
+        print("[compose_topic_issue] 沒有夠格話題、不到出刊下限、或全部生成失敗，沒有組成新的一期，中止。")
         _print_ledger(0, [], rejections)
         return
 
@@ -429,11 +442,11 @@ def main() -> None:
     ok, failed = pretranslate_issue(conn, issue_id)
     print(f"[compose_topic_issue] 英文版預先翻譯：成功 {ok} 篇，失敗 {failed} 篇。")
 
-    # 本期 TLDR（趨勢／重點／觀察），餵摘要頁與 EDM 頂部。失敗不擋出刊。
+    # 本期 TLDR（導讀，按市場/技術/臨床/法規分面向），餵摘要頁與 EDM
+    # 頂部。失敗不擋出刊。
     tldr = write_issue_tldr(conn, issue_id)
     if tldr:
-        print(f"[compose_topic_issue] TLDR 完成：趨勢 {len(tldr.get('trends', []))} 條、"
-              f"重點 {len(tldr.get('highlights', []))} 條、觀察 {len(tldr.get('observations', []))} 條。")
+        print(f"[compose_topic_issue] TLDR 完成：導讀 {len(tldr.get('items', []))} 條。")
 
     pending = sum(1 for r in results if r["needs_review"])
     print(f"[compose_topic_issue] 第 {issue_id} 期已組成，{pending} 個待人工確認。")

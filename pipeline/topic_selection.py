@@ -410,6 +410,23 @@ def select_for_issue(
             qualified.append(entry)
         for entry in sorted(qualified, key=rank_key, reverse=True):
             top_module_id, top_score = _top_module(entry["module_scores"])
+            # 2026-09-21 全收模式也吃 tier_cap：上一次全收（8/26）沒有這條，
+            # bioRxiv 上線後論文一天佔 9 個版位（9/18 的教訓）。取消固定
+            # 版面後其他配額都不用了，唯獨論文上限要留著，NBDMD 要的是
+            # 產業動態不是論文導讀。
+            tier = entry["dominant_tier"]
+            if tier in tier_cap and tier_counts[tier] >= tier_cap[tier]:
+                rejections.append(
+                    {
+                        "topic_id": entry["row"]["id"],
+                        "decision": "rejected",
+                        "reason": "tier_quota_full",
+                        "stage": "selection",
+                        "detail": {"tier": tier, "used": tier_counts[tier], "cap": tier_cap[tier]},
+                    }
+                )
+                continue
+            tier_counts[tier] += 1
             entry["selected_via"] = {
                 "round": "all_qualified",
                 "module_id": top_module_id,

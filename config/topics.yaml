@@ -250,8 +250,15 @@ selection:
     # 模式是主線網站改版時的決定，日報郵件的場景要的是固定版面。品質靠
     # 三道既有關卡：tagging 的領域相關判定（prompts/article_tagging.md，
     # 判不準保守排除）、min_module_score_to_select、選題只從過門檻候選挑。
-    publish_all_qualified: false
-    total_topics: [15, 15]
+    # 2026-09-21 再改回全收：主管指示不固定 15 則，限定數量容易濫竽充數
+    # （配額制的第四輪保底正是低於門檻硬湊）。夠格就上，品質標準先用
+    # 我們自己的初版（min_module_score_to_select 6.0），看讀者回饋再調。
+    # 跟 8/26 那次全收有一個差別：tier_cap 這次照樣生效，擋 bioRxiv
+    # 論文洗版（見 tier_cap 的說明）。
+    publish_all_qualified: true
+    # 夠格的低於這個數就整期不出刊（2026-09-21 主管定的，寧缺勿濫）。
+    min_topics_to_publish: 5
+    total_topics: [15, 15]  # 全收模式下不生效，留著是哪天切回配額制用
     # 2026-08-14 加：日報候選池往回多看幾天，不是只看當天。舊行為下昨天
     # 因版位滿落選的話題今天不會再進候選，等於永久淘汰（實測 91.7% 的已
     # 打分話題就這樣消失）。續留窗口內每天重新參選，靠時間衰減自然降權，
