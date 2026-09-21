@@ -35,6 +35,7 @@ from pipeline.topic_db import (
     save_generated_topic,
     save_module_scores,
 )
+from pipeline.issue_tldr import write_issue_tldr
 from pipeline.translate import pretranslate_issue
 from scripts.compose_topic_issue import (
     _selected_trace_entries,
@@ -119,6 +120,12 @@ def compose_day(conn, config: dict, day: str) -> dict | None:
 
     ok, failed = pretranslate_issue(conn, issue_id)
     print(f"[backfill_daily_issues]   英文版預先翻譯：成功 {ok} 篇，失敗 {failed} 篇")
+
+    # 2026-09-21 補：正常出刊有 TLDR（導讀），補刊之前漏了這步，補出來的
+    # 期在摘要頁跟 EDM 頂部都沒有導讀區塊。跟正常路徑一樣失敗不擋出刊。
+    tldr = write_issue_tldr(conn, issue_id)
+    if tldr:
+        print(f"[backfill_daily_issues]   TLDR 完成：導讀 {len(tldr.get('items', []))} 條")
 
     return {
         "day": day,
