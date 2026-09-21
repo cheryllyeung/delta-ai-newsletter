@@ -764,3 +764,26 @@ sources:
     tier: vertical
     url: "https://www.smartcitiesdive.com/feeds/news/"
     weight: 0.7
+
+  # 2026-09-21 擴充：台灣智庫。政策與供應鏈研究視角，補產業媒體以外的
+  # 分析深度。只收有 RSS 而且內容是研究產出的；名單上其他幾家的狀況：
+  #   - 資策會 MIC、工研院 ISTI/IEK：沒有公開 RSS（IEK 報告在付費牆內），
+  #     實測首頁無 feed 宣告、常見路徑全 404，先缺著，之後可改用其新聞
+  #     頁寫專用抓取器
+  #   - 人工智慧法律國際研究基金會：官網無 feed
+  #   - TGSA 智策、湧現智庫、永訊智庫：顧問公司行銷內容不是研究產出，
+  #     不收（同 case tier 對廠商行銷素材的處理原則）
+  # 兩家都是 WordPress feed，全文通常不在 feed 裡，靠抓取端進頁面補內文。
+  - id: dset
+    name: "DSET 科技民主與社會研究中心"
+    type: rss
+    tier: vertical
+    url: "https://dset.tw/feed/"
+    weight: 0.8
+  # CIER feed 混雜活動公告與非科技類評論，靠標籤階段的 AI 相關判定過濾
+  - id: cier
+    name: "中華經濟研究院"
+    type: rss
+    tier: vertical
+    url: "https://www.cier.edu.tw/feed/"
+    weight: 0.7
