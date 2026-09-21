@@ -552,6 +552,16 @@ def issue_overview(request: Request, issue_id: int, lang: str | None = None):
         column_topic_ids = {c.get("topic_id") for c in delta_column}
         column_topic_count = sum(1 for t in topics if t.get("topic_id") in column_topic_ids)
         topics = [t for t in topics if t.get("topic_id") not in column_topic_ids]
+    # 智庫觀察（cells），日報限定（pipeline/thinktank_watch.py）。舊期數
+    # 沒有這個欄位，模板拿到 None 就不渲染。選題時已排除正刊話題，這裡
+    # 不用再去重。
+    thinktank_watch = None
+    try:
+        if issue["thinktank_json"]:
+            parsed = json.loads(issue["thinktank_json"])
+            thinktank_watch = parsed.get("cells") if isinstance(parsed, dict) else parsed
+    except (KeyError, IndexError):
+        pass
     issue_no = _issue_display_no(conn, issue)
     return templates.TemplateResponse(
         request,
@@ -566,6 +576,7 @@ def issue_overview(request: Request, issue_id: int, lang: str | None = None):
             "topics": topics,
             "total_articles": column_topic_count + len(topics),
             "delta_column": delta_column,
+            "thinktank_watch": thinktank_watch,
             "weekly_headline": weekly_headline,
             "content_type_names": _CONTENT_TYPE_NAMES,
             "lang": lang,

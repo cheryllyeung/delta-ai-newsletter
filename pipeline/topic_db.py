@@ -175,7 +175,9 @@ def get_connection(db_path: str) -> sqlite3.Connection:
         except sqlite3.OperationalError:
             pass  # 舊資料庫檔案已經有這個欄位
     # column_json：台達專欄（週報限定），見 pipeline/delta_column.py。
-    for column_def in ("period_start TEXT", "period_end TEXT", "cadence TEXT", "column_json TEXT"):
+    # thinktank_json：智庫觀察（日報，2026-09-21），見 pipeline/thinktank_watch.py。
+    for column_def in ("period_start TEXT", "period_end TEXT", "cadence TEXT", "column_json TEXT",
+                       "thinktank_json TEXT"):
         try:
             conn.execute(f"ALTER TABLE issues ADD COLUMN {column_def}")
             conn.commit()

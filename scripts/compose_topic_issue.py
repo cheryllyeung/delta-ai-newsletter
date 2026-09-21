@@ -377,6 +377,27 @@ def main() -> None:
     )
     attach_trace_to_issue(conn, args.date, args.cadence, issue_id)
 
+    if args.cadence == "daily":
+        # 智庫觀察（見 pipeline/thinktank_watch.py）：智庫來源的文章不進
+        # 正刊排排站，做成獨立欄目，每格短評加對台達的啟示。生成失敗不擋
+        # 出刊，這期就沒有這個欄目而已。
+        from pipeline.thinktank_watch import build_thinktank_watch
+
+        try:
+            cells = build_thinktank_watch(
+                conn, config, date_range,
+                exclude_topic_ids={r["topic_id"] for r in results},
+            )
+            if cells:
+                conn.execute(
+                    "UPDATE issues SET thinktank_json = ? WHERE id = ?",
+                    (json.dumps({"cells": cells}, ensure_ascii=False), issue_id),
+                )
+                conn.commit()
+            print(f"[compose_topic_issue] 智庫觀察：{len(cells)} 格。")
+        except Exception as exc:  # noqa: BLE001
+            print(f"[compose_topic_issue] 智庫觀察生成失敗，這期先沒有這個欄目：{exc}")
+
     if args.cadence == "weekly":
         # 台達專欄＋週報主題大標題（見 pipeline/delta_column.py）。生成失敗
         # 不擋出刊，專欄缺著、標題退回預設刊名而已。

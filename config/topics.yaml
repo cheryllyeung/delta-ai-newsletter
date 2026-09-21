@@ -766,7 +766,8 @@ sources:
     weight: 0.7
 
   # 2026-09-21 擴充：台灣智庫。政策與供應鏈研究視角，補產業媒體以外的
-  # 分析深度。只收有 RSS 而且內容是研究產出的；名單上其他幾家的狀況：
+  # 分析深度。這批來源另外餵「智庫觀察」欄目（見下方 thinktank_watch
+  # 設定與 pipeline/thinktank_watch.py）。只收有 RSS 而且內容是研究產出的；名單上其他幾家的狀況：
   #   - 資策會 MIC、工研院 ISTI/IEK：沒有公開 RSS（IEK 報告在付費牆內），
   #     實測首頁無 feed 宣告、常見路徑全 404，先缺著，之後可改用其新聞
   #     頁寫專用抓取器
@@ -787,3 +788,11 @@ sources:
     tier: vertical
     url: "https://www.cier.edu.tw/feed/"
     weight: 0.7
+
+# 智庫觀察（2026-09-21）：日報的智庫來源專屬欄目，每格短評加對台達的
+# 啟示，見 pipeline/thinktank_watch.py。門檻 4.0 沿用台達專欄「次要動態」
+# 的下限：智庫文章的價值在觀點，用正刊的 6.0 會常態性整欄缺席。
+thinktank_watch:
+  source_ids: [dset, cier]
+  max_cells: 3
+  min_module_score: 4.0

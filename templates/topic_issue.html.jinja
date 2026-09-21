@@ -168,6 +168,11 @@
   .delta-cell-headline { font-family: var(--font-body); font-weight: 700; font-size: 0.95rem; line-height: 1.45; color: var(--color-ink); }
   a.delta-cell-headline:hover { color: var(--color-accent); text-decoration: underline; }
   .delta-cell-comment { margin: 0; font-size: 0.84rem; line-height: 1.7; color: var(--color-ink-2); }
+
+  /* 智庫觀察：沿用專欄的格子語彙（pipeline/thinktank_watch.py），
+     只多一個「對台達」的啟示段，用左邊框跟短評區隔。 */
+  .tt-insight { margin: 0; font-size: 0.82rem; line-height: 1.65; color: var(--color-ink-2); border-left: 3px solid var(--color-accent); padding-left: 0.7em; }
+  .tt-insight b { color: var(--color-accent); font-family: var(--font-label); font-size: 0.72rem; letter-spacing: 0.05em; }
 </style>
 </head>
 <body>
@@ -218,6 +223,28 @@
         <span class="delta-cell-headline">{{ cell.topic_title }}</span>
         {% endif %}
         {% if cell.comment %}<p class="delta-cell-comment">{{ cell.comment }}</p>{% endif %}
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endif %}
+
+{% if thinktank_watch %}
+{# 智庫觀察：日報的智庫來源專屬欄目（pipeline/thinktank_watch.py），
+   每格轉述智庫論點，再附一段對台達的啟示（推測性延伸，生成端已用
+   推測語氣約束）。連結指向智庫原文。 #}
+<section class="delta-column" aria-label="智庫觀察">
+  <div class="delta-column-inner">
+    <h2 class="delta-column-title">智庫觀察</h2>
+    <p class="delta-column-sub">台灣智庫的政策與供應鏈研究，附對台達的啟示</p>
+    <div class="delta-column-grid">
+      {% for cell in thinktank_watch %}
+      <div class="delta-cell">
+        <span class="delta-cell-group">{{ cell.source_name }}</span>
+        <a class="delta-cell-headline" href="{{ cell.article_url }}" target="_blank" rel="noopener noreferrer">{{ cell.article_title }}</a>
+        {% if cell.comment %}<p class="delta-cell-comment">{{ cell.comment }}</p>{% endif %}
+        {% if cell.delta_insight %}<p class="tt-insight"><b>對台達</b>　{{ cell.delta_insight }}</p>{% endif %}
       </div>
       {% endfor %}
     </div>
