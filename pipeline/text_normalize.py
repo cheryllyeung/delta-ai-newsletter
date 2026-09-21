@@ -11,7 +11,9 @@ import opencc
 
 _converter = opencc.OpenCC("s2t")
 
-_KEEP_AS_IS = {"台", "群", "床", "秘"}
+# 2026-09-21 加「干」「里」：實測「干擾素」被轉成「幹擾素」、「公里」
+# 被轉成「公裏」，這兩個字在台灣正體本來就常用本字。
+_KEEP_AS_IS = {"台", "群", "床", "秘", "干", "里"}
 
 
 def fix_stray_simplified(text: str) -> str:
