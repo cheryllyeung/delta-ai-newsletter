@@ -160,10 +160,17 @@
       <span class="intent-cta">看發佈特輯 →</span>
     </a>
     {% endif %}
-    <a class="intent-card" href="/leaderboard">
+    {# 2026-09-21 改：這張卡原本連到 /leaderboard，但那是 LMArena 的模型
+       排行榜不是新聞熱度，使用者反映第二層應該是新聞，改連 /hot。 #}
+    <a class="intent-card" href="/hot">
       <span class="intent-title">我想知道最近什麼最熱</span>
-      <span class="intent-desc">話題熱度排行榜，看各家媒體都在追什麼。</span>
-      <span class="intent-cta">看排行榜 →</span>
+      <span class="intent-desc">近期被最多家媒體同時報導的話題，照熱度排序。</span>
+      <span class="intent-cta">看熱門新聞 →</span>
+    </a>
+    <a class="intent-card" href="/leaderboard">
+      <span class="intent-title">我想看模型排行榜</span>
+      <span class="intent-desc">LMArena 各分類的模型排名，每小時更新快照。</span>
+      <span class="intent-cta">看模型排行榜 →</span>
     </a>
     <a class="intent-card" href="/thinktank">
       <span class="intent-title">我想看智庫怎麼分析</span>

@@ -1,0 +1,122 @@
+<!--
+最熱新聞頁（2026-09-21）：近 N 天的話題照熱度排序（幾家在報導同一件事）。
+首頁「我想知道最近什麼最熱」的落點。資料來自 scripts/serve_topics.py 的
+_hot_topics()，熱度定義跟選題用的是同一支 compute_hotness()。
+設計語彙沿用 Carnival 藍系統。
+-->
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>熱門新聞｜{{ newsletter_name }}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800&family=Noto+Sans+TC:wght@700;900&family=IBM+Plex+Sans:wght@400;500;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --color-paper:   oklch(93% 0.020 240);
+    --color-paper-2: oklch(89% 0.024 238);
+    --color-paper-3: oklch(83% 0.028 235);
+    --color-ink:     oklch(16% 0.030 250);
+    --color-ink-2:   oklch(28% 0.028 248);
+    --color-muted:   oklch(46% 0.020 245);
+    --color-accent:      oklch(58% 0.160 247);
+    --color-accent-ink:  oklch(97% 0.010 240);
+    --color-accent-2:    oklch(76% 0.150  75);
+    --color-focus:   oklch(58% 0.160 247);
+    --font-display: "Big Shoulders Display", "Noto Sans TC", sans-serif;
+    --font-body:    "IBM Plex Sans", ui-sans-serif, "PingFang TC", "Noto Sans TC", sans-serif;
+    --font-label:   "JetBrains Mono", ui-monospace, monospace;
+    --page-gutter: clamp(1.25rem, 4vw, 3rem);
+    --shell: 46rem;
+  }
+  * { box-sizing: border-box; }
+  html, body { overflow-x: clip; margin: 0; padding: 0; }
+  body { background: var(--color-paper); color: var(--color-ink); font-family: var(--font-body); }
+  a { color: inherit; text-decoration: none; }
+  a:focus-visible { outline: 3px solid var(--color-focus); outline-offset: 2px; }
+  h1 { font-family: var(--font-display); font-weight: 800; letter-spacing: 0.01em; line-height: 0.96; text-transform: uppercase; }
+
+  .halftone { height: 14px; background-image: radial-gradient(var(--color-ink) 1.5px, transparent 1.5px); background-size: 10px 10px; opacity: 0.5; }
+  .masthead { background: var(--color-accent); color: var(--color-accent-ink); padding: 2.4rem var(--page-gutter) 2rem; }
+  .masthead-inner { max-width: var(--shell); margin: 0 auto; }
+  .back-link { font-family: var(--font-label); font-size: 0.78rem; display: inline-block; margin-bottom: 0.9rem; opacity: 0.85; }
+  .back-link:hover { opacity: 1; text-decoration: underline; }
+  .masthead .eyebrow { font-family: var(--font-label); font-size: 0.75rem; letter-spacing: 0.1em; margin: 0 0 0.6rem; }
+  .masthead h1 { margin: 0; font-size: clamp(1.9rem, 3.6vw + 1rem, 3rem); }
+  .masthead p { margin: 1rem 0 0; font-size: 0.9rem; line-height: 1.6; color: color-mix(in oklch, var(--color-accent-ink) 82%, transparent); max-width: 56ch; }
+  .ornament-row { text-align: center; color: var(--color-accent-2); letter-spacing: 0.6em; padding: 1.5rem 0; font-size: 0.9rem; }
+
+  .timeline { max-width: var(--shell); margin: 0 auto; padding: 0 var(--page-gutter) 4rem; display: flex; flex-direction: column; gap: 0.9rem; }
+  .hot-card { background: var(--color-paper-2); border: 2px solid var(--color-ink); box-shadow: 4px 4px 0 var(--color-ink); padding: 0.9rem 1.1rem; display: flex; gap: 1rem; align-items: flex-start; }
+  .hot-rank { font-family: var(--font-display); font-weight: 800; font-size: 1.6rem; line-height: 1; color: var(--color-paper-3); min-width: 2.2rem; text-align: right; }
+  .hot-card.top .hot-rank { color: var(--color-accent); }
+  .hot-body { display: flex; flex-direction: column; gap: 0.4rem; flex: 1; }
+  .hot-meta { display: flex; align-items: baseline; gap: 0.8em; flex-wrap: wrap; font-family: var(--font-label); font-size: 0.72rem; color: var(--color-muted); }
+  .hot-count { border: 1.5px solid var(--color-accent); color: var(--color-accent); font-weight: 700; padding: 0.1em 0.5em; }
+  a.hot-title { font-weight: 700; font-size: 1rem; line-height: 1.5; }
+  a.hot-title:hover { color: var(--color-accent); text-decoration: underline; }
+  .hot-sources { font-size: 0.76rem; line-height: 1.6; color: var(--color-ink-2); }
+  .hot-links { font-family: var(--font-label); font-size: 0.74rem; display: flex; gap: 1rem; }
+  .hot-links a { color: var(--color-accent); }
+  .hot-links a:hover { text-decoration: underline; }
+
+  .empty { max-width: var(--shell); margin: 0 auto; padding: 3rem var(--page-gutter); color: var(--color-muted); line-height: 1.7; }
+  .foot { background: var(--color-ink); color: var(--color-accent-ink); padding: 1.5rem var(--page-gutter) 2.5rem; }
+  .foot-inner { max-width: var(--shell); margin: 0 auto; font-size: 0.8rem; line-height: 1.7; opacity: 0.85; }
+</style>
+</head>
+<body>
+
+<div class="halftone" aria-hidden="true"></div>
+
+<header class="masthead">
+  <div class="masthead-inner">
+    <a class="back-link" href="/">← 回首頁</a>
+    <p class="eyebrow">DELTA AI TREND DAILY</p>
+    <h1>最近什麼最熱</h1>
+    <p>近 {{ window_days }} 天的話題，照熱度排序。熱度看的是幾家不同媒體在報同一件事、來源份量多重、以及消息有多新。</p>
+  </div>
+</header>
+
+<div class="ornament-row" aria-hidden="true">✱ ✱ ✱ ✱</div>
+
+{% if entries %}
+<section class="timeline" aria-label="熱門話題排序">
+  {% for e in entries %}
+  <article class="hot-card{% if loop.index <= 3 %} top{% endif %}">
+    <div class="hot-rank">{{ "%02d"|format(loop.index) }}</div>
+    <div class="hot-body">
+      <div class="hot-meta">
+        <span class="hot-count">{{ e.source_count }} 家在報</span>
+        <span>{{ e.latest_date }}</span>
+      </div>
+      {% if e.generated_id and e.generated_issue_id %}
+      <a class="hot-title" href="/issues/{{ e.generated_issue_id }}/topics/{{ e.generated_id }}">{{ e.title }}</a>
+      {% else %}
+      <a class="hot-title" href="{{ e.article_url }}" target="_blank" rel="noopener noreferrer">{{ e.title }}</a>
+      {% endif %}
+      <div class="hot-sources">{{ e.sources | join('、') }}</div>
+      <div class="hot-links">
+        {% if e.generated_id and e.generated_issue_id %}
+        <a href="/issues/{{ e.generated_issue_id }}/topics/{{ e.generated_id }}">讀我們的報導 →</a>
+        {% endif %}
+        <a href="{{ e.article_url }}" target="_blank" rel="noopener noreferrer">最新一篇原文 →</a>
+      </div>
+    </div>
+  </article>
+  {% endfor %}
+</section>
+{% else %}
+<div class="empty">
+  <p>近 {{ window_days }} 天還沒有累積到話題。跑一次抓取（<code>python -m scripts.ingest_topics</code>）之後這裡就會有內容。</p>
+</div>
+{% endif %}
+
+<footer class="foot">
+  <div class="foot-inner"><p>{{ newsletter_name }}．僅供台達內部參考。熱度是相對指標，不代表重要性排序。</p></div>
+</footer>
+
+</body>
+</html>

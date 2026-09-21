@@ -88,7 +88,7 @@ def main() -> None:
     reason_counts: Counter[str] = Counter()
 
     def _save(row, parsed) -> None:
-        gate = gates.check_article_tagged(parsed, config)
+        gate = gates.check_article_tagged(parsed, config, source_id=row["source_id"])
         if not gate.passed:
             save_article_gate(conn, row["id"], gate)
             excluded.append((row["id"], row["title"][:60], gate.detail.get("note", "")))

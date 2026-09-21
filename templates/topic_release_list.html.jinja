@@ -54,6 +54,18 @@ topic_module_list.html.jinja 共用同一套 Carnival 藍設計語彙，差別�
   .vendor-chip:hover { background: var(--color-accent); color: var(--color-accent-ink); }
   .vendor-chip.active { background: var(--color-ink); color: var(--color-paper); }
 
+  /* 廠商卡片（2026-09-21）：沿用台達專欄／首頁領域卡的硬邊格子語彙。 */
+  .vendor-board { max-width: 52rem; margin: 0 auto; padding: 1.2rem var(--page-gutter) 0.4rem; }
+  .vendor-card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(13.5rem, 1fr)); gap: 0.8rem; }
+  .vendor-card { display: flex; flex-direction: column; gap: 0.3rem; background: var(--color-paper-2); border: 2px solid var(--color-ink); box-shadow: 3px 3px 0 var(--color-ink); padding: 0.8rem 0.95rem; transition: transform 120ms ease-out, box-shadow 120ms ease-out; }
+  .vendor-card:hover { transform: translate(-1px, -1px); box-shadow: 4px 4px 0 var(--color-ink); }
+  .vendor-card:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 var(--color-ink); }
+  .vendor-card.active { border-color: var(--color-accent); box-shadow: 3px 3px 0 var(--color-accent); }
+  .vendor-card-name { font-family: var(--font-display); font-weight: 800; font-size: 1.05rem; text-transform: uppercase; }
+  .vendor-card.active .vendor-card-name { color: var(--color-accent); }
+  .vendor-card-count { font-family: var(--font-label); font-size: 0.72rem; color: var(--color-muted); }
+  .vendor-card-latest { font-size: 0.76rem; line-height: 1.5; color: var(--color-ink-2); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
   /* 跟 topic_module_list.html.jinja 同一套：兩欄格線，日期小標橫跨整列，
      同一天的發佈並排、多的往下折。 */
   .timeline { max-width: var(--shell); margin: 0 auto; padding: 1rem var(--page-gutter) 4rem; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.9rem; }
@@ -85,13 +97,35 @@ topic_module_list.html.jinja 共用同一套 Carnival 藍設計語彙，差別�
   </div>
 </header>
 
+{# 廠商卡片（2026-09-21 使用者要求）：比照台達專欄的格子，用廠商名直接
+   分類，比一排 chip 好認。只有 3 則以上的廠商給卡片（門檻在
+   scripts/serve_topics.py），長尾留在下面的 chip 列。 #}
+{% if vendor_cards %}
+<section class="vendor-board" aria-label="依廠商瀏覽">
+  <div class="vendor-card-grid">
+    <a class="vendor-card{% if not active_vendor %} active{% endif %}" href="/releases{% if active_kind %}?kind={{ active_kind }}{% endif %}">
+      <span class="vendor-card-name">全部廠商</span>
+      <span class="vendor-card-count">{{ vendors | sum(attribute='count') }} 則</span>
+    </a>
+    {% for v in vendor_cards %}
+    <a class="vendor-card{% if v.name == active_vendor %} active{% endif %}" href="/releases?vendor={{ v.name | urlencode }}{% if active_kind %}&amp;kind={{ active_kind }}{% endif %}">
+      <span class="vendor-card-name">{{ v.name }}</span>
+      <span class="vendor-card-count">{{ v.count }} 則{% if v.latest_kind %}　最新：{{ v.latest_kind }}{% endif %}</span>
+      {% if v.latest_title %}<span class="vendor-card-latest">{{ v.latest_date }}｜{{ v.latest_title }}</span>{% endif %}
+    </a>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
 <nav class="vendor-nav" aria-label="篩選">
   {# 兩排篩選可疊加：chip 的連結會保留另一排目前選中的值。 #}
-  <p class="vendor-nav-label">依廠商看</p>
+  <p class="vendor-nav-label">其他廠商</p>
   <div class="vendor-nav-row">
-    <a class="vendor-chip{% if not active_vendor %} active{% endif %}" href="/releases{% if active_kind %}?kind={{ active_kind }}{% endif %}">全部</a>
     {% for v in vendors %}
+    {% if v.count < 3 or v.name == active_vendor %}
     <a class="vendor-chip{% if v.name == active_vendor %} active{% endif %}" href="/releases?vendor={{ v.name | urlencode }}{% if active_kind %}&amp;kind={{ active_kind }}{% endif %}">{{ v.name }}（{{ v.count }}）</a>
+    {% endif %}
     {% endfor %}
   </div>
   <p class="vendor-nav-label">依類型看</p>

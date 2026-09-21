@@ -397,7 +397,7 @@ def main() -> None:
         # Gate 1b：標籤跑完才判斷得出來的部分（目前只有「跟 AI 有沒有關係」）。
         # 標籤照樣存下來，不因為判定不過就不存：那些標籤是回頭檢討這條門檻
         # 準不準的依據，丟掉就沒得對照了。
-        gate = gates.check_article_tagged(parsed, config)
+        gate = gates.check_article_tagged(parsed, config, source_id=row["source_id"])
         if not gate.passed:
             save_article_gate(conn, row["id"], gate)
         save_article_tags(

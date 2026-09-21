@@ -188,7 +188,7 @@ def check_article_intake(
     return GateResult.ok()
 
 
-def check_article_tagged(tags: dict, config: dict) -> GateResult:
+def check_article_tagged(tags: dict, config: dict, source_id: str | None = None) -> GateResult:
     """Gate 1b：標籤跑完之後才判斷得出來的部分。
 
     目前只有一條：這篇到底跟 AI 有沒有關係。看起來理所當然，但在這條加進來
@@ -202,6 +202,15 @@ def check_article_tagged(tags: dict, config: dict) -> GateResult:
     （2026-08-14 之前標的），tags 裡讀不到時當作通過。
     """
     if not config["gates"]["article"]["require_ai_related"]:
+        return GateResult.ok()
+
+    # 智庫來源豁免（2026-09-21）：智庫的價值有一半在地緣政治與供應鏈
+    # 分析（機器人供應鏈、電池去紅化、出口管制、無人載具），這些對台達
+    # 事業群有用但不談 AI 技術，照原規則會整批被擋。首抓 22 篇就有 4 篇
+    # 這樣被擋掉，等於自己把智庫觀察餓死。這些來源的文章一律通過這道
+    # 閘門，離題與否交給模組打分去判（智庫來源數量小，不會淹掉候選池）。
+    exempt = set((config.get("thinktank_watch") or {}).get("source_ids") or [])
+    if source_id and source_id in exempt:
         return GateResult.ok()
 
     if tags.get("is_ai_related") is False:

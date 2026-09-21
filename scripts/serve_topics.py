@@ -240,6 +240,9 @@ def module_timeline(request: Request, module_id: str, lang: str | None = None):
     )
 
 
+# 廠商卡片的門檻：發佈數少於這個的留在 chip 列，不給卡片（2026-09-21）。
+_VENDOR_CARD_MIN_RELEASES = 3
+
 _RELEASE_KIND_NAMES = {
     "model": "模型",
     "tool": "工具",
@@ -296,6 +299,81 @@ def _release_overview(conn) -> dict:
     return {"count": len(rows), "latest": latest}
 
 
+def _hot_topics(conn, limit: int = 30) -> list[dict]:
+    """最熱話題：熱門度 = 不重複來源數 × 平均來源權重 × 時間衰減
+    （pipeline/topic_selection.py 的 compute_hotness，這裡重用同一支，
+    讓頁面上的排序跟選題用的是同一個定義）。
+
+    2026-09-21 加：首頁「我想知道最近什麼最熱」原本連到 /leaderboard，
+    但那頁是 LMArena 的模型排行榜，不是新聞熱度，使用者反映第二層應該
+    是新聞。這支餵新的 /hot 頁。
+    """
+    from datetime import datetime, timedelta, timezone
+
+    from pipeline.topic_selection import compute_hotness
+
+    half_life = _config["hotness"]["half_life_days"]
+    window = _config["hotness"]["window_days"]
+    now = datetime.now(timezone.utc)
+    since = (now - timedelta(days=window)).date().isoformat()
+
+    rows = conn.execute(
+        """SELECT t.id, t.representative_title,
+                  (SELECT id FROM generated_topics WHERE topic_id = t.id
+                   ORDER BY created_at DESC LIMIT 1) AS gid,
+                  (SELECT issue_id FROM generated_topics WHERE topic_id = t.id
+                   ORDER BY created_at DESC LIMIT 1) AS gissue
+           FROM topics t
+           WHERE EXISTS (SELECT 1 FROM articles a WHERE a.topic_id = t.id
+                         AND a.discarded_at IS NULL AND date(a.published_at) >= ?)""",
+        (since,),
+    ).fetchall()
+
+    entries = []
+    for row in rows:
+        articles = conn.execute(
+            """SELECT source_id, source_name, source_weight, published_at, title, url
+               FROM articles WHERE topic_id = ? AND discarded_at IS NULL
+               ORDER BY published_at DESC""",
+            (row["id"],),
+        ).fetchall()
+        if not articles:
+            continue
+        sources = sorted({a["source_name"] for a in articles})
+        entries.append(
+            {
+                "topic_id": row["id"],
+                "title": row["representative_title"],
+                "hotness": compute_hotness(articles, now, half_life),
+                "source_count": len(sources),
+                "sources": sources,
+                "latest_date": articles[0]["published_at"][:10],
+                "article_url": articles[0]["url"],
+                "generated_id": row["gid"],
+                "generated_issue_id": row["gissue"],
+            }
+        )
+    entries.sort(key=lambda e: e["hotness"], reverse=True)
+    return entries[:limit]
+
+
+@app.get("/hot", response_class=HTMLResponse)
+def hot_page(request: Request):
+    """最熱新聞頁（2026-09-21）：近 hotness.window_days 天的話題照熱度
+    排序，幾家在報導同一件事排得越前面。有出刊文章就連到全文，沒有的
+    連到最新一篇原文。"""
+    conn = _get_conn()
+    return templates.TemplateResponse(
+        request,
+        "topic_hot.html.jinja",
+        {
+            "newsletter_name": _config["newsletter"]["name"],
+            "entries": _hot_topics(conn),
+            "window_days": _config["hotness"]["window_days"],
+        },
+    )
+
+
 def _thinktank_entries(conn) -> list[dict]:
     """智庫觀察的歷期格子攤成時間線（新到舊），/thinktank 頁與首頁的
     智庫卡片共用（2026-09-21，pipeline/thinktank_watch.py 產的資料）。"""
@@ -350,6 +428,26 @@ def release_timeline(request: Request, vendor: str | None = None, kind: str | No
     # 選 arXiv＋評測榜單時 IBM 會亮起來，使用者覺得莫名其妙，不要再走回去。
     vendor_counts: Counter[str] = Counter(r["release_vendor"] or "其他" for r in rows)
     vendors = [{"name": name, "count": count} for name, count in vendor_counts.most_common()]
+    # 主要廠商做成卡片（2026-09-21 使用者要求：比照台達專欄的格子，用
+    # OpenAI、Google 這種廠商名直接分類，比一排 chip 好認）。門檻 3 則
+    # 以上才給卡片，56 個廠商裡多數只有 1 則，全做成卡片會變成一片雜訊；
+    # 長尾仍留在下面的 chip 列，點得到。
+    vendor_cards = []
+    for name, count in vendor_counts.most_common():
+        if count < _VENDOR_CARD_MIN_RELEASES:
+            continue
+        latest = next(
+            (r for r in rows if (r["release_vendor"] or "其他") == name), None
+        )
+        vendor_cards.append(
+            {
+                "name": name,
+                "count": count,
+                "latest_title": latest["title"] if latest else None,
+                "latest_date": latest["published_at"][:10] if latest else None,
+                "latest_kind": _RELEASE_KIND_NAMES.get(latest["release_kind"], "") if latest else "",
+            }
+        )
     kind_counts: Counter[str] = Counter(
         r["release_kind"] or "other"
         for r in rows
@@ -377,6 +475,7 @@ def release_timeline(request: Request, vendor: str | None = None, kind: str | No
             "newsletter_name": _config["newsletter"]["name"],
             "entries": rows,
             "vendors": vendors,
+            "vendor_cards": vendor_cards,
             "active_vendor": vendor,
             "kinds": kinds,
             "active_kind": kind,
