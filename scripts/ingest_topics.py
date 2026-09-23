@@ -305,6 +305,11 @@ def parse_args() -> argparse.Namespace:
             "剩下的沒被處理到的下次重跑會自動接著做。"
         ),
     )
+    parser.add_argument(
+        "--only-sources",
+        default=None,
+        help="只抓這些來源 id（逗號分隔，例如 openai_news,deepmind_blog）。示範或單一來源除錯用。",
+    )
     return parser.parse_args()
 
 
@@ -323,7 +328,17 @@ def main() -> None:
     inserted_count = 0
     gate_counts: Counter[str] = Counter()
     gate_by_source: dict[str, Counter] = {}
-    for source in config["sources"]:
+    # --only-sources：只抓指定來源。抓 50 幾個來源一次要好幾分鐘，示範
+    # （tools/demo_pipeline.py）與單一來源除錯都只需要其中一兩個。
+    sources = config["sources"]
+    if args.only_sources:
+        wanted = {s.strip() for s in args.only_sources.split(",") if s.strip()}
+        sources = [s for s in sources if s["id"] in wanted]
+        missing = wanted - {s["id"] for s in sources}
+        if missing:
+            print(f"[ingest_topics] 找不到這些來源 id，忽略：{'、'.join(sorted(missing))}")
+        print(f"[ingest_topics] 只抓 {len(sources)} 個指定來源。")
+    for source in sources:
         print(f"[ingest_topics] 抓取來源：{source['name']} ...")
         try:
             items = _fetch_source_items(source, fetch_cfg)
