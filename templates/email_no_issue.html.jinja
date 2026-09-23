@@ -1,0 +1,83 @@
+{#
+不出刊日的信（2026-09-23 加）。版型與 email_issue.html.jinja 同一套，
+內容不同：不解釋我們的內部規則，改成告訴讀者「今天這個領域在討論什麼」。
+
+為什麼不出刊也要發信：讀者信箱空著時，分不出是今天沒有重點動態、還是
+排程壞了。沉默比內容不足更傷信任。這封信同時解決兩件事：讓人知道系統
+活著，也讓人知道今天在發生什麼。
+#}
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+<title>{{ issue_title }}</title>
+</head>
+{% set SANS = "'Noto Sans TC', 'Microsoft JhengHei', 'PingFang TC', Arial, sans-serif" %}
+<body style="margin:0; padding:28px 12px; background-color:#e8e4da;">
+<table role="presentation" width="660" cellpadding="0" cellspacing="0" border="0" align="center"
+       style="width:660px; max-width:100%; background:#fbfaf6; box-shadow:0 6px 24px rgba(40,36,28,0.14);">
+
+  <!-- 刊頭 -->
+  <tr><td style="padding:40px 44px 24px; border-bottom:2px solid #1a1a1a;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+      <td valign="bottom">
+        <div style="font-family:{{ SANS }}; font-size:11px; letter-spacing:4px; color:#8a5a1a; font-weight:700;">DELTA · NBDMD</div>
+        <div style="font-family:{{ SANS }}; font-size:32px; font-weight:900; color:#1a1a1a; margin-top:6px; line-height:1.1;">{{ newsletter_name }}</div>
+      </td>
+      <td valign="bottom" align="right">
+        <div style="font-family:{{ SANS }}; font-size:13px; color:#8a8578;">{{ issue_date }}</div>
+      </td>
+    </tr></table>
+  </td></tr>
+
+  <!-- 導語 -->
+  <tr><td style="padding:24px 44px 0;">
+    <div style="font-family:{{ SANS }}; font-size:15px; font-weight:500; color:#1a1a1a; line-height:1.7;">
+      今天沒有累積到足以成一期的重點動態，所以這封信改成一份速報：
+      這幾件事正在被多家媒體追。
+    </div>
+  </td></tr>
+
+  {% if hot_topics %}
+  <tr><td style="padding:26px 44px 0;">
+    <div style="font-family:{{ SANS }}; font-size:12px; letter-spacing:4px; color:#8a8578;">今天在討論什麼</div>
+  </td></tr>
+  {% for t in hot_topics %}
+  <tr><td style="padding:18px 44px 0;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+      <td width="52" valign="top" style="width:52px;">
+        <div style="font-family:{{ SANS }}; font-size:30px; font-weight:900; color:#e4dccb; line-height:1;">{{ "%02d"|format(loop.index) }}</div>
+      </td>
+      <td valign="top" style="padding-left:8px;">
+        <div style="font-family:{{ SANS }}; font-size:11px; letter-spacing:2px; font-weight:700; color:#8a5a1a;">{{ t.source_count }} 家在報</div>
+        <div style="margin-top:6px;">
+          <a href="{{ t.url }}" style="font-family:{{ SANS }}; font-size:17px; font-weight:700; line-height:1.45; color:#1a1a1a; text-decoration:none;">{{ t.title }}</a>
+        </div>
+        <div style="font-family:{{ SANS }}; font-size:12px; line-height:1.7; color:#8a8578; margin-top:6px;">{{ t.sources | join('、') }}</div>
+      </td>
+    </tr></table>
+  </td></tr>
+  {% endfor %}
+  <tr><td style="padding:26px 44px 4px;"><div style="border-top:1px solid #ece7dc; height:1px; line-height:1px;">&nbsp;</div></td></tr>
+  {% else %}
+  <tr><td style="padding:22px 44px 0;">
+    <div style="font-family:{{ SANS }}; font-size:14px; line-height:1.9; color:#44474a;">
+      今天各來源都沒有明顯的共同焦點，連速報都湊不出來。明天見。
+    </div>
+  </td></tr>
+  {% endif %}
+
+  <!-- 信尾 -->
+  <tr><td style="padding:22px 44px 36px;">
+    <div style="font-family:{{ SANS }}; font-size:12px; line-height:1.9; color:#8a8578;">
+      上面這幾則只列了標題與報導它的媒體，沒有經過我們的摘要與查核，
+      請直接以原文為準。累積到足夠的重點動態時就會恢復正常出刊。<br>
+      僅供台達內部參考，請勿外流。
+    </div>
+  </td></tr>
+
+</table>
+</body>
+</html>

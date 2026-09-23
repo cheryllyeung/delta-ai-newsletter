@@ -175,6 +175,42 @@ gates:
     # DIGITIMES 這類綜合性來源本來就會夾帶非 AI 內容，在這條加進來以前
     # 完全沒有人管，全部照收進候選池。
     require_ai_related: true
+    # 彙整型內容（2026-09-23 加）：一篇裡面塞七八則互不相關的新聞，例如
+    # STAT 的 Pharmalittle 每日專欄、環球生技的《生醫新聞雷達》《生技股
+    # 動態》。整條 pipeline 假設「一篇文章 = 一則新聞」，這個假設對它們
+    # 不成立：寫作端不管怎麼重寫都寫不出連貫的一篇，聚類也會因為它們格式
+    # 雷同而把不同天的彙整黏成一個話題。
+    #
+    # 實際事故：2026-09-23 有個話題裝了兩期 Pharmalittle，內含 COINS 法案、
+    # Grail 血檢、羅氏減肥藥三件獨立的事，文章重寫兩次都不連貫被撤下；
+    # 2026-09-02 有個話題黏了 45 篇環球生技的股市動態與展覽公告。
+    #
+    # 用標題關鍵詞判，不花 LLM 額度。命中就 excluded。
+    roundup_title_markers:
+      - "and more"
+      - "Pharmalittle"
+      - "新聞雷達"
+      - "生技股動態"
+      - "法人動態"
+      - "股動態"
+      - "Roundup"
+      - "roundup"
+      - "This Week in"
+      - "Weekly Digest"
+    # 付費牆截斷（2026-09-23 加）：抓到的只是試閱段，長度輕鬆過 200 字
+    # 門檻，但真正的內容在牆後面。拿它當寫作素材，模型只能從標題硬掰
+    # （上述 9/23 事故裡「羅氏減肥藥」那一則就是這樣，素材裡根本沒有）。
+    #
+    # 命中降級成 signal_only 而不是 excluded：試閱段仍然是「有這件事」的
+    # 有效訊號，只是不能當素材。池裡 34 篇全來自 STAT News。
+    paywall_markers:
+      - "Continue to STAT+"
+      - "STAT+ Exclusive"
+      - "This article is exclusive to"
+      - "subscribers only"
+      - "Subscribe to read"
+      - "Sign in to read"
+      - "Unlock this article"
   topic:
     # 允許單一來源成為一個話題。目前 191 個話題有 184 個底下只有一篇
     # 文章，要求至少兩篇會讓候選池少掉 96%，那不是嚴謹是自廢武功。
@@ -472,3 +508,31 @@ sources:
     tier: depth
     url: "https://connect.biorxiv.org/biorxiv_xml.php?subject=genomics"
     weight: 0.6
+
+# 速報用的社群來源（2026-09-23 加）。
+#
+# 用途限定：只在「當天品質不足以出一期日報」時，拿來做話題速報
+# （tools/render_no_issue_email.py）。這些內容不會進正刊，因為抓回來的是
+# 討論串標題加留言、沒有實質內文，入池時就被收錄判定降級成 signal_only，
+# 不當寫作素材也不打分。它們的價值是「有多少人在談這件事」與「大家怎麼
+# 看」，不是內容本身。
+#
+# 為什麼是 Hacker News：Reddit 的 API 要金鑰（.env 沒設），HN 的 Algolia
+# 介面公開免金鑰，而且抓得到留言，正好餵速報的觀點那一段。
+speed_report:
+  social_source_ids: [hn_genomics]
+  # 搜尋關鍵詞。範圍刻意收窄在本刊領域，避免把整個 HN 的科技討論灌進來。
+  social_queries:
+    - "CRISPR"
+    - "genome sequencing"
+    - "liquid biopsy"
+    - "cancer screening"
+    - "Illumina"
+    - "precision medicine"
+    - "DNA sequencing"
+  # 一則討論至少要這麼多分才收：HN 上零回應的投稿不構成「有人在談」。
+  min_points: 20
+  # 每則話題最多引述幾則留言當觀點。
+  max_quotes: 2
+  # 速報的聲量門檻：媒體加社群合計幾則以上才列（2026-09-23 使用者定）。
+  min_mentions: 2
