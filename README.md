@@ -83,6 +83,147 @@ flowchart TD
 節點顏色的意思：橘色菱形是判斷點、紫色是有 LLM 呼叫的步驟、圓筒是資料
 落點、灰色是被擋下的去向、綠色是對讀者的出口。
 
+## 網頁分層
+
+上面那張圖的主角是資料，這一節換成讀者。網站是三層：首頁只負責把人分流到
+對的入口，第二層是各種清單（領域、發佈、熱門、智庫、單期），第三層是單篇
+全文。任何一頁都能直接連進去，不強迫從首頁開始。
+
+```mermaid
+%%{init: {"flowchart": {"nodeSpacing": 40, "rankSpacing": 55}}}%%
+flowchart TD
+    HOME(["首頁　/<br/>『你想看什麼？』意圖卡"])
+
+    subgraph L2["　第二層：清單頁　"]
+        ISSUE(["單期日報<br/>/issues/{id}"])
+        MOD(["領域頁<br/>/modules/{module_id}"])
+        REL(["模型與工具發佈<br/>/releases"])
+        HOTP(["熱門新聞<br/>/hot"])
+        TT(["智庫觀察<br/>/thinktank"])
+        LB(["模型排行榜<br/>/leaderboard"])
+    end
+
+    subgraph L3["　第三層：單篇　"]
+        ART(["文章全文<br/>/issues/{id}/topics/{gid}"])
+    end
+
+    HOME -->|"我想看最新一期日報"| ISSUE
+    HOME -->|"我想看我的事業領域／職能"| MOD
+    HOME -->|"我想追大廠發佈了什麼"| REL
+    HOME -->|"我想知道最近什麼最熱"| HOTP
+    HOME -->|"我想看智庫怎麼分析"| TT
+    HOME -->|"我想看模型排行榜"| LB
+
+    ISSUE --> ART
+    MOD --> ART
+    HOTP -->|"有出刊就進全文"| ART
+    HOTP -.->|"還沒寫成文章"| SRC1(["原文出處<br/>外部網站"])
+    REL -.-> SRC1
+    TT -.-> SRC1
+    ART -.->|"原文出處"| SRC1
+    ART -->|"這篇憑什麼上"| LEDGER(["選題帳<br/>入選與落選理由"])
+
+    EDM(["EDM 信件<br/>Outlook"]) -->|"閱讀全文"| ART
+
+    classDef l1 fill:#dcfce7,stroke:#16a34a,stroke-width:1.5px,color:#14532d
+    classDef l2 fill:#dbeafe,stroke:#2563eb,stroke-width:1.5px,color:#1e3a8a
+    classDef l3 fill:#ede9fe,stroke:#7c3aed,stroke-width:1.5px,color:#4c1d95
+    classDef ext fill:#e2e8f0,stroke:#64748b,stroke-width:1.5px,color:#334155
+    classDef store fill:#cffafe,stroke:#0891b2,stroke-width:1.5px,color:#155e75
+
+    class HOME l1
+    class ISSUE,MOD,REL,HOTP,TT,LB l2
+    class ART l3
+    class SRC1,EDM ext
+    class LEDGER store
+
+    style L2 fill:none,stroke:#2563eb,stroke-width:1px,stroke-dasharray:6 4
+    style L3 fill:none,stroke:#7c3aed,stroke-width:1px,stroke-dasharray:6 4
+```
+
+虛線是離站連結（原文出處在外部網站）。EDM 信件是另一個入口，信裡已經帶
+全文，點「閱讀全文」才會回到網站。
+
+## 讀者動線
+
+同一個網站，不同角色走的路不一樣。這是四條實際會發生的路線：
+
+```mermaid
+%%{init: {"flowchart": {"nodeSpacing": 35, "rankSpacing": 50}}}%%
+flowchart LR
+    subgraph A["　事業單位同仁：追自己領域　"]
+        direction LR
+        A1(["早上收到 EDM"]) --> A2(["掃過導讀<br/>看哪幾則跟我有關"]) --> A3(["信裡直接讀全文"]) --> A4(["想看更多就點<br/>領域頁"])
+    end
+
+    subgraph B["　主管：看趨勢與政策　"]
+        direction LR
+        B1(["打開首頁"]) --> B2(["『我想看智庫怎麼分析』"]) --> B3(["讀短評與<br/>對台達的啟示"]) --> B4(["點進智庫原文"])
+    end
+
+    subgraph C["　新進同仁：不知道要看什麼　"]
+        direction LR
+        C1(["打開首頁"]) --> C2(["『最近什麼最熱』"]) --> C3(["看幾家在報<br/>挑最熱那則"]) --> C4(["讀全文"])
+    end
+
+    subgraph D["　編輯與工程師：查品質　"]
+        direction LR
+        D1(["看到某篇有疑慮"]) --> D2(["點選題帳"]) --> D3(["看分數與入選理由"]) --> D4(["對照原文出處"])
+    end
+
+    classDef entry fill:#dcfce7,stroke:#16a34a,stroke-width:1.5px,color:#14532d
+    classDef mid fill:#dbeafe,stroke:#2563eb,stroke-width:1.5px,color:#1e3a8a
+    classDef goal fill:#ede9fe,stroke:#7c3aed,stroke-width:1.5px,color:#4c1d95
+
+    class A1,B1,C1,D1 entry
+    class A2,A3,B2,B3,C2,C3,D2,D3 mid
+    class A4,B4,C4,D4 goal
+
+    style A fill:none,stroke:#16a34a,stroke-width:1px,stroke-dasharray:6 4
+    style B fill:none,stroke:#2563eb,stroke-width:1px,stroke-dasharray:6 4
+    style C fill:none,stroke:#d97706,stroke-width:1px,stroke-dasharray:6 4
+    style D fill:none,stroke:#7c3aed,stroke-width:1px,stroke-dasharray:6 4
+```
+
+四條路線的共通點是入口不同但終點都是「原文出處」：每一則都附出處，讀者
+要驗證隨時驗證得到。
+
+## 兩條發佈管道
+
+同一份內容出兩個版本，差別不在內容而在使用場景。
+
+```mermaid
+%%{init: {"flowchart": {"nodeSpacing": 45, "rankSpacing": 55}}}%%
+flowchart TD
+    DB[("出刊資料庫<br/>issues、generated_topics")]
+
+    DB --> EDMR(["渲染 EDM<br/>tools.render_issue_email"])
+    DB --> WEBR(["網頁伺服器<br/>scripts.serve_topics"])
+
+    EDMR --> MAIL(["Outlook 信件"])
+    WEBR --> SITE(["內部網站"])
+
+    MAIL --> M1(["信裡自帶全文<br/>不依賴伺服器開著"])
+    MAIL --> M2(["每則附原文出處"])
+
+    SITE --> S1(["歷期與領域瀏覽"])
+    SITE --> S2(["熱門、發佈、智庫、排行榜"])
+    SITE --> S3(["選題帳：為什麼選、為什麼沒選"])
+
+    classDef store fill:#cffafe,stroke:#0891b2,stroke-width:1.5px,color:#155e75
+    classDef step fill:#dbeafe,stroke:#2563eb,stroke-width:1.5px,color:#1e3a8a
+    classDef out fill:#dcfce7,stroke:#16a34a,stroke-width:1.5px,color:#14532d
+    classDef note fill:#f1f5f9,stroke:#64748b,stroke-width:1.5px,color:#334155
+
+    class DB store
+    class EDMR,WEBR step
+    class MAIL,SITE out
+    class M1,M2,S1,S2,S3 note
+```
+
+信件要能獨立存在，因為伺服器跑在筆電上、關機連結就死，所以全文直接放進
+信裡；網站負責信件做不到的事：歷期、依領域瀏覽、選題帳。
+
 ## 判斷機制與門檻
 
 門檻值全部集中在 `config/topics.yaml`，程式裡只有判斷邏輯。每個值都是拿
