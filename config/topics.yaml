@@ -265,6 +265,9 @@ selection:
     min_module_score_to_select: 6.0
     tier_cap:
       case: 4
+      # 預印本單獨設限（2026-09-30 主管實查：八則裡三則預印本，其中兩則
+      # 的商業相關性薄弱）。bioRxiv 從 depth 拆出來自成一級，才能單獨限量。
+      preprint: 2
       # 官方發佈來源（2026-08-28 加）。發佈頁照收全部，這個上限只管
       # 日報／週報版位，避免廠商發佈文吃掉趨勢內容。
       release: 2
@@ -330,6 +333,9 @@ selection:
     tier_cap:
       case: 2
       release: 2
+      # 預印本單獨設限（2026-09-30 主管實查：八則裡三則預印本，其中兩則
+      # 的商業相關性薄弱）。bioRxiv 從 depth 拆出來自成一級，才能單獨限量。
+      preprint: 2
       # 2026-09-18 加：bioRxiv 上線後學術論文灌進候選池，當天 15 則裡
       # 佔了 9 則，NBDMD 要的是產業動態不是論文導讀。深度層最多 4 個
       # 版位，其餘留給 core/vertical 的產業內容。
@@ -505,7 +511,7 @@ sources:
   - id: biorxiv_genomics
     name: "bioRxiv (Genomics)"
     type: rss
-    tier: depth
+    tier: preprint
     url: "https://connect.biorxiv.org/biorxiv_xml.php?subject=genomics"
     weight: 0.6
 

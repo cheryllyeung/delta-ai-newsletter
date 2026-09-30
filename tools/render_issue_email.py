@@ -42,7 +42,7 @@ def _with_emphasis(sections):
     return out
 
 
-def _build_faq(conn, config, issue, published_count: int) -> list[dict]:
+def _build_faq(conn, config, issue, published_count: int, watchlist_hits: int) -> list[dict]:
     """信底常見問題（2026-09-30 加）。
 
     原本想把編輯邏輯寫成一整段說明或另附 PDF，兩種都試過：整段說明像把
@@ -125,6 +125,7 @@ def _build_faq(conn, config, issue, published_count: int) -> list[dict]:
                 "不論動態出現在哪個來源，都會被放進主要報導",
                 f"近 30 天真的出現在報導裡的有 {b(f'{seen} 家')}",
                 f"其他幾家目前{hl('還抓不到')}，我們正在擴來源，社群媒體是下一步",
+                f"本期與名單廠商直接相關的有 {b(f'{watchlist_hits} 則')}",
             ],
             # 這題不收尾：第三點已經把現況與下一步講完，再補一句只是突兀
             # （2026-09-30 使用者指出）。
@@ -171,6 +172,8 @@ def main() -> None:
         print("[render_issue_email] 沒有任何一期可渲染。")
         sys.exit(1)
 
+    from pipeline.edm_tags import vendor_tags
+
     tldr = None
     try:
         if issue["tldr_json"]:
@@ -204,6 +207,24 @@ def main() -> None:
                ORDER BY published_at DESC LIMIT 1""",
             (r["topic_id"],),
         ).fetchone()
+        # 發布日期與預印本標記（2026-09-30 加）：主管實查時指出版面看不出
+        # 新鮮度與證據等級，八則其實都是前一天發布的，其中三則是預印本。
+        pub = conn.execute(
+            """SELECT max(published_at) p FROM articles
+               WHERE topic_id = ? AND discarded_at IS NULL
+                 AND (gate_status IS NULL OR gate_status != 'excluded')""",
+            (r["topic_id"],),
+        ).fetchone()["p"]
+        is_preprint = bool(
+            conn.execute(
+                """SELECT count(*) c FROM articles
+                   WHERE topic_id = ? AND discarded_at IS NULL
+                     AND (gate_status IS NULL OR gate_status != 'excluded')
+                     AND (source_id LIKE '%biorxiv%' OR source_id LIKE '%medrxiv%'
+                          OR url LIKE '%biorxiv%' OR url LIKE '%medrxiv%')""",
+                (r["topic_id"],),
+            ).fetchone()["c"]
+        )
         source_count = conn.execute(
             """SELECT count(DISTINCT source_id) c FROM articles
                WHERE topic_id = ? AND discarded_at IS NULL
@@ -223,6 +244,8 @@ def main() -> None:
                 "source_url": src["url"] if src else None,
                 "source_name": src["source_name"] if src else "原文",
                 "source_count": source_count,
+                "published_date": (pub or "")[:10],
+                "is_preprint": is_preprint,
                 # 標籤（廠商／產品／技術）與分區都經過原文比對，見
                 # pipeline/edm_tags.py：模型抽的標籤若在原文找不到就丟掉。
                 "tags": tags_for_topic(conn, r["topic_id"], config),
@@ -240,10 +263,30 @@ def main() -> None:
 
     # 主要報導排前面（NBDMD 清單來源或主角是 watchlist 廠商），其餘進額外
     # 報導。兩區各自維持原本的排序（選題分數高到低）。
-    primary_articles = [a for a in articles if a["is_primary"]]
-    extra_articles = [a for a in articles if not a["is_primary"]]
+    # 當期有幾則真的跟名單上的廠商有關（2026-09-30 主管實查：整期 0 則，
+    # 而信底又列了 26 家，讀者會以為名單跟當天有關）。
+    watchlist_hits = 0
+    for r in rows:
+        arts = conn.execute(
+            """SELECT title, content FROM articles
+               WHERE topic_id = ? AND discarded_at IS NULL
+                 AND (gate_status IS NULL OR gate_status != 'excluded')""",
+            (r["topic_id"],),
+        ).fetchall()
+        if any(
+            vendor_tags((a["title"] or "") + "\n" + (a["content"] or ""), config) for a in arts
+        ):
+            watchlist_hits += 1
+
+    # 預印本自成一區（2026-09-30 主管實查：八則裡三則預印本，跟廠商動態
+    # 並列在同一個權重上不對）。研究預印本無論主角是誰都歸這一區，選題端
+    # 另外設了每期上限（config 的 tier_cap.preprint）。
+    preprint_articles = [a for a in articles if a["is_preprint"]]
+    rest = [a for a in articles if not a["is_preprint"]]
+    primary_articles = [a for a in rest if a["is_primary"]]
+    extra_articles = [a for a in rest if not a["is_primary"]]
     # 導讀的編號必須是版面上實際印的序號（主要報導先排），不是資料庫順序。
-    ordered = primary_articles + extra_articles
+    ordered = primary_articles + extra_articles + preprint_articles
     for n, a in enumerate(ordered, 1):
         a["display_num"] = n
     groups = dimension_groups(
@@ -256,7 +299,8 @@ def main() -> None:
         tldr=tldr,
         tldr_groups=groups,
         editorial_sections=_with_emphasis((tldr or {}).get("editorial_sections")),
-        faq=_build_faq(conn, config, issue, len(articles)),
+        faq=_build_faq(conn, config, issue, len(articles), watchlist_hits),
+        watchlist_hits=watchlist_hits,
         newsletter_name=config["newsletter"]["name"],
         issue_title=f"{config['newsletter']['name']}（{issue['issue_date']}）",
         issue_date=issue["issue_date"],
@@ -264,6 +308,7 @@ def main() -> None:
         articles=articles,
         primary_articles=primary_articles,
         extra_articles=extra_articles,
+        preprint_articles=preprint_articles,
         site_url=SITE_URL,
     )
 

@@ -77,7 +77,9 @@ Sans、金色點綴、大號裝飾序號）跟網頁的摘要頁/全文頁一致
         {# 類別標示不上色（2026-09-30）：原本每個類別一個色碼，法規與給付
            是紫色、臨床應用是酒紅，沒有說明的情況下讀者只會問「紫色是什麼
            意思」。類別名稱本身已經寫清楚了，顏色反而是雜訊。 #}
-        <div style="font-family:{{ SANS }}; font-size:11px; letter-spacing:2px; font-weight:700; color:#8a8578;">{{ a.primary_tag }}{% if a.is_taiwan %} · 台灣{% endif %}{% if a.source_count > 1 %} · {{ a.source_count }} 家在報{% endif %}</div>
+        {# 標上發布日期與預印本（2026-09-30 主管實查要求）：新鮮度與證據
+           等級是讀者判斷要不要往下追的前提，原本版面上看不出來。 #}
+        <div style="font-family:{{ SANS }}; font-size:11px; letter-spacing:2px; font-weight:700; color:#8a8578;">{{ a.primary_tag }}{% if a.is_taiwan %} · 台灣{% endif %}{% if a.published_date %} · {{ a.published_date }}{% endif %}{% if a.source_count > 1 %} · {{ a.source_count }} 家在報{% endif %}{% if a.is_preprint %} · <span style="color:#8a5a1a;">預印本，未經同儕審查</span>{% endif %}</div>
         <div style="margin-top:6px;">
           {# 顏色寫在連結裡面的 span，不只寫在 <a> 上：Outlook 會把點過的
              連結套上 Word 的「已瀏覽超連結」樣式，蓋掉 <a> 自己的 color，
@@ -116,7 +118,7 @@ Sans、金色點綴、大號裝飾序號）跟網頁的摘要頁/全文頁一致
   {% if primary_articles %}
   <tr><td style="padding:8px 44px 0;">
     <div style="font-family:{{ SANS }}; font-size:13px; letter-spacing:4px; color:#1a1a1a; font-weight:700; border-bottom:2px solid #1a1a1a; padding-bottom:6px;">主要報導</div>
-    <div style="font-family:{{ SANS }}; font-size:11px; color:#8a8578; margin-top:6px;">重點關注廠商與指定來源</div>
+    <div style="font-family:{{ SANS }}; font-size:11px; color:#8a8578; margin-top:6px;">重點關注廠商與指定來源{% if watchlist_hits == 0 %}（本期沒有名單廠商的動態，這一區是指定來源的內容；名單廠商的來源仍在擴增）{% endif %}</div>
   </td></tr>
   <tr><td style="height:14px; line-height:14px;">&nbsp;</td></tr>
   {% for a in primary_articles %}{{ item_block(a, a.display_num or loop.index, true) }}{% endfor %}
@@ -129,6 +131,17 @@ Sans、金色點綴、大號裝飾序號）跟網頁的摘要頁/全文頁一致
   </td></tr>
   <tr><td style="height:14px; line-height:14px;">&nbsp;</td></tr>
   {% for a in extra_articles %}{{ item_block(a, a.display_num or (loop.index + (primary_articles | length)), false) }}{% endfor %}
+  {% endif %}
+
+  {# 研究預印本（2026-09-30 加）：與廠商動態分開排，讀者才看得出證據
+     等級。選題端另有每期上限（config 的 tier_cap.preprint）。 #}
+  {% if preprint_articles %}
+  <tr><td style="padding:8px 44px 0;">
+    <div style="font-family:{{ SANS }}; font-size:13px; letter-spacing:4px; color:#1a1a1a; font-weight:700; border-bottom:2px solid #1a1a1a; padding-bottom:6px;">研究預印本</div>
+    <div style="font-family:{{ SANS }}; font-size:11px; color:#8a8578; margin-top:6px;">尚未經同儕審查，供技術方向參考</div>
+  </td></tr>
+  <tr><td style="height:14px; line-height:14px;">&nbsp;</td></tr>
+  {% for a in preprint_articles %}{{ item_block(a, a.display_num or loop.index, false) }}{% endfor %}
   {% endif %}
 
   <!-- 主編觀察（2026-09-30 改版）：四位分析師分面向，2x2 橫排。
