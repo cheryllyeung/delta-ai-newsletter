@@ -42,6 +42,74 @@ def _with_emphasis(sections):
     return out
 
 
+def _build_faq(conn, config, issue, published_count: int) -> list[dict]:
+    """信底常見問題（2026-09-30 加）。
+
+    原本想把編輯邏輯寫成一整段說明或另附 PDF，兩種都試過：整段說明像把
+    內部文件夾進刊物，PDF 則沒人會為了看一份日報去開附件。改成五個問答
+    放信底，讀者有疑問時往下看就有答案。
+
+    數字一律現算，不寫死：今天掃了幾篇、刊出幾則、關注廠商近 30 天有幾家
+    真的出現過。寫死的數字過兩天就是假的。
+    """
+    from pipeline.edm_tags import _mentions
+
+    scanned = conn.execute(
+        "SELECT count(*) c FROM articles WHERE date(fetched_at) = ?", (issue["issue_date"],)
+    ).fetchone()["c"]
+    floor = config["selection"]["daily"].get("min_topics_to_publish", 0)
+
+    watchlist = config["edm"]["vendor_watchlist"]
+    names = [v[0] for v in watchlist]
+    rows = conn.execute(
+        """SELECT title, content FROM articles
+           WHERE discarded_at IS NULL AND published_at >= date(?, '-30 day')""",
+        (issue["issue_date"],),
+    ).fetchall()
+    seen = 0
+    for entry in watchlist:
+        display, *aliases = entry
+        if any(
+            _mentions(a, (r["title"] or "") + "\n" + (r["content"] or ""))
+            for r in rows
+            for a in [display, *aliases]
+        ):
+            seen += 1
+
+    return [
+        {
+            "q": f"今天為什麼只有 {published_count} 則？",
+            "a": f"今天掃進來 {scanned} 篇，過完品質關卡再選題，留下 {published_count} 則。"
+                 f"日報不設固定則數，當天達標的全出；但低於 {floor} 則就不出刊，寧缺勿湊。"
+                 "新聞彙總型欄目、付費牆片段、正文過短的都收不進來。",
+        },
+        {
+            "q": "分類是怎麼分的？",
+            "a": "每則歸到市場、技術、臨床、法規其中一個面向，上方導讀就是照這四類分區，"
+                 "列的是下方報導的原標題加序號，上下不會出現同一則的兩種講法。"
+                 "報導另外分兩區：指定來源或關注廠商的動態進主要報導，其他來源進額外報導。",
+        },
+        {
+            "q": "目前涵蓋哪些廠商？",
+            "a": f"名單上 {len(names)} 家：{'、'.join(names)}。"
+                 "這些廠商不論動態出現在哪個來源，都會被抓進主要報導。"
+                 f"近 30 天實際出現在報導裡的有 {seen} 家，其餘幾家的官方消息還沒接進來，正在補來源。",
+        },
+        {
+            "q": "怎麼判斷哪則重要？",
+            "a": "看三件事：幾家媒體在報同一件事（版面上標「N 家在報」）、"
+                 "是否涉及名單上的廠商或檢測市場本身、對決策的影響大小。"
+                 "報頭的焦點就是照這個標準挑出來的一到兩則，它只是指路，不是結論。",
+        },
+        {
+            "q": "主編觀察是怎麼寫的？",
+            "a": "市場、技術、法規、臨床四個面向各一塊，寫的是把當天這批放在一起才看得到的東西："
+                 "幾則其實指向同一件事、兩則說法互相削弱、或幾則共用一個還沒被驗證的前提。"
+                 "這一欄不重述上面的報導，屬於判斷與推測，提到的每個數字都必須來自當期原文。",
+        },
+    ]
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--issue-id", type=int, default=None)
@@ -143,7 +211,7 @@ def main() -> None:
         tldr=tldr,
         tldr_groups=groups,
         editorial_sections=_with_emphasis((tldr or {}).get("editorial_sections")),
-        method_note=config.get("edm", {}).get("method_note", False),
+        faq=_build_faq(conn, config, issue, len(articles)),
         newsletter_name=config["newsletter"]["name"],
         issue_title=f"{config['newsletter']['name']}（{issue['issue_date']}）",
         issue_date=issue["issue_date"],

@@ -177,10 +177,22 @@ Sans、金色點綴、大號裝飾序號）跟網頁的摘要頁/全文頁一致
   <tr><td style="padding:28px 44px;"><div style="border-top:1px solid #ece7dc; height:1px; line-height:1px;">&nbsp;</div></td></tr>
   {% endif %}
 
-  {# 編輯邏輯原本在這裡做成一整框（2026-09-30 加，同日改掉）：把選題、
-     焦點、主編觀察的作法整段寫在信裡，讀起來像把內部 SOP 夾進刊物，
-     而且用「我們」向收件人自我說明，防衛感重。改成隨信附一份 PDF
-     說明脈絡，信裡只在信尾提一行，見 docs/日報編輯脈絡.md。 #}
+  <!-- 信底常見問題（2026-09-30 加）。編輯邏輯的說明試過兩版：一整框的
+       自我說明像把內部文件夾進刊物，另附 PDF 沒人會為了日報去開附件。
+       改成問答放信底，有疑問往下看就有答案，沒疑問的人不受干擾。
+       問題裡的數字由 tools/render_issue_email.py 現算。 -->
+  {% if faq %}
+  <tr><td style="padding:0 44px 8px;">
+    <div style="font-family:{{ SANS }}; font-size:12px; letter-spacing:4px; color:#8a8578;">關於這份日報</div>
+  </td></tr>
+  {% for item in faq %}
+  <tr><td style="padding:12px 44px 0;">
+    <div style="font-family:{{ SANS }}; font-size:13px; font-weight:700; color:#8a5a1a; line-height:1.6;">Q{{ loop.index }}　{{ item.q }}</div>
+    <div style="font-family:{{ SANS }}; font-size:13px; line-height:1.85; color:#44474a; margin-top:4px;">{{ item.a }}</div>
+  </td></tr>
+  {% endfor %}
+  <tr><td style="padding:24px 44px 0;"><div style="border-top:1px solid #ece7dc; height:1px; line-height:1px;">&nbsp;</div></td></tr>
+  {% endif %}
 
   <!-- 信尾 -->
   <tr><td style="padding:0 44px 36px;">
@@ -188,8 +200,7 @@ Sans、金色點綴、大號裝飾序號）跟網頁的摘要頁/全文頁一致
        伺服器位址，網頁版自己內部用就好。 #}
     <div style="font-family:{{ SANS }}; font-size:12px; line-height:1.9; color:#8a8578;">
       摘要與導讀由 AI 生成並經自動自檢，每則均附原文出處，請以原文為準。
-      僅供台達內部參考，請勿外流。{% if method_note %}<br>
-      來源範圍、選題依據與主編觀察的寫法，見附件「日報編輯脈絡」。{% endif %}
+      僅供台達內部參考，請勿外流。
     </div>
   </td></tr>
 
