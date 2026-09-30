@@ -26,18 +26,26 @@ def _intro_to_html(text: str) -> str:
     Outlook 的 HTMLBody 是整個蓋掉的，人工很難在成品前面補字，所以
     開場白改由這裡帶進去（--intro 指到一個純文字檔，空行分段）。"""
     paragraphs = [p.strip() for p in text.replace("\r\n", "\n").split("\n\n") if p.strip()]
+    sans = "'Microsoft JhengHei', 'PingFang TC', Arial, sans-serif"
     blocks = "".join(
-        '<div style="font-family:\'Microsoft JhengHei\', \'PingFang TC\', Arial, sans-serif; '
-        'font-size:14px; line-height:1.9; color:#1c2b38; margin:0 0 14px;">'
-        + p.replace("\n", "<br>")
-        + "</div>"
+        f'<div style="font-family:{sans}; font-size:14px; line-height:1.9; '
+        'color:#1c2b38; margin:0 0 14px;">' + p.replace("\n", "<br>") + "</div>"
         for p in paragraphs
     )
+    # 2026-09-30 改成獨立的白底區塊：原本開場白直接落在信件的米白底上，
+    # 跟日報版面連成一片，讀者分不出哪裡是寫信的人在講話、哪裡是日報本體。
+    # 白底卡片加一條分隔線與「以下為日報內容」，上下就分得開了。
     return (
-        '<table role="presentation" width="640" cellpadding="0" cellspacing="0" border="0" '
-        'style="width:640px; max-width:100%; margin:0 auto 16px;"><tr><td style="padding:4px 8px;">'
+        '<table role="presentation" width="660" cellpadding="0" cellspacing="0" border="0" '
+        'align="center" style="width:660px; max-width:100%; margin:0 auto;">'
+        '<tr><td style="background:#ffffff; padding:26px 30px; border:1px solid #dfe3e8;">'
         + blocks
-        + "</td></tr></table>"
+        + '<div style="border-top:1px solid #e6e9ed; margin-top:20px; padding-top:12px; '
+        f'font-family:{sans}; font-size:12px; letter-spacing:2px; color:#8a8578;">'
+        "以下為日報內容</div>"
+        "</td></tr>"
+        '<tr><td style="height:22px; line-height:22px; font-size:0;">&nbsp;</td></tr>'
+        "</table>"
     )
 
 
