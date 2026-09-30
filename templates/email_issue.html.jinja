@@ -186,9 +186,17 @@ Sans、金色點綴、大號裝飾序號）跟網頁的摘要頁/全文頁一致
     <div style="font-family:{{ SANS }}; font-size:12px; letter-spacing:4px; color:#8a8578;">關於這份日報</div>
   </td></tr>
   {% for item in faq %}
-  <tr><td style="padding:12px 44px 0;">
+  <tr><td style="padding:14px 44px 0;">
     <div style="font-family:{{ SANS }}; font-size:13px; font-weight:700; color:#8a5a1a; line-height:1.6;">Q{{ loop.index }}　{{ item.q }}</div>
-    <div style="font-family:{{ SANS }}; font-size:13px; line-height:1.85; color:#44474a; margin-top:4px;">{{ item.a }}</div>
+    {# 答案結構固定成「先講標準、再列點、最後收一句」（2026-09-30 使用者
+       指定的寫法）。列點用 div 不用 ol：Outlook 對清單的縮排處理不穩，
+       序號自己印比較可控。 #}
+    {% if item.lead %}<div style="font-family:{{ SANS }}; font-size:13px; line-height:1.85; color:#44474a; margin-top:5px;">{{ item.lead }}</div>{% endif %}
+    {% for point in item.points or [] %}
+    <div style="font-family:{{ SANS }}; font-size:13px; line-height:1.8; color:#44474a; margin-top:3px; padding-left:20px; text-indent:-20px;">{{ loop.index }}.　{{ point }}</div>
+    {% endfor %}
+    {% if item.tail %}<div style="font-family:{{ SANS }}; font-size:13px; line-height:1.85; color:#44474a; margin-top:5px;">{{ item.tail }}</div>{% endif %}
+    {% if item.a %}<div style="font-family:{{ SANS }}; font-size:13px; line-height:1.85; color:#44474a; margin-top:4px;">{{ item.a }}</div>{% endif %}
   </td></tr>
   {% endfor %}
   <tr><td style="padding:24px 44px 0;"><div style="border-top:1px solid #ece7dc; height:1px; line-height:1px;">&nbsp;</div></td></tr>
