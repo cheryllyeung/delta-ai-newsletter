@@ -87,7 +87,7 @@ Sans、金色點綴、大號裝飾序號）跟網頁的摘要頁/全文頁一致
              子元素的 color 不會被蓋，所以兩邊都寫。 #}
           <a href="{{ a.source_url or a.url }}" style="font-family:{{ SANS }}; font-size:{{ '20px' if full else '17px' }}; font-weight:700; line-height:1.45; color:#1a1a1a; text-decoration:none;"><span style="color:#1a1a1a; text-decoration:none;">{{ a.headline }}</span></a>
         </div>
-        {% if full and a.subhead %}<div style="font-family:{{ SANS }}; font-size:13px; line-height:1.7; color:#8a5a1a; margin-top:6px; font-style:italic;">{{ a.subhead }}</div>{% endif %}
+        {% if full and a.subhead %}<div style="font-family:{{ SANS }}; font-size:13px; line-height:1.7; color:#8a5a1a; margin-top:6px;">{{ a.subhead }}</div>{% endif %}
         {% if a.summary %}<div style="font-family:{{ SANS }}; font-size:14px; line-height:1.85; color:#44474a; margin-top:8px;">{{ a.summary }}</div>{% endif %}
         {% if full and a.stats %}
         <div style="margin-top:10px;">
@@ -118,7 +118,7 @@ Sans、金色點綴、大號裝飾序號）跟網頁的摘要頁/全文頁一致
   {% if primary_articles %}
   <tr><td style="padding:8px 44px 0;">
     <div style="font-family:{{ SANS }}; font-size:13px; letter-spacing:4px; color:#1a1a1a; font-weight:700; border-bottom:2px solid #1a1a1a; padding-bottom:6px;">主要報導</div>
-    <div style="font-family:{{ SANS }}; font-size:11px; color:#8a8578; margin-top:6px;">重點關注廠商與指定來源{% if watchlist_hits == 0 %}（本期沒有名單廠商的動態，這一區是指定來源的內容；名單廠商的來源仍在擴增）{% endif %}</div>
+    <div style="font-family:{{ SANS }}; font-size:11px; color:#8a8578; margin-top:6px;">重點關注廠商與指定來源{% if watchlist_hits == 0 %}（今日未收錄到名單廠商的動態）{% endif %}</div>
   </td></tr>
   <tr><td style="height:14px; line-height:14px;">&nbsp;</td></tr>
   {% for a in primary_articles %}{{ item_block(a, a.display_num or loop.index, true) }}{% endfor %}

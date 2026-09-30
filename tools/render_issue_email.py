@@ -100,8 +100,8 @@ def _build_faq(conn, config, issue, published_count: int, watchlist_hits: int) -
                 f"正文少於 {b('200 字')}的都擋掉",
                 f"選題後留下 {b(f'{published_count} 則')}",
             ],
-            "tail": f"如果哪天合格的只有三四則（{b(f'不到 {floor} 則')}），"
-                    f"{hl('我們就不出刊')}，等隔天一起。",
+            "tail": f"合格的報導{b(f'不到 {floor} 則')}時，"
+                    f"{hl('當天將不出刊')}，併入下一期。",
         },
         {
             "q": "分類是怎麼分的？",
@@ -124,7 +124,7 @@ def _build_faq(conn, config, issue, published_count: int, watchlist_hits: int) -
             "points": [
                 "不論動態出現在哪個來源，都會被放進主要報導",
                 f"近 30 天真的出現在報導裡的有 {b(f'{seen} 家')}",
-                f"其他幾家目前{hl('還抓不到')}，我們正在擴來源，社群媒體是下一步",
+                f"其他幾家目前{hl('還抓不到')}，我們正在擴充來源，社群媒體是下一步",
                 f"本期與名單廠商直接相關的有 {b(f'{watchlist_hits} 則')}",
             ],
             # 這題不收尾：第三點已經把現況與下一步講完，再補一句只是突兀
