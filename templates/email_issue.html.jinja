@@ -118,7 +118,7 @@ Sans、金色點綴、大號裝飾序號）跟網頁的摘要頁/全文頁一致
   {% if primary_articles %}
   <tr><td style="padding:8px 44px 0;">
     <div style="font-family:{{ SANS }}; font-size:13px; letter-spacing:4px; color:#1a1a1a; font-weight:700; border-bottom:2px solid #1a1a1a; padding-bottom:6px;">主要報導</div>
-    <div style="font-family:{{ SANS }}; font-size:11px; color:#8a8578; margin-top:6px;">重點關注廠商與指定來源{% if watchlist_hits == 0 %}（今日未收錄到名單廠商的動態）{% endif %}</div>
+    <div style="font-family:{{ SANS }}; font-size:11px; color:#8a8578; margin-top:6px;">指定來源與名單廠商的動態{% if watchlist_hits == 0 %}，今日入選的來自指定來源{% endif %}</div>
   </td></tr>
   <tr><td style="height:14px; line-height:14px;">&nbsp;</td></tr>
   {% for a in primary_articles %}{{ item_block(a, a.display_num or loop.index, true) }}{% endfor %}
