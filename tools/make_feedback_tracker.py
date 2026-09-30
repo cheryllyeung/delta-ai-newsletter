@@ -117,7 +117,7 @@ SEED = [
         "date": "2026-09-30", "by": "內部", "type": "FEATURE",
         "what": "26 家關注廠商中有 9 家至今零覆蓋：Tempus AI、BillionToOne、Element Biosciences、Caris Life Sciences、Qiagen、Centogene、華大基因、Macrogen、Gene Solutions",
         "want": "這些廠商的動態要抓得到", "status": "進行中",
-        "done": "美國幾家的消息多發在自家新聞室或被訂閱制媒體獨家，計畫加各家新聞室 RSS（免費，我們自己做）；訂閱制媒體需要帳號權限；亞洲幾家要新接中文與韓文來源",
+        "done": "這幾家的消息多半發在自家官方管道或被訂閱制媒體獨家拿到。下一步接社群媒體與各家官方管道（我們自己做）；訂閱制媒體要帳號權限；亞洲幾家要新接中文與韓文來源",
         "when": "",
     },
     {
