@@ -14,6 +14,7 @@
 from __future__ import annotations
 
 import argparse
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -27,9 +28,19 @@ def _intro_to_html(text: str) -> str:
     開場白改由這裡帶進去（--intro 指到一個純文字檔，空行分段）。"""
     paragraphs = [p.strip() for p in text.replace("\r\n", "\n").split("\n\n") if p.strip()]
     sans = "'Microsoft JhengHei', 'PingFang TC', Arial, sans-serif"
+
+    def emphasise(para: str) -> str:
+        """開場白裡用 **包住** 的部分標成深藍粗體，跟日報裡的重點同一個顏色
+        （2026-09-30 加）。純文字檔比較好改，但重點還是要看得出來。"""
+        return re.sub(
+            r"\*\*(.+?)\*\*",
+            r'<span style="color:#1f4e79; font-weight:700;">\1</span>',
+            para,
+        )
+
     blocks = "".join(
         f'<div style="font-family:{sans}; font-size:14px; line-height:1.9; '
-        'color:#1c2b38; margin:0 0 14px;">' + p.replace("\n", "<br>") + "</div>"
+        'color:#1c2b38; margin:0 0 14px;">' + emphasise(p).replace("\n", "<br>") + "</div>"
         for p in paragraphs
     )
     # 2026-09-30 改成獨立的白底區塊：原本開場白直接落在信件的米白底上，
