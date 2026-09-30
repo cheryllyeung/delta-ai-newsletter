@@ -59,6 +59,12 @@ def _build_faq(conn, config, issue, published_count: int) -> list[dict]:
     ).fetchone()["c"]
     floor = config["selection"]["daily"].get("min_topics_to_publish", 0)
 
+    # 兩區的來源名稱從設定檔取，不寫死：來源清單會隨時增減，寫死的清單
+    # 遲早跟實際抓的不一樣（2026-09-30 使用者要求信裡講明額外報導的來源）。
+    primary_ids = set(config["edm"]["primary_source_ids"])
+    primary_names = [s.get("name") or s["id"] for s in config["sources"] if s["id"] in primary_ids]
+    other_names = [s.get("name") or s["id"] for s in config["sources"] if s["id"] not in primary_ids]
+
     watchlist = config["edm"]["vendor_watchlist"]
     names = [v[0] for v in watchlist]
     rows = conn.execute(
@@ -102,8 +108,10 @@ def _build_faq(conn, config, issue, published_count: int) -> list[dict]:
             "points": [
                 f"{b('面向')}：每則歸到市場、技術、臨床、法規其中一個，"
                 "上方導讀就是照這四類分區",
-                f"{b('分區')}：指定來源或名單廠商的動態進「主要報導」，"
-                "其他來源進「額外報導」",
+                f"{b('主要報導')}：指定來源，或名單廠商的動態不論出現在哪裡。"
+                f"指定來源 {len(primary_names)} 個：{'、'.join(primary_names)}",
+                f"{b('額外報導')}：其他 {len(other_names)} 個來源，"
+                f"{'、'.join(other_names)}",
             ],
             "tail": f"導讀列的是{hl('下方報導的原標題與序號')}，上下是同一份文字。",
         },
@@ -113,9 +121,11 @@ def _build_faq(conn, config, issue, published_count: int) -> list[dict]:
             "points": [
                 "名單上的廠商，不論動態出現在哪個來源都會被抓進主要報導",
                 f"近 30 天實際出現在報導裡的有 {b(f'{seen} 家')}",
-                "其餘幾家的動態還沒抓到，社群媒體是下一步要接的來源",
+                f"其餘幾家的動態還沒抓到，{hl('來源會繼續擴增')}，社群媒體是下一步要接的",
             ],
-            "tail": f"我們的{hl('來源會繼續擴增')}。",
+            # 這題不收尾。原本補一句「我們的來源會繼續擴增」，但第三點已經
+            # 講了同一件事，多一句只是突兀（2026-09-30 使用者指出）。
+            "tail": "",
         },
         {
             "q": "怎麼判斷哪則重要？",
