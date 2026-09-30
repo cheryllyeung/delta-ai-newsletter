@@ -19,15 +19,50 @@ from pipeline.prompt_loader import load_prompt_parts
 _DIMENSION_ORDER = ["市場", "技術", "臨床", "法規"]
 
 
+def dimension_by_topic(tldr: dict | None) -> dict[int, str]:
+    """{topic_id: 面向}。2026-09-30 起 items 只做分類，不再自己寫導讀文字。
+
+    舊期數的 items 是另寫的一句話、沒有 topic_id，這時回空 dict，呼叫端
+    自己退回舊的顯示方式。
+    """
+    if not tldr:
+        return {}
+    out: dict[int, str] = {}
+    for e in tldr.get("items") or []:
+        if isinstance(e, dict) and isinstance(e.get("topic_id"), int) and e.get("dimension"):
+            out[e["topic_id"]] = e["dimension"]
+    return out
+
+
+def dimension_groups(entries: list[dict]) -> list[dict] | None:
+    """把版面上的報導按面向分組，導讀直接顯示它們的原標題。
+
+    entries: [{"num": int, "dimension": str, "title": str}]，num 是版面上
+    印的序號。2026-09-30 改版的重點：導讀與報導共用同一份標題字串，上下
+    絕對一致（之前導讀另外寫一句，讀者以為是兩則不同的報導）。
+    """
+    by_dim: dict[str, list[str]] = {}
+    for e in entries:
+        if e.get("dimension") and e.get("title"):
+            by_dim.setdefault(e["dimension"], []).append(f"{e['num']:02d}　{e['title']}")
+    if not by_dim:
+        return None
+    order = _DIMENSION_ORDER + [d for d in by_dim if d not in _DIMENSION_ORDER]
+    return [{"label": d, "entries": by_dim[d]} for d in order if d in by_dim]
+
+
 def tldr_display_groups(tldr: dict | None) -> list[dict] | None:
     """把 tldr_json 整理成版面用的分組 [{"label": str, "entries": [str]}]。
 
     2026-09-21 改版：導讀從「趨勢／重點／觀察」三類改成按面向（市場／
-    技術／臨床／法規）分大區塊。主管反映三類界線模糊（同一條放哪類都
-    說得通），面向分類比較直覺。三種存檔格式都要吃：
-    - 新格式：items 一層，每條帶 dimension
-    - 2026-09-18 到 09-20：trends/highlights/observations 三列，每條帶
-      dimension，合併後照樣能按面向分組
+    技術／臨床／法規）分大區塊，三類界線模糊（同一條放哪類都說得通），
+    面向分類比較直覺。
+
+    2026-09-30 起的期數走 dimension_groups（導讀直接列原標題），這支只
+    負責舊期數的退路：
+
+    - 2026-09-21 到 09-29：items 帶 dimension 與自己的 text
+    - 2026-09-18 到 09-20：trends/highlights/observations 三列帶 dimension
     - 9/18 前：三列純字串沒有面向，只能維持原本的三類標籤
     """
     if not tldr:
@@ -40,7 +75,7 @@ def tldr_display_groups(tldr: dict | None) -> list[dict] | None:
     if not entries:
         return None
 
-    if all(isinstance(e, dict) and e.get("dimension") for e in entries):
+    if all(isinstance(e, dict) and e.get("dimension") and e.get("text") for e in entries):
         by_dim: dict[str, list[str]] = {}
         for e in entries:
             by_dim.setdefault(e["dimension"], []).append(e.get("text", ""))
@@ -70,16 +105,19 @@ def _parse_json_object(raw_text: str) -> dict:
 def write_issue_tldr(conn: sqlite3.Connection, issue_id: int, client=None) -> dict | None:
     """為一期生成 TLDR 並存進 issues.tldr_json，回傳解析結果（失敗回 None）。"""
     rows = conn.execute(
-        "SELECT generated_json FROM generated_topics WHERE issue_id = ? ORDER BY id", (issue_id,)
+        "SELECT topic_id, generated_json FROM generated_topics WHERE issue_id = ? ORDER BY id",
+        (issue_id,),
     ).fetchall()
     if not rows:
         return None
 
+    # 編號要跟版面上的序號一致：模型只回「第幾則屬於哪個面向」，導讀顯示
+    # 的文字由版面直接取原標題（2026-09-30 改版，見 tldr_display_groups）。
     lines = []
-    for r in rows:
+    for i, r in enumerate(rows, 1):
         g = json.loads(r["generated_json"] if isinstance(r, sqlite3.Row) else r[0])
         summary = (g.get("card_summary") or {}).get("text", "")
-        lines.append(f"- {g.get('chosen_headline', '')}：{summary}")
+        lines.append(f"{i}. {g.get('chosen_headline', '')}：{summary}")
 
     client = client or get_client()
     system, user = load_prompt_parts(
@@ -101,9 +139,41 @@ def write_issue_tldr(conn: sqlite3.Connection, issue_id: int, client=None) -> di
         print(f"[issue_tldr] 生成失敗，這期沒有 TLDR：{exc}")
         return None
 
+    # 分類要覆蓋每一則，不然導讀會漏掉報導。序號超出範圍或重複的丟掉，
+    # 沒分到的補「市場」（四個面向裡最不會誤導的落點），並印出來讓人知道。
+    # 面向存 topic_id 而不只是序號：EDM 會把主要報導排到前面，網頁又是
+    # 另一個順序，序號在不同版面對不上，topic_id 到哪都認得。
+    topic_ids = [r["topic_id"] if isinstance(r, sqlite3.Row) else r[0] for r in rows]
+    items, seen = [], set()
+    for e in parsed.get("items") or []:
+        if not isinstance(e, dict):
+            continue
+        idx, dim = e.get("index"), e.get("dimension")
+        if isinstance(idx, int) and 1 <= idx <= len(rows) and dim in _DIMENSION_ORDER and idx not in seen:
+            seen.add(idx)
+            items.append({"index": idx, "topic_id": topic_ids[idx - 1], "dimension": dim})
+    missing = [i for i in range(1, len(rows) + 1) if i not in seen]
+    if missing:
+        print(f"[issue_tldr] 這幾則沒分到面向，補為「市場」：{missing}")
+        items.extend(
+            {"index": i, "topic_id": topic_ids[i - 1], "dimension": "市場"} for i in missing
+        )
+    parsed["items"] = sorted(items, key=lambda x: x["index"])
+
+    # 主編觀察存在同一個 tldr_json 裡、而且是在這支之後才寫的，整包覆寫
+    # 會把它清掉（2026-09-30 單獨重跑這支時實際清掉過一次）。先把原有的
+    # 內容讀回來合併。
+    prev = conn.execute("SELECT tldr_json FROM issues WHERE id = ?", (issue_id,)).fetchone()
+    merged = {}
+    if prev and prev[0]:
+        try:
+            merged = json.loads(prev[0])
+        except json.JSONDecodeError:
+            merged = {}
+    merged.update(parsed)
     conn.execute(
         "UPDATE issues SET tldr_json = ? WHERE id = ?",
-        (json.dumps(parsed, ensure_ascii=False), issue_id),
+        (json.dumps(merged, ensure_ascii=False), issue_id),
     )
     conn.commit()
-    return parsed
+    return merged or parsed

@@ -23,7 +23,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from pipeline.edm_tags import is_primary, tags_for_topic
 from pipeline.text_emphasis import emphasize_numbers
-from pipeline.issue_tldr import tldr_display_groups
+from pipeline.issue_tldr import dimension_by_topic, dimension_groups, tldr_display_groups
 from pipeline.topic_db import get_connection
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -58,6 +58,17 @@ def main() -> None:
         print("[render_issue_email] 沒有任何一期可渲染。")
         sys.exit(1)
 
+    tldr = None
+    try:
+        if issue["tldr_json"]:
+            tldr = json.loads(issue["tldr_json"])
+    except (KeyError, IndexError):
+        pass
+    # 每則的分類標示與上面導讀的分區用同一套面向（2026-09-30 使用者要求：
+    # 上下標題與分類要統一，原本上面是市場／技術，下面是廠商動態／台灣動態，
+    # 看起來像兩套分類）。舊期數沒有這份對應表，退回原本的 primary_tag。
+    dims = dimension_by_topic(tldr)
+
     rows = conn.execute(
         "SELECT * FROM generated_topics WHERE issue_id = ? ORDER BY id", (issue["id"],)
     ).fetchall()
@@ -86,7 +97,7 @@ def main() -> None:
                  AND (gate_status IS NULL OR gate_status != 'excluded')""",
             (r["topic_id"],),
         ).fetchone()["c"]
-        tag = g.get("primary_tag", "其他")
+        tag = dims.get(r["topic_id"]) or g.get("primary_tag", "其他")
         articles.append(
             {
                 "num": f"{idx:02d}",
@@ -114,23 +125,25 @@ def main() -> None:
             }
         )
 
-    tldr = None
-    try:
-        if issue["tldr_json"]:
-            tldr = json.loads(issue["tldr_json"])
-    except (KeyError, IndexError):
-        pass
-
     # 主要報導排前面（NBDMD 清單來源或主角是 watchlist 廠商），其餘進額外
     # 報導。兩區各自維持原本的排序（選題分數高到低）。
     primary_articles = [a for a in articles if a["is_primary"]]
     extra_articles = [a for a in articles if not a["is_primary"]]
+    # 導讀的編號必須是版面上實際印的序號（主要報導先排），不是資料庫順序。
+    ordered = primary_articles + extra_articles
+    for n, a in enumerate(ordered, 1):
+        a["display_num"] = n
+    groups = dimension_groups(
+        [{"num": a["display_num"], "dimension": a["primary_tag"], "title": a["headline"]}
+         for a in ordered if a["primary_tag"] in ("市場", "技術", "臨床", "法規")]
+    ) or tldr_display_groups(tldr)
 
     env = Environment(loader=FileSystemLoader(str(ROOT / "templates")))
     html = env.get_template("email_issue.html.jinja").render(
         tldr=tldr,
-        tldr_groups=tldr_display_groups(tldr),
+        tldr_groups=groups,
         editorial_sections=_with_emphasis((tldr or {}).get("editorial_sections")),
+        method_note=config.get("edm", {}).get("method_note", False),
         newsletter_name=config["newsletter"]["name"],
         issue_title=f"{config['newsletter']['name']}（{issue['issue_date']}）",
         issue_date=issue["issue_date"],

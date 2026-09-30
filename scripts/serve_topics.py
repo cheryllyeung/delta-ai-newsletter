@@ -41,7 +41,7 @@ from pipeline.topic_db import (
     list_issues,
     list_release_articles,
 )
-from pipeline.issue_tldr import tldr_display_groups
+from pipeline.issue_tldr import dimension_by_topic, dimension_groups, tldr_display_groups
 from pipeline.translate import SUPPORTED as SUPPORTED_LANGS
 from pipeline.translate import get_article_in
 
@@ -661,13 +661,26 @@ def issue_overview(request: Request, issue_id: int, lang: str | None = None):
             "SELECT topic_id, needs_review FROM generated_topics WHERE issue_id = ?", (issue_id,)
         )
     }
-    for t in topics:
+    # 面向標示與導讀分區用同一套（2026-09-30 起：EDM 與網頁上下一致，
+    # 原本網頁上面寫市場／技術、下面寫廠商動態，看起來像兩套分類）。
+    dims = dimension_by_topic(tldr)
+    for n, t in enumerate(topics, 1):
         src = conn.execute(
             "SELECT url FROM articles WHERE topic_id = ? AND discarded_at IS NULL ORDER BY published_at DESC LIMIT 1",
             (t.get("topic_id"),),
         ).fetchone()
         t["source_url"] = src["url"] if src else None
         t["needs_review"] = review_map.get(t.get("topic_id"), False)
+        t["display_num"] = n
+        if dims.get(t.get("topic_id")):
+            t["primary_tag"] = dims[t["topic_id"]]
+    groups = dimension_groups(
+        [
+            {"num": t["display_num"], "dimension": dims.get(t.get("topic_id")),
+             "title": t.get("chosen_headline") or t.get("headline") or ""}
+            for t in topics
+        ]
+    ) or tldr_display_groups(tldr)
     return templates.TemplateResponse(
         request,
         "topic_issue.html.jinja",
@@ -679,7 +692,7 @@ def issue_overview(request: Request, issue_id: int, lang: str | None = None):
             "issue_date": issue["issue_date"],
             "issue_cadence": issue["cadence"],
             "tldr": tldr,
-            "tldr_groups": tldr_display_groups(tldr),
+            "tldr_groups": groups,
             "topics": topics,
             "total_articles": column_topic_count + len(topics),
             "delta_column": delta_column,
