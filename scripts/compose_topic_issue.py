@@ -353,6 +353,14 @@ def parse_args() -> argparse.Namespace:
         "--cadence", default="daily", choices=["daily", "weekly"],
         help="出刊頻率，決定用 config/topics.yaml 的 selection.daily 還是 selection.weekly 配額。預設 daily。",
     )
+    parser.add_argument(
+        "--carry-over-days", type=int, default=None,
+        help=(
+            "候選池往回看幾天（預設讀 config 的 selection.daily.carry_over_days，目前 7）。"
+            "帶 0 就只收當天發布的內容，1 是當天加昨天。想出『純當日版』時用，"
+            "例如久未出刊後補跑，不想讓一週的積壓一次湧進同一期。"
+        ),
+    )
     return parser.parse_args()
 
 
@@ -377,7 +385,11 @@ def main() -> None:
     # 續留窗口內每天重新參選，靠熱度的時間衰減自然降權；過了窗口就不再進
     # 候選，等於自然過期。
     if args.cadence == "daily":
-        carry_days = config["selection"]["daily"].get("carry_over_days", 0)
+        carry_days = (
+            args.carry_over_days
+            if args.carry_over_days is not None
+            else config["selection"]["daily"].get("carry_over_days", 0)
+        )
         range_start = (date.fromisoformat(args.date) - timedelta(days=carry_days)).isoformat()
         date_range = (range_start, args.date)
     else:
@@ -447,6 +459,15 @@ def main() -> None:
     tldr = write_issue_tldr(conn, issue_id)
     if tldr:
         print(f"[compose_topic_issue] TLDR 完成：導讀 {len(tldr.get('items', []))} 條。")
+
+    # 主編觀察（2026-09-30 拆成獨立一支，見 pipeline/issue_editorial.py）：
+    # EDM 不再放全文之後，信件的價值集中在選題與觀點，這一段要更長也要
+    # 有人設。失敗不擋出刊。
+    from pipeline.issue_editorial import write_issue_editorial
+
+    editorial = write_issue_editorial(conn, issue_id, config["newsletter"]["name"])
+    if editorial:
+        print(f"[compose_topic_issue] 主編觀察完成：{len(editorial)} 段。")
 
     pending = sum(1 for r in results if r["needs_review"])
     print(f"[compose_topic_issue] 第 {issue_id} 期已組成，{pending} 個待人工確認。")

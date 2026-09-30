@@ -54,62 +54,115 @@ Sans、金色點綴、大號裝飾序號）跟網頁的摘要頁/全文頁一致
   <tr><td style="padding:28px 44px 4px;"><div style="border-top:2px solid #1a1a1a; height:1px; line-height:1px;">&nbsp;</div></td></tr>
   {% endif %}
 
-  <!-- 文章清單 -->
-  {% for a in articles %}
+  <!-- 報導清單（2026-09-30 改版）。
+       改版重點：信裡不再放全文。EDM 的定位改成「選出今天值得看的幾則，
+       並給出主編觀點」，內容讓讀者點原文去看。每則多了標籤（廠商／產品／
+       技術，經原文比對才顯示，見 pipeline/edm_tags.py），並分成主要報導
+       （NBDMD 清單來源或主角是 26 家 watchlist 廠商）與額外報導兩區。 -->
+  {% macro item_block(a, loop_index, full) %}
   <tr><td style="padding:0 44px;">
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
-      <td width="52" valign="top" style="width:52px;">
-        <div style="font-family:{{ SANS }}; font-size:34px; font-weight:900; color:#e4dccb; line-height:1;">{{ a.num }}</div>
+      <td width="46" valign="top" style="width:46px;">
+        <div style="font-family:{{ SANS }}; font-size:30px; font-weight:900; color:#e4dccb; line-height:1;">{{ "%02d"|format(loop_index) }}</div>
       </td>
       <td valign="top" style="padding-left:8px;">
-        <div style="font-family:{{ SANS }}; font-size:11px; letter-spacing:2px; font-weight:700; color:{{ a.tag_color }};">{{ a.primary_tag }}{% if a.is_taiwan %} · 台灣{% endif %}</div>
-        <div style="margin-top:6px;"><a href="{{ a.url }}" style="font-family:{{ SANS }}; font-size:21px; font-weight:700; line-height:1.4; color:#1a1a1a; text-decoration:none;">{{ a.headline }}</a></div>
-        {% if a.subhead %}<div style="font-family:{{ SANS }}; font-size:13px; line-height:1.7; color:#8a5a1a; margin-top:8px; font-style:italic;">{{ a.subhead }}</div>{% endif %}
-        {% if a.summary %}<div style="font-family:{{ SANS }}; font-size:14px; line-height:1.9; color:#44474a; margin-top:12px;">{{ a.summary }}</div>{% endif %}
-        {# 2026-09-18 信件自包含：全文直接進信（收件人不依賴筆電上的網頁
-           伺服器）。needs_review 的不給全文，render_issue_email.py 端就
-           清空了 sections。 #}
-        {% if a.stats %}
-        <div style="margin-top:14px;">
+        {% if a.tags %}
+        {# 標籤用表格排，不用 span：Outlook 以 Word 引擎渲染，span 的
+           margin 與 padding 會被忽略，標籤會黏成「CDK4MCL1CD276」一串
+           （2026-09-30 使用者在 Outlook 裡實際看到）。每個標籤一格、
+           中間夾一個空白格，是在 Outlook 裡唯一可靠的排法。 #}
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:8px;"><tr>
+          {% for t in a.tags %}
+          <td style="border:1px solid #d8c9a8; background:#fbf8f0; padding:2px 7px; font-family:{{ SANS }}; font-size:11px; color:#8a5a1a; white-space:nowrap;">{{ t }}</td>
+          {% if not loop.last %}<td width="5" style="width:5px;">&nbsp;</td>{% endif %}
+          {% endfor %}
+        </tr></table>
+        {% endif %}
+        <div style="font-family:{{ SANS }}; font-size:11px; letter-spacing:2px; font-weight:700; color:{{ a.tag_color }};">{{ a.primary_tag }}{% if a.is_taiwan %} · 台灣{% endif %}{% if a.source_count > 1 %} · {{ a.source_count }} 家在報{% endif %}</div>
+        <div style="margin-top:6px;">
+          <a href="{{ a.source_url or a.url }}" style="font-family:{{ SANS }}; font-size:{{ '20px' if full else '17px' }}; font-weight:700; line-height:1.45; color:#1a1a1a; text-decoration:none;">{{ a.headline }}</a>
+        </div>
+        {% if full and a.subhead %}<div style="font-family:{{ SANS }}; font-size:13px; line-height:1.7; color:#8a5a1a; margin-top:6px; font-style:italic;">{{ a.subhead }}</div>{% endif %}
+        {% if a.summary %}<div style="font-family:{{ SANS }}; font-size:14px; line-height:1.85; color:#44474a; margin-top:8px;">{{ a.summary }}</div>{% endif %}
+        {% if full and a.stats %}
+        <div style="margin-top:10px;">
           {% for stat in a.stats %}
           <span style="font-family:{{ SANS }}; font-size:12px; color:#8a5a1a; margin-right:16px;"><b style="font-size:15px;">{{ stat.value }}</b> {{ stat.label }}</span>
           {% endfor %}
         </div>
         {% endif %}
-        {% for section in a.sections %}
-        {% if section.heading %}<div style="font-family:{{ SANS }}; font-size:13px; font-weight:700; letter-spacing:1px; color:#c9a54a; margin-top:16px;">{{ section.heading }}</div>{% endif %}
-        {% for para in section.paragraphs %}
-        <div style="font-family:{{ SANS }}; font-size:14px; line-height:1.9; color:#44474a; margin-top:10px;">{{ para }}</div>
-        {% endfor %}
-        {% endfor %}
-        {% if a.delta_insight %}
-        <div style="border-left:3px solid #c9a54a; padding:10px 14px; margin-top:16px; background:#f6f2e8;">
-          {% if a.delta_insight.heading %}<div style="font-family:{{ SANS }}; font-size:12px; font-weight:700; color:#8a5a1a;">{{ a.delta_insight.heading }}</div>{% endif %}
+        {% if full and a.delta_insight %}
+        <div style="border-left:3px solid #c9a54a; padding:8px 14px; margin-top:12px; background:#f6f2e8;">
+          <div style="font-family:{{ SANS }}; font-size:12px; font-weight:700; color:#8a5a1a;">對行動基因的意義</div>
           {% for para in a.delta_insight.paragraphs %}
-          <div style="font-family:{{ SANS }}; font-size:13px; line-height:1.8; color:#44474a; margin-top:6px;">{{ para }}</div>
+          <div style="font-family:{{ SANS }}; font-size:13px; line-height:1.8; color:#44474a; margin-top:5px;">{{ para }}</div>
           {% endfor %}
         </div>
         {% endif %}
-        {% if a.needs_review %}
-        <div style="font-family:{{ SANS }}; font-size:12px; line-height:1.8; color:#8a8578; margin-top:12px;">本則自動自檢信心偏低，僅提供摘要，完整內容請以原文出處為準。</div>
-        {% endif %}
-        <div style="margin-top:14px;">
-          <a href="{{ a.url }}" style="font-family:{{ SANS }}; font-size:12px; letter-spacing:1px; color:#1a1a1a; text-decoration:none; border-bottom:1px solid #c9a54a; padding-bottom:2px;">閱讀全文 →</a>
+        <div style="margin-top:10px;">
           {% if a.source_url %}
-          <span style="font-family:Arial; font-size:12px; color:#c9c3b6;">&nbsp;&nbsp;</span>
-          <a href="{{ a.source_url }}" target="_blank" style="font-family:{{ SANS }}; font-size:12px; color:#8a8578; text-decoration:none;">原文出處</a>
+          <a href="{{ a.source_url }}" target="_blank" style="font-family:{{ SANS }}; font-size:12px; letter-spacing:1px; color:#1a1a1a; text-decoration:none; border-bottom:1px solid #c9a54a; padding-bottom:2px;">{{ a.source_name }}｜看原文 →</a>
           {% endif %}
-          {# needs_review 的警示只留摘要下方那句完整說明，連結旁不再重複
-             （2026-09-18 使用者反映同一資訊出現兩次）。 #}
         </div>
       </td>
     </tr></table>
   </td></tr>
-  <tr><td style="padding:28px 44px;"><div style="border-top:1px solid #ece7dc; height:1px; line-height:1px;">&nbsp;</div></td></tr>
-  {% endfor %}
+  <tr><td style="padding:20px 44px;"><div style="border-top:1px solid #ece7dc; height:1px; line-height:1px;">&nbsp;</div></td></tr>
+  {% endmacro %}
 
-  <!-- 主編觀察（2026-09-18 刊物改版） -->
-  {% if tldr and tldr.get('editorial') %}
+  {% if primary_articles %}
+  <tr><td style="padding:8px 44px 0;">
+    <div style="font-family:{{ SANS }}; font-size:13px; letter-spacing:4px; color:#1a1a1a; font-weight:700; border-bottom:2px solid #1a1a1a; padding-bottom:6px;">主要報導</div>
+    <div style="font-family:{{ SANS }}; font-size:11px; color:#8a8578; margin-top:6px;">重點關注廠商與指定來源</div>
+  </td></tr>
+  <tr><td style="height:14px; line-height:14px;">&nbsp;</td></tr>
+  {% for a in primary_articles %}{{ item_block(a, loop.index, true) }}{% endfor %}
+  {% endif %}
+
+  {% if extra_articles %}
+  <tr><td style="padding:8px 44px 0;">
+    <div style="font-family:{{ SANS }}; font-size:13px; letter-spacing:4px; color:#1a1a1a; font-weight:700; border-bottom:2px solid #1a1a1a; padding-bottom:6px;">額外報導</div>
+    <div style="font-family:{{ SANS }}; font-size:11px; color:#8a8578; margin-top:6px;">其他來源的相關動態</div>
+  </td></tr>
+  <tr><td style="height:14px; line-height:14px;">&nbsp;</td></tr>
+  {% for a in extra_articles %}{{ item_block(a, loop.index + (primary_articles | length), false) }}{% endfor %}
+  {% endif %}
+
+  <!-- 主編觀察（2026-09-30 改版）：四位分析師分面向，2x2 橫排。
+       Outlook 用 Word 引擎渲染，不執行 JavaScript、也幾乎不吃媒體查詢，
+       所以橫排只能用表格；窄視窗的客戶端會自動把兩欄堆疊起來。
+       舊期數沒有 editorial_sections，退回顯示原本的段落式主編觀察。 -->
+  {% if editorial_sections %}
+  <tr><td style="padding:8px 44px 0;">
+    <div style="font-family:{{ SANS }}; font-size:13px; letter-spacing:4px; color:#1a1a1a; font-weight:700; border-bottom:2px solid #1a1a1a; padding-bottom:6px;">主編觀察</div>
+    <div style="font-family:{{ SANS }}; font-size:11px; color:#8a8578; margin-top:6px;">四個面向各自怎麼看今天這批報導</div>
+  </td></tr>
+  <tr><td style="padding:16px 44px 0;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+      {% for row in editorial_sections | batch(2) %}
+      <tr>
+        {% for sec in row %}
+        <td width="50%" valign="top" style="width:50%; padding:0 10px 18px 0;">
+          <div style="background:#f6f2e8; border-left:3px solid #c9a54a; padding:12px 14px;">
+            <div style="font-family:{{ SANS }}; font-size:11px; font-weight:700; letter-spacing:2px; color:#8a5a1a;">{{ sec.dimension }}觀察</div>
+            {% if sec.lead %}
+            <div style="font-family:{{ SANS }}; font-size:15px; font-weight:700; line-height:1.55; color:#1a1a1a; margin-top:8px;">{{ sec.lead }}</div>
+            {% endif %}
+            <div style="font-family:{{ SANS }}; font-size:13px; line-height:1.85; color:#44474a; margin-top:8px;">{{ sec.body_html or sec.text }}</div>
+            {% if sec.question %}
+            <div style="font-family:{{ SANS }}; font-size:12px; line-height:1.7; color:#8a5a1a; margin-top:10px; padding-top:8px; border-top:1px dashed #d8c9a8;">{{ sec.question }}</div>
+            {% endif %}
+          </div>
+        </td>
+        {% endfor %}
+        {% if row | length == 1 %}<td width="50%" style="width:50%;">&nbsp;</td>{% endif %}
+      </tr>
+      {% endfor %}
+    </table>
+    <div style="font-family:{{ SANS }}; font-size:12px; line-height:1.8; color:#8a8578; margin-top:4px;">本欄由 AI 依本期報導綜合而成，屬推測性觀點，請以各篇原文為準。</div>
+  </td></tr>
+  <tr><td style="padding:24px 44px;"><div style="border-top:1px solid #ece7dc; height:1px; line-height:1px;">&nbsp;</div></td></tr>
+  {% elif tldr and tldr.get('editorial') %}
   <tr><td style="padding:0 44px;">
     <div style="font-family:{{ SANS }}; font-size:12px; letter-spacing:4px; color:#8a8578;">主編觀察</div>
     {% for para in tldr.editorial %}

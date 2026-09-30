@@ -536,3 +536,56 @@ speed_report:
   max_quotes: 2
   # 速報的聲量門檻：媒體加社群合計幾則以上才列（2026-09-23 使用者定）。
   min_mentions: 2
+
+# EDM 的來源分區與標籤（2026-09-30 加，NBDMD 需求）。
+#
+# 讀者要的是「先看我們關注的 26 家廠商，其他報導另外放」。所以 EDM 分兩區：
+#   主要報導：來源在 NBDMD 給的清單裡，或文章主角是 watchlist 上的廠商
+#   額外報導：其餘來源（我們自己補的產業媒體、預印本）
+#
+# 分區規則刻意用「來源 or 廠商」兩條件的聯集，而不是只看來源：Illumina 的
+# 動態出現在 Fierce Biotech 上時，它仍然是讀者最關心的那一類。
+edm:
+  # NBDMD 原始清單裡抓得到的來源。付費牆三站（GenomeWeb、360Dx、
+  # Precision Medicine Online）尚未接，見上方來源清單的註解。
+  primary_source_ids:
+    - geneonline
+    - geneonline_taiwan
+    - gbimonthly
+    - genetinfo
+    - illumina_investor
+    - pacbio_blog
+    - prnewswire_health
+    - prnewswire_biotech
+  # NBDMD 指定的 26 家重點關注廠商。這份名單同時是廠商標籤的比對依據：
+  # 標籤只在名稱真的出現在標題或內文時才標，不靠模型自己說有。
+  # 每一行的第一個是顯示名稱，後面是同義寫法（英文全稱、縮寫、中文名）。
+  vendor_watchlist:
+    - ["Illumina", "Illumina"]
+    - ["Guardant Health", "Guardant"]
+    - ["Foundation Medicine", "FoundationOne", "Roche"]
+    - ["Thermo Fisher", "Thermo Fisher Scientific", "ThermoFisher"]
+    - ["Natera", "Natera"]
+    - ["Freenome", "Freenome"]
+    - ["Tempus AI", "Tempus"]
+    - ["Grail", "GRAIL", "Galleri"]
+    - ["BillionToOne", "BillionToOne"]
+    - ["PacBio", "Pacific Biosciences", "PacBio"]
+    - ["Element Biosciences", "Element Bio"]
+    - ["Quest Diagnostics", "Quest Diagnostics"]
+    - ["LabCorp", "Labcorp"]
+    - ["Myriad Genetics", "Myriad"]
+    - ["Caris Life Sciences", "Caris"]
+    - ["Qiagen", "QIAGEN"]
+    - ["Centogene", "Centogene"]
+    - ["Sophia Genetics", "SOPHiA GENETICS", "SOPHiA"]
+    - ["Oxford Nanopore", "Oxford Nanopore Technologies", "ONT"]
+    - ["華大基因", "BGI", "BGI Genomics"]
+    - ["Gene Solutions", "Gene Solutions"]
+    - ["Macrogen", "Macrogen"]
+    - ["基龍米克斯", "Genomics BioSci", "基龍米克斯"]
+    - ["慧智基因", "Sofiva", "慧智基因"]
+    - ["訊聯基因", "Sofiva Genomics", "訊聯"]
+    - ["金萬林", "Golden Biotech", "金萬林"]
+  # 一則最多顯示幾個標籤。超過就截斷，標籤是為了快速抓重點，不是清單。
+  max_tags: 5

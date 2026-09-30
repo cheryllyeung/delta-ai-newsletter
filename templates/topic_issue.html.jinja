@@ -44,6 +44,15 @@
   .links { margin: 14px 0 0; }
   .links .read { font-size: 12px; letter-spacing: 1px; color: #1a1a1a; text-decoration: none; border-bottom: 1px solid #c9a54a; padding-bottom: 2px; }
   .links .src { font-size: 12px; color: #8a8578; text-decoration: none; margin-left: 14px; }
+  /* 觀察專欄（2026-09-30）：四塊橫排，欄數跟著視窗寬度自己調整。
+     minmax 的下限訂 16rem，低於這個寬度文字會被壓得太窄。 */
+  .editorial-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); gap: 0.9rem; margin-top: 0.9rem; }
+  .editorial-card { background: #f6f2e8; border-left: 3px solid #c9a54a; padding: 0.8rem 1rem; }
+  .editorial-dim { margin: 0; font-size: 0.78rem; font-weight: 700; letter-spacing: 0.05em; color: #8a5a1a; }
+  .editorial-lead { margin: 0.5rem 0 0; font-size: 0.98rem; font-weight: 700; line-height: 1.55; color: #1a1a1a; }
+  .editorial-text { margin: 0.5rem 0 0; font-size: 0.86rem; line-height: 1.8; color: #44474a; }
+  .editorial-q { margin: 0.6rem 0 0; padding-top: 0.5rem; border-top: 1px dashed #d8c9a8; font-size: 0.8rem; line-height: 1.65; color: #8a5a1a; }
+
   .thin-rule { border-top: 1px solid #ece7dc; margin: 28px 44px; height: 1px; }
 
   .foot { padding: 0 44px 36px; font-size: 12px; line-height: 1.9; color: #8a8578; }
@@ -111,7 +120,25 @@
   <div class="thin-rule"></div>
   {% endfor %}
 
-  {% if tldr and tldr.get('editorial') %}
+  {# 觀察專欄（2026-09-30 改版）：四位分析師分面向，自適應網格排版
+     （寬螢幕四欄、中等兩欄、手機單欄）。舊期數退回段落式主編觀察。 #}
+  {% if tldr and tldr.get('editorial_sections') %}
+  <div class="tldr" style="padding-bottom: 8px;">
+    <p class="tldr-title">主編觀察</p>
+    <div class="editorial-grid">
+      {% for sec in tldr.editorial_sections %}
+      <div class="editorial-card">
+        <p class="editorial-dim">{{ sec.dimension }}觀察</p>
+        {% if sec.lead %}<p class="editorial-lead">{{ sec.lead }}</p>{% endif %}
+        <p class="editorial-text">{{ sec.body or sec.text }}</p>
+        {% if sec.question %}<p class="editorial-q">{{ sec.question }}</p>{% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    <p class="tldr-item" style="margin-top: 14px; color: #8a8578;">本欄由 AI 依本期報導綜合而成，屬推測性觀點，請以各篇原文為準。</p>
+  </div>
+  <div class="thin-rule"></div>
+  {% elif tldr and tldr.get('editorial') %}
   <div class="tldr" style="padding-bottom: 8px;">
     <p class="tldr-title">主編觀察</p>
     {% for para in tldr.editorial %}

@@ -91,6 +91,8 @@ REASON_LABELS: dict[str, str] = {
     "title_only": "只抓得到標題，沒有內文可以寫，只能當『有人在討論』的訊號",
     "published_out_of_window": "發布時間太舊，跟不上這期的時效",
     "not_ai_related": "讀完發現內容其實跟 AI 沒什麼關係",
+    "roundup_digest": "這是每日彙整型專欄（一篇塞多則不相關的新聞），沒有單一主軸可寫",
+    "paywalled_excerpt": "只抓到付費牆前的試閱段，真正的內容在牆後面，只能當訊號",
     # Gate 2：話題層
     "no_substantive_article": "底下沒有一篇內容夠完整的文章，硬寫只會湊字數",
     "not_scored": "還沒被 18 個業務面向評分完，這次還排不上候選",
@@ -149,11 +151,33 @@ def signal_articles(article_rows: list) -> list:
 # ---------------------------------------------------------------- Gate 1：文章
 
 
+def is_roundup(title: str, config: dict) -> bool:
+    """標題看起來是彙整型專欄（一篇塞七八則不相關的新聞）。
+
+    這種文章違反整條 pipeline 的前提「一篇文章＝一則新聞」：寫作端不管怎麼
+    重寫都湊不出一個主軸，聚類也會因為不同天的彙整格式雷同而黏成一團。
+    2026-09-23 的實際事故見 config/topics.yaml 的 roundup_title_markers。
+    """
+    markers = config["gates"]["article"].get("roundup_title_markers") or []
+    low = (title or "").lower()
+    return any(m.lower() in low for m in markers)
+
+
+def is_paywalled_excerpt(content: str, config: dict) -> bool:
+    """內文只是付費牆前的試閱段。長度輕鬆過門檻，但真正的內容在牆後面，
+    拿它當寫作素材，模型只能從標題硬掰（9/23 那篇「羅氏減肥藥」就是這樣，
+    素材裡根本沒有那一則）。"""
+    markers = config["gates"]["article"].get("paywall_markers") or []
+    text = content or ""
+    return any(m in text for m in markers)
+
+
 def check_article_intake(
     *,
     content: str,
     published_at: datetime,
     config: dict,
+    title: str = "",
     now: datetime | None = None,
 ) -> GateResult:
     """Gate 1a：入池當下就能判斷的確定性檢查，不花 LLM 額度。
@@ -180,7 +204,14 @@ def check_article_intake(
             "published_out_of_window", age_days=round(age_days, 1), threshold=max_age
         )
 
+    # 彙整型專欄先判：它的內文通常很長，長度門檻攔不住（2026-09-23 加）。
+    if title and is_roundup(title, config):
+        return GateResult.reject("roundup_digest", title=title[:80])
+
     text = (content or "").strip()
+    if is_paywalled_excerpt(text, config):
+        return GateResult.signal_only("paywalled_excerpt", chars=len(text))
+
     min_chars = gate_cfg["min_content_chars"]
     if len(text) < min_chars:
         return GateResult.signal_only("title_only", chars=len(text), threshold=min_chars)

@@ -370,7 +370,8 @@ def main() -> None:
                 continue
             inserted_count += 1
             gate = gates.check_article_intake(
-                content=item.summary, published_at=item.published_at, config=config
+                content=item.summary, published_at=item.published_at, config=config,
+                title=item.title,
             )
             save_article_gate(conn, article_id, gate)
             gate_counts[gate.status] += 1

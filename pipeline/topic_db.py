@@ -721,9 +721,28 @@ def get_unscored_topics(
     return conn.execute(query, params).fetchall()
 
 
-def get_articles_for_topic(conn: sqlite3.Connection, topic_id: int) -> list[sqlite3.Row]:
+def get_articles_for_topic(
+    conn: sqlite3.Connection, topic_id: int, include_excluded: bool = False
+) -> list[sqlite3.Row]:
+    """一個話題底下的文章。預設排除收錄判定擋掉的（excluded）。
+
+    2026-09-30 加這道過濾：打分與熱度都走這支，而 excluded 的文章原本
+    照樣被餵進打分的摘要、照樣算進「幾家在報」。實際後果是「用不該收錄
+    的內容決定這個話題值不值得寫」，池裡有 785 篇 excluded 掛在話題上。
+    signal_only 保留（那正是熱度訊號的用途），只擋 excluded。
+
+    要看完整成員（例如選題帳頁面要如實顯示話題底下有什麼）傳
+    include_excluded=True。
+    """
+    if include_excluded:
+        return conn.execute(
+            "SELECT * FROM articles WHERE topic_id = ? ORDER BY published_at DESC", (topic_id,)
+        ).fetchall()
     return conn.execute(
-        "SELECT * FROM articles WHERE topic_id = ? ORDER BY published_at DESC", (topic_id,)
+        """SELECT * FROM articles WHERE topic_id = ?
+             AND (gate_status IS NULL OR gate_status != 'excluded')
+           ORDER BY published_at DESC""",
+        (topic_id,),
     ).fetchall()
 
 

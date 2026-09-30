@@ -95,10 +95,22 @@ def retrieve_sources_for_topic(
 
     topic_articles = get_articles_for_topic(conn, topic_row["id"])
     own = gates.substantive(topic_articles)
+    # 2026-09-30 加的保險：彙整型專欄與付費牆試閱段即使漏過了入池判定
+    # （例如判定加進來之前就已經在池裡的舊資料），也不准當寫作素材。
+    # 這是 EDM 內容與原文不符的兩個已知病根：彙整型沒有單一主軸可寫，
+    # 付費牆只有試閱段、標題提到的事素材裡根本沒有。
+    filtered = [
+        row for row in own
+        if not gates.is_roundup(row["title"], config)
+        and not gates.is_paywalled_excerpt(row["content"], config)
+    ]
+    dropped = len(own) - len(filtered)
+    own = filtered
     query_text = _query_text_for_topic(topic_row, topic_articles)
 
     detail = {
         "own_articles": len(own),
+        "dropped_unusable": dropped,
         "signal_only_articles": len(gates.signal_articles(topic_articles)),
         "supplements": 0,
         "single_source": gates.is_single_source(topic_articles),

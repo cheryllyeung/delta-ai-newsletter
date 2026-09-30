@@ -72,6 +72,7 @@ def main() -> None:
             content=row["content"],
             published_at=datetime.fromisoformat(row["published_at"]),
             config=config,
+            title=row["title"],
             # 判定基準時間用文章的抓取時間，不是「現在」。用現在的話，這支
             # 每晚一天跑，就會多把一批文章判成「超出窗口」，同一篇文章的
             # 判定結果會隨著執行時間漂移，那樣的帳沒有意義。
