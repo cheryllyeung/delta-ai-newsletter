@@ -108,7 +108,7 @@ def _build_faq(conn, config, issue, published_count: int) -> list[dict]:
         },
         {
             "q": "目前涵蓋哪些廠商？",
-            "lead": f"我們盯你們給的那 {len(names)} 家：{'、'.join(names)}。目前的狀況是：",
+            "lead": f"名單上目前 {len(names)} 家：{'、'.join(names)}。",
             "points": [
                 "名單上的廠商，不論動態出現在哪個來源都會被抓進主要報導",
                 f"近 30 天實際出現在報導裡的有 {b(f'{seen} 家')}",
