@@ -30,13 +30,18 @@ def _intro_to_html(text: str) -> str:
     sans = "'Microsoft JhengHei', 'PingFang TC', Arial, sans-serif"
 
     def emphasise(para: str) -> str:
-        """開場白裡用 **包住** 的部分標成深藍粗體，跟日報裡的重點同一個顏色
-        （2026-09-30 加）。純文字檔比較好改，但重點還是要看得出來。"""
-        return re.sub(
+        """開場白的兩種重點標記（2026-09-30 加）：
+
+        **包住** 是深藍粗體，跟日報裡的重點同一個顏色，用在數字與最想被
+        看到的那幾句；__包住__ 是黑色粗體，用在小標與分項名稱。純文字檔
+        好改，但重點還是要看得出來。
+        """
+        para = re.sub(
             r"\*\*(.+?)\*\*",
             r'<span style="color:#1f4e79; font-weight:700;">\1</span>',
             para,
         )
+        return re.sub(r"__(.+?)__", r'<span style="font-weight:700;">\1</span>', para)
 
     blocks = "".join(
         f'<div style="font-family:{sans}; font-size:14px; line-height:1.9; '
