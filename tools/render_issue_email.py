@@ -77,9 +77,9 @@ def _build_faq(conn, config, issue, published_count: int) -> list[dict]:
             seen += 1
 
     def hl(text: str) -> str:
-        """重點加底線（2026-09-30 使用者選底線，不要底色）。用 <u> 標籤而不是
-        text-decoration：Outlook 以 Word 引擎渲染，<u> 一定吃，CSS 不一定。"""
-        return f"<u>{text}</u>"
+        """重點用藍字（2026-09-30 定案，先後試過淡金底色與底線都不好看）。
+        深藍配米白紙底不刺眼，也跟信裡其他的金與墨色分得開。"""
+        return f'<span style="color:#1f4e79; font-weight:700;">{text}</span>'
 
     def b(text: str) -> str:
         return f"<b>{text}</b>"
