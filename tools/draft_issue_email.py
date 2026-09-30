@@ -9,6 +9,7 @@
 用法：
     python -m tools.draft_issue_email               # 最新一期
     python -m tools.draft_issue_email --issue-id 1
+    python -m tools.draft_issue_email --issue-id 1 --attach "docs/0930 日報編輯脈絡 v1.pdf"
 """
 from __future__ import annotations
 
@@ -45,6 +46,12 @@ def main() -> None:
     parser.add_argument("--issue-id", type=int, default=None)
     parser.add_argument("--intro", type=str, default=None, help="信首文字檔（純文字，空行分段），會排在 EDM 上方")
     parser.add_argument("--to", type=str, default=None, help="預填收件人；仍只開草稿不自動寄送")
+    parser.add_argument(
+        "--attach",
+        action="append",
+        default=None,
+        help="附件路徑，可重複給。第一次寄給 NBDMD 時用來附上「日報編輯脈絡」PDF",
+    )
     args = parser.parse_args()
 
     # 先渲染（重用既有工具，確保跟預覽看到的完全相同）
@@ -84,6 +91,13 @@ def main() -> None:
     if args.to:
         mail.To = args.to
     mail.HTMLBody = html
+    for path in args.attach or []:
+        attachment = Path(path)
+        if not attachment.exists():
+            print(f"[draft_issue_email] 附件不存在，跳過：{attachment}")
+            continue
+        mail.Attachments.Add(str(attachment.resolve()))
+        print(f"[draft_issue_email] 已附上：{attachment.name}")
     mail.Display()  # 打開草稿視窗，不寄送（送出由使用者自己按）
     print("[draft_issue_email] Outlook 草稿已打開，確認後自行按傳送。")
 

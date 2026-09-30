@@ -177,41 +177,10 @@ Sans、金色點綴、大號裝飾序號）跟網頁的摘要頁/全文頁一致
   <tr><td style="padding:28px 44px;"><div style="border-top:1px solid #ece7dc; height:1px; line-height:1px;">&nbsp;</div></td></tr>
   {% endif %}
 
-  <!-- 編輯邏輯說明（2026-09-30 加）。第一次寄給 NBDMD 時附上，讓收件人
-       知道「焦點」與「主編觀察」是怎麼挑、怎麼寫的，不然這兩塊看起來像
-       憑感覺下的結論。往後幾期可在 config/topics.yaml 把 edm.method_note
-       關掉。 -->
-  {% if method_note %}
-  <tr><td style="padding:0 44px 28px;">
-    <div style="border:1px solid #d8c9a8; background:#f6f2e8; padding:16px 18px;">
-      <div style="font-family:{{ SANS }}; font-size:12px; letter-spacing:2px; font-weight:700; color:#8a5a1a;">關於這份日報怎麼編</div>
-      <div style="font-family:{{ SANS }}; font-size:13px; line-height:1.85; color:#44474a; margin-top:10px;">
-        <b>選題</b>：每天抓取指定來源與 26 家關注廠商的動態，先過品質關卡
-        （新聞彙總、付費牆片段、內容過短的一律不收），再依「多少家在報同一
-        件事、是否涉及關注廠商與檢測市場、對決策的影響」排序。當天合格報導
-        少於 5 則就不出刊，寧缺勿湊。
-      </div>
-      <div style="font-family:{{ SANS }}; font-size:13px; line-height:1.85; color:#44474a; margin-top:10px;">
-        <b>焦點</b>：報頭那一句，從當期報導裡點名最重要的一到兩則，判斷依據
-        與上面的排序相同。它只是指路，不是結論。
-      </div>
-      <div style="font-family:{{ SANS }}; font-size:13px; line-height:1.85; color:#44474a; margin-top:10px;">
-        <b>主編觀察</b>：市場、技術、法規、臨床四個面向各一塊，寫的是把當天
-        這批放在一起才看得到的東西——幾則指向同一件事、彼此矛盾、或共用一個
-        還沒被驗證的前提。這一欄不重述上面的報導，屬於判斷與推測，提到的每個
-        數字都必須來自當期原文。
-      </div>
-      <div style="font-family:{{ SANS }}; font-size:13px; line-height:1.85; color:#44474a; margin-top:10px;">
-        <b>分區與標籤</b>：主要報導是指定來源或主角為關注廠商的動態，其餘進
-        額外報導。每則的 # 標籤是廠商、產品或技術名稱，一律回原文比對過才
-        顯示；面向標示（市場／技術／臨床／法規）與上面導讀的分區是同一套。
-      </div>
-      <div style="font-family:{{ SANS }}; font-size:12px; line-height:1.8; color:#8a8578; margin-top:12px;">
-        內容取捨與寫法都還在調整，覺得哪裡該改、哪些來源該加，直接回信告訴我們。
-      </div>
-    </div>
-  </td></tr>
-  {% endif %}
+  {# 編輯邏輯原本在這裡做成一整框（2026-09-30 加，同日改掉）：把選題、
+     焦點、主編觀察的作法整段寫在信裡，讀起來像把內部 SOP 夾進刊物，
+     而且用「我們」向收件人自我說明，防衛感重。改成隨信附一份 PDF
+     說明脈絡，信裡只在信尾提一行，見 docs/日報編輯脈絡.md。 #}
 
   <!-- 信尾 -->
   <tr><td style="padding:0 44px 36px;">
@@ -219,7 +188,8 @@ Sans、金色點綴、大號裝飾序號）跟網頁的摘要頁/全文頁一致
        伺服器位址，網頁版自己內部用就好。 #}
     <div style="font-family:{{ SANS }}; font-size:12px; line-height:1.9; color:#8a8578;">
       摘要與導讀由 AI 生成並經自動自檢，每則均附原文出處，請以原文為準。
-      僅供台達內部參考，請勿外流。
+      僅供台達內部參考，請勿外流。{% if method_note %}<br>
+      來源範圍、選題依據與主編觀察的寫法，見附件「日報編輯脈絡」。{% endif %}
     </div>
   </td></tr>
 
