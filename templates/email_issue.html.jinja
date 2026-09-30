@@ -67,20 +67,22 @@ Sans、金色點綴、大號裝飾序號）跟網頁的摘要頁/全文頁一致
       </td>
       <td valign="top" style="padding-left:8px;">
         {% if a.tags %}
-        {# 標籤用表格排，不用 span：Outlook 以 Word 引擎渲染，span 的
-           margin 與 padding 會被忽略，標籤會黏成「CDK4MCL1CD276」一串
-           （2026-09-30 使用者在 Outlook 裡實際看到）。每個標籤一格、
-           中間夾一個空白格，是在 Outlook 裡唯一可靠的排法。 #}
-        <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:8px;"><tr>
-          {% for t in a.tags %}
-          <td style="border:1px solid #d8c9a8; background:#fbf8f0; padding:2px 7px; font-family:{{ SANS }}; font-size:11px; color:#8a5a1a; white-space:nowrap;">{{ t }}</td>
-          {% if not loop.last %}<td width="5" style="width:5px;">&nbsp;</td>{% endif %}
-          {% endfor %}
-        </tr></table>
+        {# 標籤用 #hashtag 純文字（2026-09-30 使用者選的寫法）。先前用框線
+           的版本在 Outlook 裡壞掉：Outlook 以 Word 引擎渲染，會丟掉 span 的
+           margin 與 padding，標籤黏成「CDK4MCL1CD276」一串。純文字不依賴
+           盒模型，中間用不斷行空白撐開，任何客戶端都不會黏。 #}
+        <div style="font-family:{{ SANS }}; font-size:11px; color:#8a5a1a; line-height:1.8; margin-bottom:6px;">{% for t in a.tags %}#{{ t }}{% if not loop.last %}&nbsp;&nbsp;&nbsp;{% endif %}{% endfor %}</div>
         {% endif %}
-        <div style="font-family:{{ SANS }}; font-size:11px; letter-spacing:2px; font-weight:700; color:{{ a.tag_color }};">{{ a.primary_tag }}{% if a.is_taiwan %} · 台灣{% endif %}{% if a.source_count > 1 %} · {{ a.source_count }} 家在報{% endif %}</div>
+        {# 類別標示不上色（2026-09-30）：原本每個類別一個色碼，法規與給付
+           是紫色、臨床應用是酒紅，沒有說明的情況下讀者只會問「紫色是什麼
+           意思」。類別名稱本身已經寫清楚了，顏色反而是雜訊。 #}
+        <div style="font-family:{{ SANS }}; font-size:11px; letter-spacing:2px; font-weight:700; color:#8a8578;">{{ a.primary_tag }}{% if a.is_taiwan %} · 台灣{% endif %}{% if a.source_count > 1 %} · {{ a.source_count }} 家在報{% endif %}</div>
         <div style="margin-top:6px;">
-          <a href="{{ a.source_url or a.url }}" style="font-family:{{ SANS }}; font-size:{{ '20px' if full else '17px' }}; font-weight:700; line-height:1.45; color:#1a1a1a; text-decoration:none;">{{ a.headline }}</a>
+          {# 顏色寫在連結裡面的 span，不只寫在 <a> 上：Outlook 會把點過的
+             連結套上 Word 的「已瀏覽超連結」樣式，蓋掉 <a> 自己的 color，
+             標題就變紫色（2026-09-30 使用者問「有些紫色是什麼意思」）。
+             子元素的 color 不會被蓋，所以兩邊都寫。 #}
+          <a href="{{ a.source_url or a.url }}" style="font-family:{{ SANS }}; font-size:{{ '20px' if full else '17px' }}; font-weight:700; line-height:1.45; color:#1a1a1a; text-decoration:none;"><span style="color:#1a1a1a; text-decoration:none;">{{ a.headline }}</span></a>
         </div>
         {% if full and a.subhead %}<div style="font-family:{{ SANS }}; font-size:13px; line-height:1.7; color:#8a5a1a; margin-top:6px; font-style:italic;">{{ a.subhead }}</div>{% endif %}
         {% if a.summary %}<div style="font-family:{{ SANS }}; font-size:14px; line-height:1.85; color:#44474a; margin-top:8px;">{{ a.summary }}</div>{% endif %}
@@ -101,7 +103,7 @@ Sans、金色點綴、大號裝飾序號）跟網頁的摘要頁/全文頁一致
         {% endif %}
         <div style="margin-top:10px;">
           {% if a.source_url %}
-          <a href="{{ a.source_url }}" target="_blank" style="font-family:{{ SANS }}; font-size:12px; letter-spacing:1px; color:#1a1a1a; text-decoration:none; border-bottom:1px solid #c9a54a; padding-bottom:2px;">{{ a.source_name }}｜看原文 →</a>
+          <a href="{{ a.source_url }}" target="_blank" style="font-family:{{ SANS }}; font-size:12px; letter-spacing:1px; color:#1a1a1a; text-decoration:none; border-bottom:1px solid #c9a54a; padding-bottom:2px;"><span style="color:#1a1a1a; text-decoration:none;">{{ a.source_name }}｜看原文 →</span></a>
           {% endif %}
         </div>
       </td>
@@ -135,7 +137,7 @@ Sans、金色點綴、大號裝飾序號）跟網頁的摘要頁/全文頁一致
   {% if editorial_sections %}
   <tr><td style="padding:8px 44px 0;">
     <div style="font-family:{{ SANS }}; font-size:13px; letter-spacing:4px; color:#1a1a1a; font-weight:700; border-bottom:2px solid #1a1a1a; padding-bottom:6px;">主編觀察</div>
-    <div style="font-family:{{ SANS }}; font-size:11px; color:#8a8578; margin-top:6px;">四個面向各自怎麼看今天這批報導</div>
+    <div style="font-family:{{ SANS }}; font-size:11px; color:#8a8578; margin-top:6px;">從市場、技術、法規、臨床四大面向追蹤</div>
   </td></tr>
   <tr><td style="padding:16px 44px 0;">
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
@@ -159,7 +161,8 @@ Sans、金色點綴、大號裝飾序號）跟網頁的摘要頁/全文頁一致
       </tr>
       {% endfor %}
     </table>
-    <div style="font-family:{{ SANS }}; font-size:12px; line-height:1.8; color:#8a8578; margin-top:4px;">本欄由 AI 依本期報導綜合而成，屬推測性觀點，請以各篇原文為準。</div>
+    {# 這裡原本還有一行「本欄由 AI 依本期報導綜合而成」，2026-09-30 拿掉：
+       信尾已經講過同一件事，重複一次只是佔位。 #}
   </td></tr>
   <tr><td style="padding:24px 44px;"><div style="border-top:1px solid #ece7dc; height:1px; line-height:1px;">&nbsp;</div></td></tr>
   {% elif tldr and tldr.get('editorial') %}
