@@ -63,5 +63,13 @@ Write-Log "--- render/draft email ---"
     ForEach-Object { Add-Content -Path $log -Value $_ -Encoding utf8 }
 Write-Log "email 步驟結束，exit code $LASTEXITCODE"
 
+# 步驟四：出刊前檢查（2026-10-05 加）。測試階段維持人手寄送，所以這一步
+# 不擋流程，只把該看的幾行寫進 log：版面區塊、內網位址、導讀與標題是否一致、
+# 摘要是否重述標題、強度用詞有無原文依據、主編觀察的數字能不能回溯。
+Write-Log "--- preflight ---"
+& python -X utf8 -u -m tools.preflight_issue 2>&1 |
+    ForEach-Object { Add-Content -Path $log -Value $_ -Encoding utf8 }
+Write-Log "preflight 結束，exit code $LASTEXITCODE"
+
 Write-Log "=== 完成 ==="
 exit $composeCode
