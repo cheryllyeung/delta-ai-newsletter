@@ -579,13 +579,12 @@ sources:
     weight: 0.8
   - id: vendor_sophia_genetics
     name: "Sophia Genetics（官方）"
-    # 2026-10-05：靜態列表頁上最新只到 6 月初（新內容靠 JS 載入），
-    # 而 ?post_type=news 的 feed 有 8 月的，所以走 feed。
-    type: rss
+    # 2026-10-05：靜態列表頁最新只到 6 月初（新內容靠 JS），預設 feed 停在
+    # 2023 年。WordPress 的 news 類型介面拿得到 8 月的全文（實測 54,083 字）。
+    type: wp_json
     tier: vertical
-    url: "https://www.sophiagenetics.com/feed/?post_type=news"
+    api_url: "https://www.sophiagenetics.com/wp-json/wp/v2/news"
     weight: 0.8
-    fetch_fulltext: true
   - id: vendor_oxford_nanopore
     name: "Oxford Nanopore（官方）"
     type: scrape
@@ -615,11 +614,11 @@ sources:
   # 預設的 /feed/ 只有舊內容（Sophia 的預設 feed 停在 2023 年就是這樣）。
   - id: vendor_caris
     name: "Caris Life Sciences（官方）"
-    type: rss
+    # feed 也能用，但 WordPress 介面直接給全文（8,654 字），少一次抓取
+    type: wp_json
     tier: vertical
-    url: "https://www.carislifesciences.com/feed/?post_type=press_release"
+    api_url: "https://www.carislifesciences.com/wp-json/wp/v2/press_release"
     weight: 0.8
-    fetch_fulltext: true
   - id: vendor_freenome
     name: "Freenome（官方）"
     type: rss

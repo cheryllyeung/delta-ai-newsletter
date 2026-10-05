@@ -144,6 +144,20 @@ def _fetch_source_items(source: dict, fetch_cfg: dict) -> list[RawItem]:
             item.extra.setdefault("source_weight", source["weight"])
         return items
 
+    # WordPress 的 JSON 介面（2026-10-05 加）：預設 feed 常年久失修、
+    # 列表頁又靠 JS 載入時，這條路直接拿得到全文，見 ingestion/wp_json_source.py。
+    if source_type == "wp_json":
+        from ingestion.wp_json_source import fetch_wp_json_items
+
+        return fetch_wp_json_items(
+            source_id=source["id"],
+            source_name=source["name"],
+            weight=source["weight"],
+            api_url=source["api_url"],
+            days_back=fetch_cfg["days_back"],
+            max_items=fetch_cfg["max_items_per_source"],
+        )
+
     if source_type == "scrape":
         return fetch_scraped_items(
             source_id=source["id"],
