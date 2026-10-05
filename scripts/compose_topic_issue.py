@@ -385,11 +385,18 @@ def main() -> None:
     # 續留窗口內每天重新參選，靠熱度的時間衰減自然降權；過了窗口就不再進
     # 候選，等於自然過期。
     if args.cadence == "daily":
-        carry_days = (
-            args.carry_over_days
-            if args.carry_over_days is not None
-            else config["selection"]["daily"].get("carry_over_days", 0)
-        )
+        # 2026-10-05 改成按星期決定窗口（使用者定的）：週一那期收週六、週日
+        # 與週一，其他天只收當天。原本固定往回看 7 天，週一出刊時會把整週的
+        # 積壓一次倒進同一期；只看當天又會讓週末兩天的內容永遠不出現。
+        # 代價是落選的話題不再有好幾天的續留機會，過了窗口就自然過期。
+        issue_day = date.fromisoformat(args.date)
+        weekend_rollup = config["selection"]["daily"].get("monday_covers_weekend", True)
+        if args.carry_over_days is not None:
+            carry_days = args.carry_over_days
+        elif weekend_rollup and issue_day.weekday() == 0:
+            carry_days = 2
+        else:
+            carry_days = config["selection"]["daily"].get("carry_over_days", 0)
         range_start = (date.fromisoformat(args.date) - timedelta(days=carry_days)).isoformat()
         date_range = (range_start, args.date)
     else:

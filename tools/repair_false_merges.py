@@ -77,6 +77,9 @@ def _pick_anchor(llm, members: list, generated_rows: list) -> object:
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--dry-run", action="store_true")
+    # 只修一個話題（2026-10-05 加）：全池掃要對每個多文章話題做 LLM 判定，
+    # 出刊前不適合跑。實務上常常是「某一篇被併錯了，拆它就好」。
+    parser.add_argument("--topic-id", type=int, default=None, help="只檢查這一個話題")
     args = parser.parse_args()
 
     config = yaml.safe_load(CONFIG_PATH.read_text(encoding="utf-8"))
@@ -85,12 +88,21 @@ def main() -> None:
     vector_cfg = config["vector_store"]
     qdrant = None if args.dry_run else vector_store.get_client(vector_cfg["path"])
 
-    multi_topics = conn.execute(
-        """SELECT topic_id, COUNT(*) c FROM articles
-           WHERE topic_id IS NOT NULL AND discarded_at IS NULL
-           GROUP BY topic_id HAVING c > 1"""
-    ).fetchall()
-    print(f"[repair_false_merges] 多文章話題 {len(multi_topics)} 個，逐一檢查...")
+    if args.topic_id:
+        multi_topics = conn.execute(
+            """SELECT topic_id, COUNT(*) c FROM articles
+               WHERE topic_id = ? AND discarded_at IS NULL
+               GROUP BY topic_id""",
+            (args.topic_id,),
+        ).fetchall()
+        print(f"[repair_false_merges] 只檢查話題 {args.topic_id}")
+    else:
+        multi_topics = conn.execute(
+            """SELECT topic_id, COUNT(*) c FROM articles
+               WHERE topic_id IS NOT NULL AND discarded_at IS NULL
+               GROUP BY topic_id HAVING c > 1"""
+        ).fetchall()
+        print(f"[repair_false_merges] 多文章話題 {len(multi_topics)} 個，逐一檢查...")
 
     topics_touched = 0
     articles_split = 0
