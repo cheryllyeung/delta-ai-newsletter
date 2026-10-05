@@ -571,17 +571,20 @@ sources:
     link_pattern: '/press\-releases/[\w%-]+'
     base_url: "https://grail.com"
     weight: 0.8
-  - id: vendor_thermo_fisher
-    name: "Thermo Fisher（官方）"
+  # 2026-10-05 暫停：它的發布頁沒有結構化日期欄位，爬蟲抓不到真實日期就預設成
+  # 當天，結果整個檔案庫 40 篇都標成今天，會把候選池灌滿過期內容。要恢復得先
+  # 從列表頁取每篇旁邊的日期，而不是從文章頁找。
+  # - id: vendor_thermo_fisher
+  # name: "Thermo Fisher（官方）"
     # 2026-10-05：發布頁是 ASP.NET 的 postback，靜態 HTML 裡沒有文章連結，
     # 這是今天試過 26 家之後唯一真的需要瀏覽器的來源（render: true）。
-    type: scrape
-    tier: vertical
-    list_url: "https://newsroom.thermofisher.com/newsroom/press-releases/default.aspx"
-    link_pattern: '/press\-release\-details/20\d\d/[\w%-]+'
-    base_url: "https://newsroom.thermofisher.com"
-    render: true
-    weight: 0.8
+  # type: scrape
+  # tier: vertical
+  # list_url: "https://newsroom.thermofisher.com/newsroom/press-releases/default.aspx"
+  # link_pattern: '/press\-release\-details/20\d\d/[\w%-]+'
+  # base_url: "https://newsroom.thermofisher.com"
+  # render: true
+  # weight: 0.8
   - id: vendor_quest
     name: "Quest Diagnostics（官方）"
     # 2026-10-05：新聞室是靜態 HTML，文章網址帶日期前綴（/2026-10-01-...），
@@ -722,7 +725,6 @@ edm:
     - vendor_centogene
     - vendor_quest
     - vendor_element_biosciences
-    - vendor_thermo_fisher
     - geneonline
     - geneonline_taiwan
     - gbimonthly
