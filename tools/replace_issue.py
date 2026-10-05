@@ -59,6 +59,17 @@ def main() -> None:
         return
 
     out.write_text(json.dumps(backup, ensure_ascii=False, indent=2), encoding="utf-8")
+    # 參照 issues(id) 的有四處，刪之前都要先解開，不然外鍵會擋下來
+    # （2026-10-05 實測 selection_trace 有 27 列、topics 的兩個欄位也指著它）。
+    # selection_trace 的 issue_id 允許 NULL，所以改成 NULL 保留選題紀錄；
+    # topics 的欄位清空等於「這個話題沒出刊過」，重新選題時才會再被考慮。
+    conn.execute("UPDATE selection_trace SET issue_id = NULL WHERE issue_id = ?", (args.issue_id,))
+    conn.execute(
+        "UPDATE topics SET published_issue_id = NULL WHERE published_issue_id = ?", (args.issue_id,)
+    )
+    conn.execute(
+        "UPDATE topics SET weekly_issue_id = NULL WHERE weekly_issue_id = ?", (args.issue_id,)
+    )
     conn.execute("DELETE FROM generated_topics WHERE issue_id = ?", (args.issue_id,))
     conn.execute("DELETE FROM issues WHERE id = ?", (args.issue_id,))
     conn.commit()
