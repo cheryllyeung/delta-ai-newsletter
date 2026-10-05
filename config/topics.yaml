@@ -308,7 +308,9 @@ selection:
     # 只收當天。週一的窗口由程式按星期算（compose_topic_issue.py），下面
     # 這個 carry_over_days 只在非週一時生效。
     monday_covers_weekend: true
-    carry_over_days: 0
+    # 非週一收「當天＋前一天」。排程在早上 07:00 跑，當天幾乎還沒有新聞，
+    # 實際內容來自前一天（第 11 期掛 9/30，八則全是 9/29 發布的）。
+    carry_over_days: 1
     # 2026-09-18 隨 15 則版面重訂（上限加總要 >= 15 才有遞補空間；順手
     # 修掉原本 warning/flash 重複鍵的問題，YAML 後者蓋前者，之前實際生效
     # 的是 [0,1]）。數字是版面比例的起始值，跑幾刊後依實際分布再調。

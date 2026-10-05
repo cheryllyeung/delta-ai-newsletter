@@ -1,4 +1,4 @@
-# 基因檢測日報每日自動出刊（工作排程器 DeltaGenomics-DailyIssue 呼叫，07:00）。
+﻿# 基因檢測日報每日自動出刊（工作排程器 DeltaGenomics-DailyIssue 呼叫，07:00）。
 #
 # 流程：確保 genomics 專用 Neo4j（bolt 7688）活著 -> ingest 含建圖 ->
 # 出前一天的日報（含 TLDR）-> 渲染 EDM 並嘗試打開 Outlook 草稿（等使用者
@@ -12,7 +12,10 @@
 #   Register-ScheduledTask -TaskName "DeltaGenomics-DailyIssue" -Trigger $t -Action $a -Settings $s
 
 param(
-    [string]$IssueDate = (Get-Date).AddDays(-1).ToString("yyyy-MM-dd"),
+    # 2026-10-05 從「前一天」改成當天：出刊節奏改成週一那期涵蓋週六日一，
+    # 期別日期要跟出刊日一致，涵蓋範圍由 compose 按星期算（週一往回 2 天，
+    # 其他天往回 1 天）。補刊時仍可用 -IssueDate 指定。
+    [string]$IssueDate = (Get-Date).ToString("yyyy-MM-dd"),
     [int]$Concurrency = 8
 )
 
