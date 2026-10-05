@@ -67,8 +67,10 @@ Sans、金色點綴、大號裝飾序號）跟網頁的摘要頁/全文頁一致
   <tr><td style="padding:0 44px;">
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
       <td width="46" valign="top" style="width:46px;">
-        <a name="item{{ "%02d"|format(loop_index) }}"></a>
-        <div style="font-family:{{ SANS }}; font-size:30px; font-weight:900; color:#e4dccb; line-height:1;">{{ "%02d"|format(loop_index) }}</div>
+        {# 錨點包住看得見的序號，而不是放一個空的 <a>（2026-10-05 改）：
+           Outlook 以 Word 引擎渲染，空錨點常被整個丟掉，包著內容的比較容易
+           被保留成書籤。name 與 id 都給，不同客戶端認的不一樣。 #}
+        <div style="font-family:{{ SANS }}; font-size:30px; font-weight:900; color:#e4dccb; line-height:1;"><a name="item{{ "%02d"|format(loop_index) }}" id="item{{ "%02d"|format(loop_index) }}" style="color:#e4dccb; text-decoration:none;">{{ "%02d"|format(loop_index) }}</a></div>
       </td>
       <td valign="top" style="padding-left:8px;">
         {% if a.tags %}
