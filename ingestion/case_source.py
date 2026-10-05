@@ -38,6 +38,17 @@ def _html_to_text(html: str) -> str:
 # 全文抓取用的 UA：有些站對非瀏覽器 UA 直接擋。
 _FULLTEXT_UA = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
 
+# feed 也要用瀏覽器 UA（2026-10-05 查出來的）：Endpoints News 接上之後一則都
+# 沒抓到，實測同一個網址用 "delta-ai-newsletter/0.1" 回 403、用瀏覽器 UA 回
+# 200 且有 24 篇。全文抓取早就為同樣的理由改過 UA，feed 這層漏掉了。
+_FEED_UA = {
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+        "(KHTML, like Gecko) Chrome/129.0 Safari/537.36"
+    ),
+    "Accept": "application/rss+xml, application/xml, text/xml;q=0.9, */*;q=0.8",
+}
+
 
 def _fetch_fulltext(url: str, timeout: int = 20) -> str:
     """照文章連結抓原文正文（genomics-prototype 2026-08-31 加）。
@@ -86,9 +97,7 @@ def fetch_case_study_items(
     url 丟給 feedparser.parse()：那個寫法底層是用 urllib 開連線，不接受
     timeout 參數，遇到回應很慢或掛住的來源會讓整支 pipeline 卡死。
     """
-    response = requests.get(
-        url, timeout=timeout, headers={"User-Agent": "delta-ai-newsletter/0.1"}
-    )
+    response = requests.get(url, timeout=timeout, headers=_FEED_UA)
     response.raise_for_status()
     feed = feedparser.parse(response.content)
     cutoff = datetime.now(timezone.utc) - timedelta(days=days_back)
