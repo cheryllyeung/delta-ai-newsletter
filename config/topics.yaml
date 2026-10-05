@@ -441,10 +441,10 @@ sources:
     tier: vertical
     url: "https://www.medtechdive.com/feeds/news/"
     weight: 0.8
-    # 2026-10-05 關掉全文抓取：feed 只給約 125 字的摘要，而文章頁對任何 UA
-    # 都回 403（實測瀏覽器 UA 一樣擋），每天白試 9 次還是拿不到正文。這個
-    # 來源就當熱度訊號用，要正文得另外接無頭瀏覽器。
-    fetch_fulltext: false
+    # 2026-10-05 先關後開：文章頁對任何 UA 都回 403，因為它認 TLS 指紋而不是
+    # UA。全文抓取改成被擋時自動用模擬瀏覽器指紋的管道重試（見 case_source.py
+    # 的 _get_html），實測三篇都拿到 3,400 到 4,100 字，所以重新開啟。
+    fetch_fulltext: true
   - id: biospace
     name: "BioSpace"
     type: rss
