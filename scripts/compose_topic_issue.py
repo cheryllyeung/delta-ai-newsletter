@@ -460,6 +460,17 @@ def main() -> None:
     if tldr:
         print(f"[compose_topic_issue] TLDR 完成：導讀 {len(tldr.get('items', []))} 條。")
 
+    # 摘要重複檢查（2026-10-05 加）：標題與摘要重疊超過門檻就重寫，
+    # 原本八則平均重疊 54%，最高 84%，讀起來像同一句話說兩次。
+    from pipeline.card_summary import rewrite_duplicative_summaries
+
+    try:
+        changed, kept = rewrite_duplicative_summaries(conn, issue_id, verbose=False)
+        if changed or kept:
+            print(f"[compose] 摘要重複檢查：改寫 {changed} 則，改不動 {kept} 則")
+    except Exception as exc:  # noqa: BLE001 -- 摘要重寫失敗不擋出刊
+        print(f"[compose] 摘要重複檢查失敗，沿用原本摘要：{str(exc)[:70]}")
+
     # 主編觀察（2026-09-30 拆成獨立一支，見 pipeline/issue_editorial.py）：
     # EDM 不再放全文之後，信件的價值集中在選題與觀點，這一段要更長也要
     # 有人設。失敗不擋出刊。

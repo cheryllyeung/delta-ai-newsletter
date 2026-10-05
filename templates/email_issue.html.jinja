@@ -48,7 +48,10 @@ Sans、金色點綴、大號裝飾序號）跟網頁的摘要頁/全文頁一致
     {% for group in tldr_groups %}
     <div style="font-family:{{ SANS }}; font-size:11px; letter-spacing:2px; font-weight:700; color:#c9a54a; margin-top:16px;">{{ group.label }}</div>
     {% for text in group.entries %}
-    <div style="font-family:{{ SANS }}; font-size:13px; line-height:1.8; color:#44474a; margin-top:5px; padding-left:14px; text-indent:-14px;">— {{ text }}</div>
+    {# 導讀行連到下方對應報導的錨點（2026-10-05 加）。Outlook 以 Word 引擎
+       渲染，內部錨點不一定跳得動，所以連結樣式刻意跟純文字一致：跳得動
+       就是加分，跳不動也看不出壞掉。錨點編號取每行開頭的兩位數序號。 #}
+    <div style="font-family:{{ SANS }}; font-size:13px; line-height:1.8; color:#44474a; margin-top:5px; padding-left:14px; text-indent:-14px;">— <a href="#item{{ text[:2] }}" style="color:#44474a; text-decoration:none;"><span style="color:#44474a; text-decoration:none;">{{ text }}</span></a></div>
     {% endfor %}
     {% endfor %}
   </td></tr>
@@ -64,6 +67,7 @@ Sans、金色點綴、大號裝飾序號）跟網頁的摘要頁/全文頁一致
   <tr><td style="padding:0 44px;">
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
       <td width="46" valign="top" style="width:46px;">
+        <a name="item{{ "%02d"|format(loop_index) }}"></a>
         <div style="font-family:{{ SANS }}; font-size:30px; font-weight:900; color:#e4dccb; line-height:1;">{{ "%02d"|format(loop_index) }}</div>
       </td>
       <td valign="top" style="padding-left:8px;">
