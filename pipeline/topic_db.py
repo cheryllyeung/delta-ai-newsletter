@@ -715,7 +715,13 @@ def get_unscored_topics(
     if date_range is not None:
         query += """ AND EXISTS (
                SELECT 1 FROM articles a
+               -- 2026-10-05：日期窗口要排除被收錄判定擋掉的文章，也排除已丟棄的。
+               -- 實際後果是一篇 10/02 被判「與基因檢測無關」的 podcast 把整個話題
+               -- 拉進 10/01-10/05 的候選池，而寫出來的內容來自同話題 9/18 那篇，
+               -- 讀者在今天的日報裡看到一則標著 9 月 18 日的報導。
                WHERE a.topic_id = t.id AND date(a.published_at) BETWEEN ? AND ?
+                 AND a.discarded_at IS NULL
+                 AND (a.gate_status IS NULL OR a.gate_status != 'excluded')
              )"""
         params = date_range
     return conn.execute(query, params).fetchall()
@@ -779,7 +785,13 @@ def get_available_topics(
     if date_range is not None:
         query += """ AND EXISTS (
                SELECT 1 FROM articles a
+               -- 2026-10-05：日期窗口要排除被收錄判定擋掉的文章，也排除已丟棄的。
+               -- 實際後果是一篇 10/02 被判「與基因檢測無關」的 podcast 把整個話題
+               -- 拉進 10/01-10/05 的候選池，而寫出來的內容來自同話題 9/18 那篇，
+               -- 讀者在今天的日報裡看到一則標著 9 月 18 日的報導。
                WHERE a.topic_id = topics.id AND date(a.published_at) BETWEEN ? AND ?
+                 AND a.discarded_at IS NULL
+                 AND (a.gate_status IS NULL OR a.gate_status != 'excluded')
              )"""
         params = date_range
     return conn.execute(query, params).fetchall()

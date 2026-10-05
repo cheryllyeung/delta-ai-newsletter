@@ -82,6 +82,52 @@ def _digits(text: str) -> set[str]:
     return {m.group(0).replace(",", "").rstrip("%") for m in _NUMBER.finditer(text or "")}
 
 
+# 數量單位。比數字時要連單位一起換算，不然「30 億化合物」對不上原文的
+# "three billion compounds"（2026-10-05 誤報過），「3,300 萬美元」也對不上 "$33M"。
+_UNITS = [
+    ("兆", 1e12), ("億", 1e8), ("百萬", 1e6), ("萬", 1e4), ("千", 1e3),
+    ("trillion", 1e12), ("billion", 1e9), ("million", 1e6), ("thousand", 1e3),
+    ("bn", 1e9), ("mn", 1e6), ("m ", 1e6), ("k ", 1e3),
+]
+_NUM_UNIT = re.compile(r"(\d[\d,]*(?:\.\d+)?)\s*(" + "|".join(re.escape(u) for u, _ in _UNITS) + r")?", re.I)
+
+
+# 英文數詞也要讀：原文常寫 "over three billion compounds"，裡面沒有阿拉伯數字，
+# 只比數字會以為我們的「30 億」沒有依據（2026-10-05 誤報過）。
+_WORD_NUM = {
+    "one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7,
+    "eight": 8, "nine": 9, "ten": 10, "eleven": 11, "twelve": 12, "fifteen": 15,
+    "twenty": 20, "thirty": 30, "forty": 40, "fifty": 50, "hundred": 100,
+}
+_WORD_UNIT = re.compile(
+    r"\b(" + "|".join(_WORD_NUM) + r")\s+(trillion|billion|million|thousand)\b", re.I
+)
+_WORD_MULT = {"trillion": 1e12, "billion": 1e9, "million": 1e6, "thousand": 1e3}
+
+
+def _values(text: str) -> set[float]:
+    """文字裡的數量值，單位換算後的實際大小。"""
+    out: set[float] = set()
+    mult = {u.strip().lower(): m for u, m in _UNITS}
+    for m in _NUM_UNIT.finditer(text or ""):
+        try:
+            value = float(m.group(1).replace(",", ""))
+        except ValueError:
+            continue
+        out.add(value)
+        unit = (m.group(2) or "").strip().lower()
+        if unit:
+            out.add(value * mult.get(unit, 1.0))
+    for m in _WORD_UNIT.finditer(text or ""):
+        out.add(_WORD_NUM[m.group(1).lower()] * _WORD_MULT[m.group(2).lower()])
+    return out
+
+
+# 否定語境裡的強度詞不算違規：「研究團隊沒有聲稱這是唯一或最大的突破」是在
+# 收斂而不是誇大（2026-10-05 誤報過）。
+_NEGATION = re.compile(r"(沒有|不是|並非|未|無法|不可|非)[^。」]{0,12}$")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--issue-id", type=int, default=None)
@@ -154,9 +200,13 @@ def main() -> None:
     )
     flagged = []
     for word, markers in _STRENGTH.items():
+        if any(m.lower() in pool.lower() for m in markers):
+            continue
         for r in rows:
             blob = json.dumps(json.loads(r["generated_json"]), ensure_ascii=False)
-            if word in blob and not any(m.lower() in pool.lower() for m in markers):
+            hits = [m for m in re.finditer(re.escape(word), blob)
+                    if not _NEGATION.search(blob[max(0, m.start() - 14):m.start()])]
+            if hits:
                 flagged.append(f"{word}（原文找不到對應說法）")
                 break
     rep.add("WARN" if flagged else "OK", "強度用詞有原文依據",
@@ -165,6 +215,12 @@ def main() -> None:
     # 6. 主編觀察的數字要來自當期原文
     tldr = json.loads(issue["tldr_json"]) if issue["tldr_json"] else {}
     pool_digits = _digits(pool)
+    pool_values = _values(pool)
+
+    def _traceable_value(value: float, theirs: set[float]) -> bool:
+        """值對得上原文嗎。容忍千分之一誤差，處理四捨五入（200 Mbp 對 2 億鹼基對）。"""
+        return any(other and abs(value - other) <= abs(other) * 0.001 for other in theirs)
+
     def _traceable(num: str) -> bool:
         """這個數字在原文裡找不找得到。中文的萬與億要換算過再比：原文寫
         $33M，我們寫 3,300 萬美元，字面不同但是同一個數（2026-10-05 誤報過）。"""
@@ -174,19 +230,30 @@ def main() -> None:
             value = float(num)
         except ValueError:
             return True
-        # 1e-2 / 1e2 是「萬」與「million」的差（3,300 萬 = 33 M），
-        # 1e-4 / 1e4 是「萬」與個位，1e-8 / 1e8 是「億」，1e3 / 1e6 給 K 與 M。
-        for scale in (1e-2, 1e2, 1e4, 1e8, 1e-4, 1e-8, 1e3, 1e6):
-            scaled = value * scale
-            if scaled.is_integer() and str(int(scaled)) in pool_digits:
-                return True
+        # 單位換算後比值：我們寫 30 億，原文寫 three billion，值相同。
+        # 容忍千分之一的誤差，處理四捨五入（200 Mbp 對 2 億鹼基對）。
+        for mine in _values(f"{num}") | {value}:
+            for theirs in pool_values:
+                if theirs and abs(mine - theirs) <= abs(theirs) * 0.001:
+                    return True
         return False
 
     unknown = []
     for sec in tldr.get("editorial_sections") or []:
         for key in ("lead", "body", "question"):
-            for num in _digits(sec.get(key) or ""):
-                if len(num) > 1 and not _traceable(num):
+            blob = sec.get(key) or ""
+            # 連著後面的單位一起看：單獨抓「30」會丟掉「億」，就對不上原文的
+            # three billion（2026-10-05 誤報過）。
+            ours = _values(blob)
+            for num in _digits(blob):
+                if len(num) <= 1:
+                    continue
+                try:
+                    bare = float(num)
+                except ValueError:
+                    continue
+                scaled = {v for v in ours if v == bare or (bare and v % bare == 0)}
+                if not any(_traceable_value(v, pool_values) for v in scaled | {bare}) and not _traceable(num):
                     unknown.append(f"{sec.get('dimension')}:{num}")
     rep.add("WARN" if unknown else "OK", "主編觀察數字可回溯",
             "；".join(unknown) if unknown else "每個數字都在原文找得到")
