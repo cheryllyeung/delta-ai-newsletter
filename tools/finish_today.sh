@@ -23,6 +23,9 @@ done
 say "抓取完成"
 grep -E "本次新增|收錄判定" "runs/ingest_${ISSUE_DATE}c.log" | tail -2 | tee -a "$LOG"
 
+say "零、擋掉日期不可信的文章（Thermo 的檔案庫整批標成當天）"
+python -X utf8 -u -m tools.exclude_unreliable_dates --sources vendor_thermo_fisher --wait 180 >> "$LOG" 2>&1 || say "擋除失敗，繼續（選題時請留意 Thermo 的日期）"
+
 say "一、備份並刪掉第 ${ISSUE_ID} 期"
 python -X utf8 -u -m tools.replace_issue --issue-id "$ISSUE_ID" >> "$LOG" 2>&1 || { say "備份刪除失敗，停住"; exit 1; }
 
