@@ -14,6 +14,7 @@ import requests
 from bs4 import BeautifulSoup
 
 from ingestion.base import RawItem
+from ingestion.http_fetch import get_bytes, get_text
 
 
 def _entry_html(entry: dict) -> str:
@@ -50,33 +51,6 @@ _FEED_UA = {
 }
 
 
-def _get_html(url: str, timeout: int) -> str:
-    """取回頁面 HTML。普通請求被擋時改用模擬瀏覽器指紋的管道再試一次。
-
-    2026-10-05 加這條退路：MedTech Dive 的文章頁對任何 User-Agent 都回 403，
-    因為它認的是 TLS 握手的指紋而不是 UA。curl_cffi 模擬 Chrome 的指紋之後
-    同樣的網址回 200、正文 3,400 到 4,100 字（實測三篇）。卡在這一關的正是
-    Abbott 推出 Freenome 大腸癌檢測那種我們最想要的廠商動態。
-
-    只在第一條路失敗時才走第二條，正常來源不受影響。
-    """
-    try:
-        response = requests.get(url, headers=_FULLTEXT_UA, timeout=timeout)
-        if response.status_code == 200:
-            return response.text
-    except Exception:  # noqa: BLE001 -- 換下一條路
-        pass
-    try:
-        from curl_cffi import requests as cffi_requests
-
-        alt = cffi_requests.get(url, impersonate="chrome", timeout=timeout + 10)
-        if alt.status_code == 200:
-            return alt.text
-    except Exception:  # noqa: BLE001 -- 兩條都不行就沿用 feed 摘要
-        pass
-    return ""
-
-
 def _fetch_fulltext(url: str, timeout: int = 20) -> str:
     """照文章連結抓原文正文（genomics-prototype 2026-08-31 加）。
 
@@ -85,7 +59,7 @@ def _fetch_fulltext(url: str, timeout: int = 20) -> str:
     寫作素材。開了 fetch_fulltext 的來源會在摘要太短時走這條路補全文。
     抽取用簡單的啟發式（article/main 標籤，去掉導覽頁尾），抓不到或
     失敗就回空字串、沿用 feed 摘要，單篇失敗不影響整批。"""
-    html = _get_html(url, timeout)
+    html = get_text(url, timeout)
     if not html:
         return ""
     try:
@@ -125,9 +99,10 @@ def fetch_case_study_items(
     url 丟給 feedparser.parse()：那個寫法底層是用 urllib 開連線，不接受
     timeout 參數，遇到回應很慢或掛住的來源會讓整支 pipeline 卡死。
     """
-    response = requests.get(url, timeout=timeout, headers=_FEED_UA)
-    response.raise_for_status()
-    feed = feedparser.parse(response.content)
+    raw = get_bytes(url, timeout)
+    if raw is None:
+        raise requests.HTTPError(f"三種身分都抓不到 feed：{url}")
+    feed = feedparser.parse(raw)
     cutoff = datetime.now(timezone.utc) - timedelta(days=days_back)
 
     items: list[RawItem] = []

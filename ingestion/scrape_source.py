@@ -22,6 +22,7 @@ import requests
 from bs4 import BeautifulSoup
 
 from ingestion.base import RawItem
+from ingestion.http_fetch import get_text
 
 # 2026-10-05 換成完整的瀏覽器 UA：短字串在某些站拿到的頁面跟瀏覽器看到的
 # 不一樣（Element Biosciences 與 Sophia Genetics 實測一篇都挖不到），
@@ -114,9 +115,9 @@ def fetch_scraped_items(
     try:
         html = renderer(list_url) if renderer else ""
         if not html:
-            resp = requests.get(list_url, headers=_UA, timeout=timeout)
-            resp.raise_for_status()
-            html = resp.text
+            html = get_text(list_url, timeout)
+            if not html:
+                raise requests.HTTPError(f"三種身分都抓不到列表頁：{list_url}")
         soup = BeautifulSoup(html, "html.parser")
         # 2026-10-05：先拆掉導覽與頁首頁尾再挖連結。選單裡常有符合樣式的連結，
         # 而取用是照文件順序取前 max_items 篇，結果整批都是選單
@@ -141,12 +142,9 @@ def fetch_scraped_items(
         for url, title in seen_urls:
             art_html = renderer(url) if renderer else ""
             if not art_html:
-                try:
-                    art = requests.get(url, headers=_UA, timeout=timeout)
-                    art.raise_for_status()
-                    art_html = art.text
-                except Exception as exc:  # noqa: BLE001 -- 單篇失敗不影響整批
-                    print(f"[scrape_source]   {source_name} 抓取單篇失敗，跳過：{exc}")
+                art_html = get_text(url, timeout)
+                if not art_html:
+                    print(f"[scrape_source]   {source_name} 三種身分都抓不到這篇，跳過：{url[:70]}")
                     continue
             asoup = BeautifulSoup(art_html, "html.parser")
             published_at = _extract_date(art_html) or datetime.now(timezone.utc)

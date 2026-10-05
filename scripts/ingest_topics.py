@@ -166,8 +166,8 @@ def _fetch_source_items(source: dict, fetch_cfg: dict) -> list[RawItem]:
             list_url=source["list_url"],
             link_pattern=source["link_pattern"],
             base_url=source["base_url"],
-            content_selector=source.get("content_selector",
-            render=source.get("render", False)),
+            content_selector=source.get("content_selector"),
+            render=source.get("render", False),
             days_back=fetch_cfg["days_back"],
             max_items=fetch_cfg["max_items_per_source"],
         )

@@ -430,11 +430,15 @@ sources:
     weight: 0.85
   - id: fierce_biotech
     name: "Fierce Biotech"
-    type: rss
+    # 2026-10-05 從 rss 改成爬網頁：它所有 feed 網址（含官方清單頁列的四個）
+    # 對三種身分都回 403，但 HTML 頁面用模擬 Chrome 指紋讀得到。資料庫顯示
+    # 9/23 之後就沒抓到過任何東西，壞了十二天沒人發現。
+    type: scrape
     tier: core
-    url: "https://www.fiercebiotech.com/rss/xml"
+    list_url: "https://www.fiercebiotech.com/biotech"
+    link_pattern: '/biotech/[\w%-]+'
+    base_url: "https://www.fiercebiotech.com"
     weight: 0.9
-    fetch_fulltext: true
   - id: medtech_dive
     name: "MedTech Dive"
     type: rss
