@@ -23,11 +23,44 @@ from bs4 import BeautifulSoup
 
 from ingestion.base import RawItem
 
-_UA = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
+# 2026-10-05 換成完整的瀏覽器 UA：短字串在某些站拿到的頁面跟瀏覽器看到的
+# 不一樣（Element Biosciences 與 Sophia Genetics 實測一篇都挖不到），
+# case_source.py 也為同樣理由改過。
+_UA = {
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+        "(KHTML, like Gecko) Chrome/129.0 Safari/537.36"
+    ),
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+}
 _DATE_RE = re.compile(r"(20\d{2})[/-](\d{1,2})[/-](\d{1,2})")
 
 
+# 結構化的發布時間欄位，照可信度排序。2026-10-05 加：原本只用正規式掃整頁
+# 的第一個日期，很容易抓到版權年份或指令碼裡的舊日期，整批文章就被當成過期
+# 丟掉（Sophia Genetics 實測樣式命中 20 個連結卻一篇都沒收）。
+_Q = "[\"']"  # 屬性值的引號，單雙引號都要吃
+_META_DATE = [
+    re.compile(rf"<meta[^>]+property={_Q}article:published_time{_Q}[^>]+content={_Q}([^\"']+)", re.I),
+    re.compile(rf"<meta[^>]+name={_Q}(?:pubdate|publishdate|date){_Q}[^>]+content={_Q}([^\"']+)", re.I),
+    re.compile(r'"datePublished"\s*:\s*"([^"]+)"', re.I),
+    re.compile(rf"<time[^>]+datetime={_Q}([^\"']+)", re.I),
+]
+
+
 def _extract_date(html: str) -> datetime | None:
+    for pattern in _META_DATE:
+        m = pattern.search(html)
+        if not m:
+            continue
+        found = _DATE_RE.search(m.group(1))
+        if found:
+            try:
+                return datetime(
+                    int(found.group(1)), int(found.group(2)), int(found.group(3)), tzinfo=timezone.utc
+                )
+            except ValueError:
+                pass
     m = _DATE_RE.search(html)
     if not m:
         return None
@@ -65,6 +98,11 @@ def fetch_scraped_items(
     resp = requests.get(list_url, headers=_UA, timeout=timeout)
     resp.raise_for_status()
     soup = BeautifulSoup(resp.text, "html.parser")
+    # 2026-10-05：先拆掉導覽與頁首頁尾再挖連結。選單裡常有符合樣式的連結，
+    # 而取用是照文件順序取前 max_items 篇，結果整批都是選單
+    # （Myriad 實測抓到「About Myriad Genetics」這種頁面）。
+    for tag in soup(["nav", "header", "footer", "aside", "script", "style"]):
+        tag.decompose()
 
     pat = re.compile(link_pattern)
     seen_urls: list[tuple[str, str]] = []

@@ -524,6 +524,117 @@ sources:
     url: "https://connect.biorxiv.org/biorxiv_xml.php?subject=genomics"
     weight: 0.6
 
+# 名單廠商的官方管道（2026-10-05 加）。
+#
+# 為什麼要加：26 家關注廠商有 9 家從來沒出現過，原因不是沒有新聞，是我們
+# 只接媒體。實測也看到 Abbott 推出 Freenome 大腸癌檢測這種實質動態，唯一
+# 報導它的媒體只給標題、抓不到正文。
+#
+# 以爬列表頁為主（使用者 2026-10-05 決定），每家的列表頁與連結樣式由
+# tools/probe_vendor_pages.py 探測得出，收進來的條件是樣本文章內文抓得到
+# 400 字以上；爬不動但有活著的 feed 的改用 feed，見下面各家的註解。
+  - id: vendor_guardant_health
+    name: "Guardant Health（官方）"
+    # 2026-10-05：newsroom 列的是外部媒體報導，自家發布在 investors 子網域且
+    # 靠 JS 載入，靜態爬蟲抓不到；它的 feed 是當月的（9/25），所以走 feed。
+    type: rss
+    tier: vertical
+    url: "https://www.guardanthealth.com/feed/"
+    weight: 0.8
+    fetch_fulltext: true
+  # 新聞頁沒有靜態連結（內容在羅氏網域、動態生成），只能走它的 rss.xml，
+  # 更新頻率低但聊勝於無（2026-10-05 實測）。
+  - id: vendor_foundation_medicine
+    name: "Foundation Medicine（官方）"
+    type: rss
+    tier: vertical
+    url: "https://www.foundationmedicine.com/rss.xml"
+    weight: 0.8
+    fetch_fulltext: true
+  - id: vendor_tempus_ai
+    name: "Tempus AI（官方）"
+    type: scrape
+    tier: vertical
+    list_url: "https://www.tempus.com/news/"
+    link_pattern: '/news/[\w%-]+'
+    base_url: "https://www.tempus.com"
+    weight: 0.8
+  - id: vendor_grail
+    name: "Grail（官方）"
+    type: scrape
+    tier: vertical
+    list_url: "https://grail.com/news-center/"
+    link_pattern: '/press\-releases/[\w%-]+'
+    base_url: "https://grail.com"
+    weight: 0.8
+  # Element Biosciences：新聞頁整頁靠 JS 生成、靜態爬蟲一篇都挖不到，也沒有
+  # feed（2026-10-05 實測）。要收它得另接無頭瀏覽器，先留著這段註解當紀錄。
+  - id: vendor_myriad_genetics
+    name: "Myriad Genetics（官方）"
+    type: scrape
+    tier: vertical
+    list_url: "https://myriad.com/myriad-genetics-blog/"
+    link_pattern: '/myriad\-genetics\-blog/[\w%-]+'
+    base_url: "https://myriad.com"
+    weight: 0.8
+  - id: vendor_sophia_genetics
+    name: "Sophia Genetics（官方）"
+    # 2026-10-05：靜態列表頁上最新只到 6 月初（新內容靠 JS 載入），
+    # 而 ?post_type=news 的 feed 有 8 月的，所以走 feed。
+    type: rss
+    tier: vertical
+    url: "https://www.sophiagenetics.com/feed/?post_type=news"
+    weight: 0.8
+    fetch_fulltext: true
+  - id: vendor_oxford_nanopore
+    name: "Oxford Nanopore（官方）"
+    type: scrape
+    tier: vertical
+    list_url: "https://nanoporetech.com/news"
+    link_pattern: '/news/[\w%-]+'
+    base_url: "https://nanoporetech.com"
+    weight: 0.8
+  - id: vendor_bgi
+    name: "華大基因（官方）"
+    type: scrape
+    tier: vertical
+    list_url: "https://www.bgi.com/news"
+    link_pattern: '/news/[\w%-]+'
+    base_url: "https://www.bgi.com"
+    weight: 0.8
+  - id: vendor_gene_solutions
+    name: "Gene Solutions（官方）"
+    type: scrape
+    tier: vertical
+    list_url: "https://genesolutions.com/news"
+    link_pattern: '/news/[\w%-]+'
+    base_url: "https://genesolutions.com"
+    weight: 0.8
+  # 下面三家的列表頁爬不動（內文抓不到或整站動態生成），但有在更新的 feed。
+  # Caris 與 Freenome 的新聞放在自訂文章類型下，要用 ?post_type= 指定，
+  # 預設的 /feed/ 只有舊內容（Sophia 的預設 feed 停在 2023 年就是這樣）。
+  - id: vendor_caris
+    name: "Caris Life Sciences（官方）"
+    type: rss
+    tier: vertical
+    url: "https://www.carislifesciences.com/feed/?post_type=press_release"
+    weight: 0.8
+    fetch_fulltext: true
+  - id: vendor_freenome
+    name: "Freenome（官方）"
+    type: rss
+    tier: vertical
+    url: "https://www.freenome.com/feed/?post_type=news"
+    weight: 0.8
+    fetch_fulltext: true
+  - id: vendor_centogene
+    name: "Centogene（官方）"
+    type: rss
+    tier: vertical
+    url: "https://www.centogene.com/feed/"
+    weight: 0.8
+    fetch_fulltext: true
+
 # 速報用的社群來源（2026-09-23 加）。
 #
 # 用途限定：只在「當天品質不足以出一期日報」時，拿來做話題速報
@@ -564,6 +675,19 @@ edm:
   # NBDMD 原始清單裡抓得到的來源。付費牆三站（GenomeWeb、360Dx、
   # Precision Medicine Online）尚未接，見上方來源清單的註解。
   primary_source_ids:
+    # 廠商官方管道（2026-10-05 加）。名單廠商自己發的消息，本來就該進主要報導。
+    - vendor_guardant_health
+    - vendor_foundation_medicine
+    - vendor_tempus_ai
+    - vendor_grail
+    - vendor_myriad_genetics
+    - vendor_sophia_genetics
+    - vendor_oxford_nanopore
+    - vendor_bgi
+    - vendor_gene_solutions
+    - vendor_caris
+    - vendor_freenome
+    - vendor_centogene
     - geneonline
     - geneonline_taiwan
     - gbimonthly
