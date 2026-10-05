@@ -30,12 +30,40 @@ ROOT = Path(__file__).resolve().parent.parent
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--issue-id", type=int, required=True)
+    parser.add_argument("--issue-id", type=int, default=None)
+    parser.add_argument("--restore", default=None, help="從備份 JSON 還原整期")
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
 
     config = yaml.safe_load((ROOT / "config" / "topics.yaml").read_text(encoding="utf-8"))
     conn = get_connection(str(ROOT / "data" / Path(config["database"]["path"]).name))
+
+    # 還原模式（2026-10-05 加）：重做之後若決定沿用舊版，要能把備份放回去，
+    # 不然資料庫與實際寄出的內容會不一致，之後查帳對不上。
+    if args.restore:
+        data = json.loads(Path(args.restore).read_text(encoding="utf-8"))
+        issue_row = data["issue"]
+        cols = ", ".join(issue_row)
+        marks = ", ".join("?" for _ in issue_row)
+        conn.execute(f"INSERT INTO issues ({cols}) VALUES ({marks})", list(issue_row.values()))
+        for row in data["generated_topics"]:
+            cols = ", ".join(row)
+            marks = ", ".join("?" for _ in row)
+            conn.execute(
+                f"INSERT INTO generated_topics ({cols}) VALUES ({marks})", list(row.values())
+            )
+            conn.execute(
+                "UPDATE topics SET published_issue_id = ? WHERE id = ?",
+                (issue_row["id"], row["topic_id"]),
+            )
+        conn.commit()
+        print(f"[replace_issue] 已還原第 {issue_row['id']} 期（{issue_row['issue_date']}），"
+              f"{len(data['generated_topics'])} 則。")
+        return
+
+    if args.issue_id is None:
+        print("[replace_issue] 要給 --issue-id 或 --restore")
+        sys.exit(1)
     issue = conn.execute("SELECT * FROM issues WHERE id = ?", (args.issue_id,)).fetchone()
     if issue is None:
         print(f"[replace_issue] 找不到第 {args.issue_id} 期。")
