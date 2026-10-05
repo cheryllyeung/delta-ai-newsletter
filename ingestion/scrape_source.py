@@ -71,7 +71,11 @@ def _extract_date(html: str) -> datetime | None:
 
 
 def _extract_body(soup: BeautifulSoup, content_selector: str | None) -> str:
-    for tag in soup(["script", "style", "nav", "header", "footer", "aside", "form"]):
+    # 2026-10-05 不再整個拆掉 <form>：ASP.NET WebForms 會把整個版面包在一個
+    # form 裡，拆掉等於把內容刪光（Thermo Fisher 的發布頁實測只剩 46 字，
+    # 一度誤判成渲染等待不夠）。改成只拆表單控制項。
+    for tag in soup(["script", "style", "nav", "header", "footer", "aside",
+                     "input", "select", "textarea", "button"]):
         tag.decompose()
     node = None
     if content_selector:
@@ -100,68 +104,71 @@ def fetch_scraped_items(
     render=True 的來源用無頭瀏覽器取頁面（見 ingestion/render.py）。只有少數
     站需要（實測只有 Thermo Fisher 的發布頁），所以預設關閉。
     """
-    html = ""
+    # render=True 的來源用同一個瀏覽器處理列表頁與所有文章頁（見
+    # ingestion/render.py：每頁重開一次會逾時，實測正文只剩 46 字）。
+    renderer = None
     if render:
-        from ingestion.render import render_html
+        from ingestion.render import Renderer
 
-        html = render_html(list_url)
-    if not html:
-        resp = requests.get(list_url, headers=_UA, timeout=timeout)
-        resp.raise_for_status()
-        html = resp.text
-    soup = BeautifulSoup(html, "html.parser")
-    # 2026-10-05：先拆掉導覽與頁首頁尾再挖連結。選單裡常有符合樣式的連結，
-    # 而取用是照文件順序取前 max_items 篇，結果整批都是選單
-    # （Myriad 實測抓到「About Myriad Genetics」這種頁面）。
-    for tag in soup(["nav", "header", "footer", "aside", "script", "style"]):
-        tag.decompose()
+        renderer = Renderer().__enter__()
+    try:
+        html = renderer(list_url) if renderer else ""
+        if not html:
+            resp = requests.get(list_url, headers=_UA, timeout=timeout)
+            resp.raise_for_status()
+            html = resp.text
+        soup = BeautifulSoup(html, "html.parser")
+        # 2026-10-05：先拆掉導覽與頁首頁尾再挖連結。選單裡常有符合樣式的連結，
+        # 而取用是照文件順序取前 max_items 篇，結果整批都是選單
+        # （Myriad 實測抓到「About Myriad Genetics」這種頁面）。
+        for tag in soup(["nav", "header", "footer", "aside", "script", "style"]):
+            tag.decompose()
 
-    pat = re.compile(link_pattern)
-    seen_urls: list[tuple[str, str]] = []
-    for a in soup.find_all("a", href=pat):
-        title = a.get_text(strip=True)
-        if len(title) < 10:
-            continue
-        href = a["href"]
-        url = href if href.startswith("http") else base_url.rstrip("/") + "/" + href.lstrip("/")
-        seen_urls.append((url, title))
-    # 去重，保序
-    seen_urls = list(dict.fromkeys(seen_urls))[:max_items]
-
-    cutoff = datetime.now(timezone.utc) - timedelta(days=days_back)
-    items: list[RawItem] = []
-    for url, title in seen_urls:
-        art_html = ""
-        if render:
-            from ingestion.render import render_html
-
-            art_html = render_html(url)
-        if not art_html:
-            try:
-                art = requests.get(url, headers=_UA, timeout=timeout)
-                art.raise_for_status()
-                art_html = art.text
-            except Exception as exc:  # noqa: BLE001 -- 單篇失敗不影響整批
-                print(f"[scrape_source]   {source_name} 抓取單篇失敗，跳過：{exc}")
+        pat = re.compile(link_pattern)
+        seen_urls: list[tuple[str, str]] = []
+        for a in soup.find_all("a", href=pat):
+            title = a.get_text(strip=True)
+            if len(title) < 10:
                 continue
-        asoup = BeautifulSoup(art_html, "html.parser")
-        published_at = _extract_date(art_html) or datetime.now(timezone.utc)
-        if published_at < cutoff:
-            continue
-        body = _extract_body(asoup, content_selector)
-        if not body:
-            continue
-        items.append(
-            RawItem(
-                title=title,
-                url=url,
-                source="scrape",
-                subdomain_id=source_id,
-                published_at=published_at,
-                summary=body,
-                score=weight,
-                extra={"source_name": source_name, "source_weight": weight},
+            href = a["href"]
+            url = href if href.startswith("http") else base_url.rstrip("/") + "/" + href.lstrip("/")
+            seen_urls.append((url, title))
+        # 去重，保序
+        seen_urls = list(dict.fromkeys(seen_urls))[:max_items]
+
+        cutoff = datetime.now(timezone.utc) - timedelta(days=days_back)
+        items: list[RawItem] = []
+        for url, title in seen_urls:
+            art_html = renderer(url) if renderer else ""
+            if not art_html:
+                try:
+                    art = requests.get(url, headers=_UA, timeout=timeout)
+                    art.raise_for_status()
+                    art_html = art.text
+                except Exception as exc:  # noqa: BLE001 -- 單篇失敗不影響整批
+                    print(f"[scrape_source]   {source_name} 抓取單篇失敗，跳過：{exc}")
+                    continue
+            asoup = BeautifulSoup(art_html, "html.parser")
+            published_at = _extract_date(art_html) or datetime.now(timezone.utc)
+            if published_at < cutoff:
+                continue
+            body = _extract_body(asoup, content_selector)
+            if not body:
+                continue
+            items.append(
+                RawItem(
+                    title=title,
+                    url=url,
+                    source="scrape",
+                    subdomain_id=source_id,
+                    published_at=published_at,
+                    summary=body,
+                    score=weight,
+                    extra={"source_name": source_name, "source_weight": weight},
+                )
             )
-        )
-        time.sleep(0.5)  # 對站方客氣一點
+            time.sleep(0.5)  # 對站方客氣一點
+    finally:
+        if renderer is not None:
+            renderer.__exit__(None, None, None)
     return items
