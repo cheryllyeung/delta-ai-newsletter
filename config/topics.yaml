@@ -567,8 +567,37 @@ sources:
     link_pattern: '/press\-releases/[\w%-]+'
     base_url: "https://grail.com"
     weight: 0.8
-  # Element Biosciences：新聞頁整頁靠 JS 生成、靜態爬蟲一篇都挖不到，也沒有
-  # feed（2026-10-05 實測）。要收它得另接無頭瀏覽器，先留著這段註解當紀錄。
+  - id: vendor_thermo_fisher
+    name: "Thermo Fisher（官方）"
+    # 2026-10-05：發布頁是 ASP.NET 的 postback，靜態 HTML 裡沒有文章連結，
+    # 這是今天試過 26 家之後唯一真的需要瀏覽器的來源（render: true）。
+    type: scrape
+    tier: vertical
+    list_url: "https://newsroom.thermofisher.com/newsroom/press-releases/default.aspx"
+    link_pattern: '/press\-release\-details/20\d\d/[\w%-]+'
+    base_url: "https://newsroom.thermofisher.com"
+    render: true
+    weight: 0.8
+  - id: vendor_quest
+    name: "Quest Diagnostics（官方）"
+    # 2026-10-05：新聞室是靜態 HTML，文章網址帶日期前綴（/2026-10-01-...），
+    # 不需要瀏覽器。最新一篇是 Haystack MRD 的臨床數據。
+    type: scrape
+    tier: vertical
+    list_url: "https://newsroom.questdiagnostics.com/"
+    link_pattern: '/20\d\d-\d\d-\d\d-[\w%-]+'
+    base_url: "https://newsroom.questdiagnostics.com"
+    weight: 0.8
+  - id: vendor_element_biosciences
+    name: "Element Biosciences（官方）"
+    # 2026-10-05：先前判斷它需要瀏覽器是錯的，問題在網址。/news 那頁沒有新聞
+    # 列表（連用瀏覽器開也只有一個產品連結），/newsroom 才是，而且靜態就抓得到。
+    type: scrape
+    tier: vertical
+    list_url: "https://www.elementbiosciences.com/newsroom"
+    link_pattern: '/news/[\w-]+'
+    base_url: "https://www.elementbiosciences.com"
+    weight: 0.8
   - id: vendor_myriad_genetics
     name: "Myriad Genetics（官方）"
     type: scrape
@@ -687,6 +716,9 @@ edm:
     - vendor_caris
     - vendor_freenome
     - vendor_centogene
+    - vendor_quest
+    - vendor_element_biosciences
+    - vendor_thermo_fisher
     - geneonline
     - geneonline_taiwan
     - gbimonthly

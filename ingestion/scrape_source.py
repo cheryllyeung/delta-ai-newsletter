@@ -93,11 +93,23 @@ def fetch_scraped_items(
     days_back: int = 30,
     max_items: int = 15,
     timeout: int = 20,
+    render: bool = False,
 ) -> list[RawItem]:
-    """抓列表頁的文章連結，逐篇抓全文，回傳 RawItem 清單。"""
-    resp = requests.get(list_url, headers=_UA, timeout=timeout)
-    resp.raise_for_status()
-    soup = BeautifulSoup(resp.text, "html.parser")
+    """抓列表頁的文章連結，逐篇抓全文，回傳 RawItem 清單。
+
+    render=True 的來源用無頭瀏覽器取頁面（見 ingestion/render.py）。只有少數
+    站需要（實測只有 Thermo Fisher 的發布頁），所以預設關閉。
+    """
+    html = ""
+    if render:
+        from ingestion.render import render_html
+
+        html = render_html(list_url)
+    if not html:
+        resp = requests.get(list_url, headers=_UA, timeout=timeout)
+        resp.raise_for_status()
+        html = resp.text
+    soup = BeautifulSoup(html, "html.parser")
     # 2026-10-05：先拆掉導覽與頁首頁尾再挖連結。選單裡常有符合樣式的連結，
     # 而取用是照文件順序取前 max_items 篇，結果整批都是選單
     # （Myriad 實測抓到「About Myriad Genetics」這種頁面）。
@@ -119,14 +131,21 @@ def fetch_scraped_items(
     cutoff = datetime.now(timezone.utc) - timedelta(days=days_back)
     items: list[RawItem] = []
     for url, title in seen_urls:
-        try:
-            art = requests.get(url, headers=_UA, timeout=timeout)
-            art.raise_for_status()
-        except Exception as exc:  # noqa: BLE001 -- 單篇失敗不影響整批
-            print(f"[scrape_source]   {source_name} 抓取單篇失敗，跳過：{exc}")
-            continue
-        asoup = BeautifulSoup(art.text, "html.parser")
-        published_at = _extract_date(art.text) or datetime.now(timezone.utc)
+        art_html = ""
+        if render:
+            from ingestion.render import render_html
+
+            art_html = render_html(url)
+        if not art_html:
+            try:
+                art = requests.get(url, headers=_UA, timeout=timeout)
+                art.raise_for_status()
+                art_html = art.text
+            except Exception as exc:  # noqa: BLE001 -- 單篇失敗不影響整批
+                print(f"[scrape_source]   {source_name} 抓取單篇失敗，跳過：{exc}")
+                continue
+        asoup = BeautifulSoup(art_html, "html.parser")
+        published_at = _extract_date(art_html) or datetime.now(timezone.utc)
         if published_at < cutoff:
             continue
         body = _extract_body(asoup, content_selector)

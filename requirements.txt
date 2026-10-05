@@ -15,3 +15,6 @@ numpy>=1.26.0
 opencc>=1.1.6
 # 被擋的文章頁改用模擬瀏覽器 TLS 指紋重試（見 ingestion/case_source.py）
 curl_cffi>=0.16
+# 需要 JavaScript 才看得到的少數來源（設定裡 render: true），見 ingestion/render.py
+# 裝完要再跑 python -m playwright install chromium
+playwright>=1.40
