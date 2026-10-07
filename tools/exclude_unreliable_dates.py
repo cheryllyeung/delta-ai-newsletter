@@ -32,8 +32,14 @@ _MONTHS = {
     "january": 1, "february": 2, "march": 3, "april": 4, "may": 5, "june": 6,
     "july": 7, "august": 8, "september": 9, "october": 10, "november": 11, "december": 12,
 }
+# 完整名稱與三字母縮寫都要認（2026-10-07 修）：實測兩種格式都遇到，Tempus 的
+# 頁面在標題下方寫 "Oct 01, 2026"，新聞稿內文寫 "CHICAGO, July 30, 2026"。
+# 只認完整名稱時十篇全部漏掉，看起來像「沒有日期可查」，其實是規則太窄。
+# 另外這一行先前被寫壞過： 被存成實際的退格字元，規則永遠比不到任何東西。
+_MONTH_NAMES = list(_MONTHS) + [name[:3] for name in _MONTHS]
 _DATELINE = re.compile(
-    r"(" + "|".join(_MONTHS) + r")\s+(\d{1,2}),\s+(20\d\d)", re.I
+    r"\b(" + "|".join(_MONTH_NAMES) + r")\.?\s+(\d{1,2}),\s+(20\d\d)",
+    re.I,
 )
 
 

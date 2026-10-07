@@ -42,6 +42,39 @@ def _with_emphasis(sections):
     return out
 
 
+def _feedback_link(config: dict, issue_date: str, num: int, headline: str) -> str:
+    """每則的「回報問題」連結（2026-10-07 加）。
+
+    Outlook 不能放表單（不執行 JavaScript、form 會被剝除），所以用 mailto：
+    點一下就開一封填好期數、則號與問題類型的信，讀者只要留下一項並補一句話。
+    讀者本來幾乎不會主動回信，門檻降低才有機會拿到逐則的回饋。
+
+    主旨與內文都要過 URL 編碼，中文與換行不編碼的話 Outlook 會把連結截斷。
+    """
+    from urllib.parse import quote
+
+    to = config.get("edm", {}).get("feedback_email", "")
+    if not to:
+        return ""
+    subject = f"[日報回饋] {issue_date} 第 {num:02d} 則"
+    body = chr(10).join(
+        [
+            f"則號與標題：{num:02d} {headline}",
+            "",
+            "問題類型（請留下一項，其餘刪掉）：",
+            "  摘要與原文對不上",
+            "  數字或指標有誤",
+            "  標題誤導",
+            "  分類或面向不對",
+            "  其他",
+            "",
+            "具體說明：",
+            "",
+        ]
+    )
+    return f"mailto:{to}?subject={quote(subject)}&body={quote(body)}"
+
+
 def _build_faq(conn, config, issue, published_count: int, watchlist_hits: int) -> list[dict]:
     """信底常見問題（2026-09-30 加）。
 
@@ -245,6 +278,9 @@ def main() -> None:
                 "source_name": src["source_name"] if src else "原文",
                 "source_count": source_count,
                 "published_date": (pub or "")[:10],
+                "feedback_url": _feedback_link(
+                    config, issue["issue_date"], idx, g.get("chosen_headline", "")
+                ),
                 "is_preprint": is_preprint,
                 # 標籤（廠商／產品／技術）與分區都經過原文比對，見
                 # pipeline/edm_tags.py：模型抽的標籤若在原文找不到就丟掉。
