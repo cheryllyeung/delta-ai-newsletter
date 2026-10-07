@@ -103,7 +103,9 @@ Sans、金色點綴、大號裝飾序號）跟網頁的摘要頁/全文頁一致
           {% endfor %}
         </div>
         {% endif %}
-        {% if full and a.delta_insight %}
+        {# 2026-10-07：不再只有「全文模式」的那一則才顯示。使用者指出這一段
+           正是讀者要的，每則都該有，所以條件從 full 改成只看有沒有內容。 #}
+        {% if a.delta_insight %}
         <div style="border-left:3px solid #c9a54a; padding:8px 14px; margin-top:12px; background:#f6f2e8;">
           <div style="font-family:{{ SANS }}; font-size:12px; font-weight:700; color:#8a5a1a;">對行動基因的意義</div>
           {% for para in a.delta_insight.paragraphs %}

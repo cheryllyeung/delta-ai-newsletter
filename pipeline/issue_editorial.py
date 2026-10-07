@@ -75,12 +75,33 @@ def write_issue_editorial(
         tag_text = f"（涉及：{'、'.join(tags)}）" if tags else ""
         lines.append(f"- {g.get('chosen_headline', '')}{tag_text}：{summary}")
 
+    # 當天收錄但沒有入選的素材也一起看（2026-10-07 加）。使用者要的主編觀察是
+    # 「針對全部來源的大趨勢」，而原本只讀刊出的那幾則，看到的是版面而不是當天
+    # 的全貌：今天刊 9 則，收錄的卻有 90 篇以上，九成的訊號沒進到這一欄的視野。
+    # 未入選的只給標題，避免素材量稀釋掉刊出內容的權重。
+    issue_date = conn.execute(
+        "SELECT issue_date FROM issues WHERE id = ?", (issue_id,)
+    ).fetchone()[0]
+    selected_ids = {r["topic_id"] for r in rows}
+    unselected = conn.execute(
+        """SELECT DISTINCT a.title, a.source_name FROM articles a
+           WHERE date(a.published_at) BETWEEN date(?, '-1 day') AND ?
+             AND a.discarded_at IS NULL AND a.gate_status = 'included'
+             AND (a.topic_id IS NULL OR a.topic_id NOT IN (
+                 SELECT topic_id FROM generated_topics WHERE issue_id = ?))
+           ORDER BY a.source_name LIMIT 60""",
+        (issue_date, issue_date, issue_id),
+    ).fetchall()
+    context_lines = [f"- {r['title']}（{r['source_name']}）" for r in unselected if r["title"]]
+
     client = client or get_client()
     system, user = load_prompt_parts(
         "issue_editorial",
         newsletter_name=newsletter_name,
         article_count=str(len(lines)),
         articles_text="\n".join(lines),
+        context_text=chr(10).join(context_lines) if context_lines else "（當天沒有其他收錄素材）",
+        context_count=str(len(context_lines)),
     )
     try:
         response = create_chat_completion(

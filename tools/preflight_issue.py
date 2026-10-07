@@ -258,6 +258,25 @@ def main() -> None:
     rep.add("WARN" if unknown else "OK", "主編觀察數字可回溯",
             "；".join(unknown) if unknown else "每個數字都在原文找得到")
 
+    # 7. 每則都要有「對行動基因的意義」（2026-10-07 加：使用者指出這一段是
+    # 讀者要的，而原本只有洞見型會寫，九則裡有三則缺）。
+    missing_insight = [
+        json.loads(r["generated_json"]).get("chosen_headline", "")[:24]
+        for r in rows
+        if not (json.loads(r["generated_json"]).get("delta_insight") or {}).get("paragraphs")
+    ]
+    rep.add(
+        "FAIL" if missing_insight else "OK",
+        "每則都有對行動基因的意義",
+        f"{len(missing_insight)} 則缺：{missing_insight}" if missing_insight else f"{len(rows)} 則齊全",
+    )
+    shown = raw.count("對行動基因的意義")
+    rep.add(
+        "FAIL" if shown < len(rows) else "OK",
+        "版面上每則都顯示了",
+        f"只顯示 {shown} / {len(rows)} 則" if shown < len(rows) else "齊全",
+    )
+
     # 7. 自檢信心
     low = [
         json.loads(r["generated_json"]).get("chosen_headline", "")[:24]
