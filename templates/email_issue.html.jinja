@@ -61,8 +61,9 @@ Sans、金色點綴、大號裝飾序號）跟網頁的摘要頁/全文頁一致
   <!-- 報導清單（2026-09-30 改版）。
        改版重點：信裡不再放全文。EDM 的定位改成「選出今天值得看的幾則，
        並給出主編觀點」，內容讓讀者點原文去看。每則多了標籤（廠商／產品／
-       技術，經原文比對才顯示，見 pipeline/edm_tags.py），並分成主要報導
-       （NBDMD 清單來源或主角是 26 家 watchlist 廠商）與額外報導兩區。 -->
+       技術，經原文比對才顯示，見 pipeline/edm_tags.py）。
+       2026-10-07 起按面向分區（市場／技術／臨床／法規），預印本另成一區；
+       原本的「主要報導／額外報導」取消，讀者不會去分辨來源是不是指定清單。 -->
   {% macro item_block(a, loop_index, full) %}
   <tr><td style="padding:0 44px;">
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
@@ -129,23 +130,17 @@ Sans、金色點綴、大號裝飾序號）跟網頁的摘要頁/全文頁一致
   <tr><td style="padding:20px 44px;"><div style="border-top:1px solid #ece7dc; height:1px; line-height:1px;">&nbsp;</div></td></tr>
   {% endmacro %}
 
-  {% if primary_articles %}
+  {# 2026-10-07 改成按面向分區（市場／技術／臨床／法規），不再分主要與額外。
+     主管指出讀者不會特別去分辨哪些來自額外來源，而舊排法讓導讀的序號跳成
+     01、02、04、07、09、03，從上往下讀要一直回頭。上下共用同一套分區之後
+     序號自然連續，導讀的跳轉也對得準。 #}
+  {% for section in dimension_sections %}
   <tr><td style="padding:8px 44px 0;">
-    <div style="font-family:{{ SANS }}; font-size:13px; letter-spacing:4px; color:#1a1a1a; font-weight:700; border-bottom:2px solid #1a1a1a; padding-bottom:6px;">主要報導</div>
-    <div style="font-family:{{ SANS }}; font-size:11px; color:#8a8578; margin-top:6px;">指定來源與名單廠商的動態{% if watchlist_hits == 0 %}，今日入選的來自指定來源{% endif %}</div>
+    <div style="font-family:{{ SANS }}; font-size:13px; letter-spacing:4px; color:#1a1a1a; font-weight:700; border-bottom:2px solid #1a1a1a; padding-bottom:6px;">{{ section.label }}</div>
   </td></tr>
   <tr><td style="height:14px; line-height:14px;">&nbsp;</td></tr>
-  {% for a in primary_articles %}{{ item_block(a, a.display_num or loop.index, true) }}{% endfor %}
-  {% endif %}
-
-  {% if extra_articles %}
-  <tr><td style="padding:8px 44px 0;">
-    <div style="font-family:{{ SANS }}; font-size:13px; letter-spacing:4px; color:#1a1a1a; font-weight:700; border-bottom:2px solid #1a1a1a; padding-bottom:6px;">額外報導</div>
-    <div style="font-family:{{ SANS }}; font-size:11px; color:#8a8578; margin-top:6px;">其他來源的相關動態</div>
-  </td></tr>
-  <tr><td style="height:14px; line-height:14px;">&nbsp;</td></tr>
-  {% for a in extra_articles %}{{ item_block(a, a.display_num or (loop.index + (primary_articles | length)), false) }}{% endfor %}
-  {% endif %}
+  {% for a in section.articles %}{{ item_block(a, a.display_num or loop.index, loop.first and section.label == dimension_sections[0].label) }}{% endfor %}
+  {% endfor %}
 
   {# 研究預印本（2026-09-30 加）：與廠商動態分開排，讀者才看得出證據
      等級。選題端另有每期上限（config 的 tier_cap.preprint）。 #}

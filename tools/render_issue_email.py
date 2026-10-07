@@ -138,24 +138,21 @@ def _build_faq(conn, config, issue, published_count: int, watchlist_hits: int) -
         },
         {
             "q": "分類是怎麼分的？",
-            "lead": "分兩層，一層看內容屬於哪個面向，一層看它從哪裡來。",
+            "lead": "每則歸到市場、技術、臨床、法規其中一個面向，上下都照這四類排。",
             "points": [
-                f"{b('面向')}：市場、技術、臨床、法規四類，每則歸一類，"
-                "上面的導讀就照這四類排",
-                f"{b('主要報導')}：指定的 {len(primary_names)} 個來源，"
-                f"{'、'.join(primary_names)}。"
-                "名單上的廠商就算出現在其他地方，也會被放進這一區",
-                f"{b('額外報導')}：另外 {len(other_names)} 個來源，"
-                f"{'、'.join(other_names)}",
+                f"{b('面向分區')}：導讀與下方報導用同一套順序與序號，點導讀會跳到那一則",
+                f"{b('研究預印本另成一區')}：來自 bioRxiv 這類預印本平台，"
+                "尚未經同儕審查，與正式發表分開呈現",
+                f"{b('來源範圍')}：指定的 {len(primary_names)} 個來源加上名單廠商的官方管道，"
+                f"另有 {len(other_names)} 個產業媒體與期刊來源",
             ],
-            "tail": "導讀那幾行直接取下方報導的標題與序號，"
-                    f"{hl('各領域的同仁可以按自己關心的面向')}先看對應的那幾則。",
+            "tail": "",
         },
         {
             "q": "目前涵蓋哪些廠商？",
             "lead": f"名單上這 {len(names)} 家：{'、'.join(names)}。抓的情況分三種：",
             "points": [
-                "不論動態出現在哪個來源，都會被放進主要報導",
+                "名單上的廠商不論動態出現在哪個來源，我們都會收進來",
                 f"近 30 天真的出現在報導裡的有 {b(f'{seen} 家')}",
                 f"其他幾家目前{hl('還抓不到')}，我們正在擴充來源，社群媒體是下一步",
                 f"本期與名單廠商直接相關的有 {b(f'{watchlist_hits} 則')}",
@@ -319,16 +316,47 @@ def main() -> None:
     # 另外設了每期上限（config 的 tier_cap.preprint）。
     preprint_articles = [a for a in articles if a["is_preprint"]]
     rest = [a for a in articles if not a["is_preprint"]]
-    primary_articles = [a for a in rest if a["is_primary"]]
-    extra_articles = [a for a in rest if not a["is_primary"]]
-    # 導讀的編號必須是版面上實際印的序號（主要報導先排），不是資料庫順序。
-    ordered = primary_articles + extra_articles + preprint_articles
+
+    # 2026-10-07 改成按面向分區，不再分主要與額外：主管指出讀者不會特別去
+    # 分辨哪些來自額外來源，而原本「主要／額外」的排法讓導讀的序號跳成
+    # 01、02、04、07、09、03，從上往下讀要一直回頭。改成上下都用同一套
+    # 面向分區之後，序號自然連續。
+    # 預印本仍獨立成最後一區：證據等級與主題是兩個維度，混在一起會讓讀者
+    # 誤以為預印本的結論跟期刊發表同級。
+    dimension_order = ["市場", "技術", "臨床", "法規"]
+    by_dimension = []
+    for name in dimension_order:
+        members = [a for a in rest if a["primary_tag"] == name]
+        if members:
+            by_dimension.append({"label": name, "articles": members})
+    # 面向對不上四類的（舊期數的 primary_tag）歸到最後，不要默默消失
+    others = [a for a in rest if a["primary_tag"] not in dimension_order]
+    if others:
+        by_dimension.append({"label": "其他", "articles": others})
+
+    ordered = [a for group in by_dimension for a in group["articles"]] + preprint_articles
     for n, a in enumerate(ordered, 1):
         a["display_num"] = n
-    groups = dimension_groups(
-        [{"num": a["display_num"], "dimension": a["primary_tag"], "title": a["headline"]}
-         for a in ordered if a["primary_tag"] in ("市場", "技術", "臨床", "法規")]
-    ) or tldr_display_groups(tldr)
+    # 導讀要跟下方的分區一模一樣，包含預印本那一組：先前只按面向分組，
+    # 預印本被按它的主題混進各組，導讀的序號就又跳成 01、02、03、04、09、05
+    # （2026-10-07 實測）。目錄跟內容的順序必須一致。
+    digest_groups = [
+        {
+            "label": group["label"],
+            "entries": [f"{a['display_num']:02d}　{a['headline']}" for a in group["articles"]],
+        }
+        for group in by_dimension
+    ]
+    if preprint_articles:
+        digest_groups.append(
+            {
+                "label": "研究預印本",
+                "entries": [
+                    f"{a['display_num']:02d}　{a['headline']}" for a in preprint_articles
+                ],
+            }
+        )
+    groups = digest_groups or tldr_display_groups(tldr)
 
     env = Environment(loader=FileSystemLoader(str(ROOT / "templates")))
     html = env.get_template("email_issue.html.jinja").render(
@@ -342,8 +370,7 @@ def main() -> None:
         issue_date=issue["issue_date"],
         issue_no=issue["id"],
         articles=articles,
-        primary_articles=primary_articles,
-        extra_articles=extra_articles,
+        dimension_sections=by_dimension,
         preprint_articles=preprint_articles,
         site_url=SITE_URL,
     )

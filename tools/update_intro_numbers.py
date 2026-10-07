@@ -67,7 +67,12 @@ def main() -> None:
 
     text = src.read_text(encoding="utf-8")
     # 這三處是會過期的數字，逐一換掉。找不到就不動，寧可留舊字也不要改錯位置。
-    text = re.sub(r"共 \*\*\d+ 則\*\*", f"共 **{published} 則**", text, count=1)
+    # 2026-10-07 放寬：原本只比對「共 **N 則**」，而開場白寫的是
+    # 「共 **N 則新聞報導**」，字樣對不上就靜默不改，結果開場白寫 10 則、
+    # 信底的問答寫 9 則，同一封信自相矛盾。改成允許「則」後面接字。
+    text = re.sub(
+        r"共 \*\*\d+ 則([^*]*)\*\*", lambda m: f"共 **{published} 則{m.group(1)}**", text, count=1
+    )
     text = re.sub(r"今天一共抓進來 [\d,]+ 篇", f"今天一共抓進來 {scanned} 篇", text, count=1)
     text = re.sub(
         r"直接相關的報導是 \*\*\d+ 則\*\*",
