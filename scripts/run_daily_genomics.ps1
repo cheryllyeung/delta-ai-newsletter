@@ -33,6 +33,20 @@ function Write-Log([string]$msg) {
     Add-Content -Path $log -Value $line -Encoding utf8
 }
 
+# 先確認沒有前一次沒跑完的程序（2026-10-07 加）。
+# 昨天修好 BOM 之後排程第一次真的開始跑，立刻暴露下一個問題：10/6 下午啟動的
+# 那次卡在載 embedding 模型，隔天 08:54 又啟動一次，兩個程序互相鎖住資料庫，
+# 結果兩天都沒出刊。有舊程序就先砍掉，再加總時限避免又卡一整天。
+$stale = Get-CimInstance Win32_Process -Filter "Name='python.exe'" |
+    Where-Object { $_.CommandLine -like '*ingest_topics*' -or $_.CommandLine -like '*compose_topic_issue*' }
+if ($stale) {
+    foreach ($proc in $stale) {
+        Write-Log ("!! 發現前一次沒跑完的程序 PID {0}，先終止：{1}" -f $proc.ProcessId, $proc.CommandLine.Substring(0, [Math]::Min(70, $proc.CommandLine.Length)))
+        Stop-Process -Id $proc.ProcessId -Force -ErrorAction SilentlyContinue
+    }
+    Start-Sleep -Seconds 3
+}
+
 Write-Log "=== 開始，出刊日期 $IssueDate ==="
 
 # 步驟一：抓取與分析。2026-09-11 拿掉每日建圖：建圖那步在這台無 GPU 的
@@ -40,8 +54,21 @@ Write-Log "=== 開始，出刊日期 $IssueDate ==="
 # 圖譜改成有需要時手動跑 tools/backfill_graph_extraction.py。也不再每天
 # 起 Neo4j。失敗不接著出刊。
 Write-Log "--- ingest_topics ---"
-& python -X utf8 -u -m scripts.ingest_topics --concurrency $Concurrency 2>&1 |
-    ForEach-Object { Add-Content -Path $log -Value $_ -Encoding utf8 }
+$job = Start-Job -ScriptBlock {
+    param($repo, $conc)
+    Set-Location $repo
+    & python -X utf8 -u -m scripts.ingest_topics --concurrency $conc 2>&1
+} -ArgumentList $repo, $Concurrency
+if (Wait-Job $job -Timeout 5400) {
+    Receive-Job $job | ForEach-Object { Add-Content -Path $log -Value $_ -Encoding utf8 }
+} else {
+    Write-Log "!! 抓取超過 90 分鐘仍未完成，中止這次（下次重跑會接續已完成的部分）"
+    Stop-Job $job
+    Receive-Job $job | ForEach-Object { Add-Content -Path $log -Value $_ -Encoding utf8 }
+    Remove-Job $job -Force
+    exit 1
+}
+Remove-Job $job -Force
 $ingestCode = $LASTEXITCODE
 Write-Log "ingest_topics 結束，exit code $ingestCode"
 if ($ingestCode -ne 0) {
